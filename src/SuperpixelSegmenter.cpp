@@ -34,9 +34,49 @@ void SuperpixelSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& dep
     return;
 }
 
+bool SuperpixelSegmenter::notReceivedDepthImage()
+{
+    return (depth_image_msg_ == nullptr);
+}
+
+bool SuperpixelSegmenter::notReceivedLabelImage()
+{
+    return (label_image_msg_ == nullptr);
+}
+
+bool SuperpixelSegmenter::notReceivedNormalImage()
+{
+    return (normal_image_msg_ == nullptr);
+}
+
+bool SuperpixelSegmenter::notReceivedImage()
+{
+    bool notReceivedDepth = notReceivedDepthImage();
+    bool notReceivedLabel = notReceivedLabelImage();
+    bool notReceivedNormal = notReceivedNormalImage();
+
+    if (notReceivedDepth)
+        ROS_WARN_STREAM("Not received depth image.");
+
+    if (notReceivedLabel)
+        ROS_WARN_STREAM("Not received label image.");
+
+    if (notReceivedNormal)
+        ROS_WARN_STREAM("Not received normal image.");
+
+    return (notReceivedDepth || notReceivedLabel || notReceivedNormal);
+}
+
+
 void SuperpixelSegmenter::runSegmentation()
 {
     std::lock_guard<std::mutex> lock(img_mutex_);
+
+    if (notReceivedImage())
+    {
+        ROS_WARN("Not ready to segment, no images received yet.");
+        return;
+    }
 
     try
     {
@@ -51,8 +91,9 @@ void SuperpixelSegmenter::runSegmentation()
     }
 
     // Sanity check middle pixel
-    
-
+    ROS_INFO_STREAM("Depth image size --- rows: " << depth_image_ptr_->image.rows << ", cols: " << depth_image_ptr_->image.cols);
+    ROS_INFO_STREAM("Label image size --- rows: " << label_image_ptr_->image.rows << ", cols: " << label_image_ptr_->image.cols);
+    ROS_INFO_STREAM("Normal image size --- rows: " << normal_image_ptr_->image.rows << ", cols: " << normal_image_ptr_->image.cols);
 
     return;
 }

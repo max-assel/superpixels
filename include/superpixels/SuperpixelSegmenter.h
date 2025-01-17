@@ -8,6 +8,10 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+// Include CvBridge, Image Transport, Image msg
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+
 class SuperpixelSegmenter
 {
     public:
@@ -16,6 +20,14 @@ class SuperpixelSegmenter
         void runSegmentation();
 
     private:
+        bool notReceivedImage();
+
+        bool notReceivedDepthImage();
+
+        bool notReceivedLabelImage();
+
+        bool notReceivedNormalImage();
+
         void allImageCallback(const sensor_msgs::ImageConstPtr& depth_image, 
                                 const sensor_msgs::ImageConstPtr& label_image, 
                                 const sensor_msgs::ImageConstPtr& normal_image);
@@ -28,13 +40,13 @@ class SuperpixelSegmenter
         image_transport::SubscriberFilter label_image_sub_;
         image_transport::SubscriberFilter normal_image_sub_;
 
-        sensor_msgs::ImageConstPtr depth_image_msg_;
-        sensor_msgs::ImageConstPtr label_image_msg_;
-        sensor_msgs::ImageConstPtr normal_image_msg_;
+        sensor_msgs::ImageConstPtr depth_image_msg_ = nullptr;
+        sensor_msgs::ImageConstPtr label_image_msg_ = nullptr;
+        sensor_msgs::ImageConstPtr normal_image_msg_ = nullptr;
 
-        cv_bridge::CvImagePtr depth_image_ptr_;
-        cv_bridge::CvImagePtr label_image_ptr_;
-        cv_bridge::CvImagePtr normal_image_ptr_;
+        cv_bridge::CvImagePtr depth_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr label_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr normal_image_ptr_ = nullptr;
 
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
         boost::shared_ptr<MsgSynchronizer> msg_sync_;
