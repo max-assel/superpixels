@@ -1,0 +1,8 @@
+<launch>
+
+    <!-- Superpixel Segmentation -->
+    <node pkg="superpixels" type="superpixel_segmentation_node" name="superpixel_segmentation_node" output="screen">
+
+    </node>
+
+</launch>
