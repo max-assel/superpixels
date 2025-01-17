@@ -147,9 +147,11 @@ void SuperpixelSegmenter::runSegmentation()
         }
     }
 
-    ROS_INFO_STREAM("Depth image sparsity ratio: " << float(non_nan_depth_count) / (rows * cols));
-    ROS_INFO_STREAM("Label image sparsity ratio: " << float(non_nan_label_count) / (rows * cols));
-    ROS_INFO_STREAM("Normal image sparsity ratio: " << float(non_nan_normal_count) / (rows * cols));
+    int total_pixels = M_PI * (rows / 2) * (cols / 2);
+
+    ROS_INFO_STREAM("Depth image sparsity ratio: " << float(non_nan_depth_count) / total_pixels);
+    ROS_INFO_STREAM("Label image sparsity ratio: " << float(non_nan_label_count) / total_pixels);
+    ROS_INFO_STREAM("Normal image sparsity ratio: " << float(non_nan_normal_count) / total_pixels);
 
     return;
 }
