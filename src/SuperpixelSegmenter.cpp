@@ -90,6 +90,14 @@ void SuperpixelSegmenter::runSegmentation()
         return;
     }
 
+    if (depth_image_ptr_->image.size() != label_image_ptr_->image.size() || 
+        depth_image_ptr_->image.size() != normal_image_ptr_->image.size() ||
+        label_image_ptr_->image.size() != normal_image_ptr_->image.size())
+    {
+        ROS_ERROR("Image sizes do not match.");
+        return;
+    }
+
     // Sanity check middle pixel
     ROS_INFO_STREAM("Depth image size --- rows: " << depth_image_ptr_->image.rows << ", cols: " << depth_image_ptr_->image.cols);
     ROS_INFO_STREAM("Label image size --- rows: " << label_image_ptr_->image.rows << ", cols: " << label_image_ptr_->image.cols);
