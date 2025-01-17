@@ -28,8 +28,17 @@ class SuperpixelSegmenter
         image_transport::SubscriberFilter label_image_sub_;
         image_transport::SubscriberFilter normal_image_sub_;
 
+        sensor_msgs::ImageConstPtr depth_image_msg_;
+        sensor_msgs::ImageConstPtr label_image_msg_;
+        sensor_msgs::ImageConstPtr normal_image_msg_;
+
+        cv_bridge::CvImagePtr depth_image_ptr_;
+        cv_bridge::CvImagePtr label_image_ptr_;
+        cv_bridge::CvImagePtr normal_image_ptr_;
+
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
         boost::shared_ptr<MsgSynchronizer> msg_sync_;
 
+        std::mutex img_mutex_;
 
 };

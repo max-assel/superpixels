@@ -2,7 +2,9 @@
 
     <!-- Superpixel Segmentation -->
     <node pkg="superpixels" type="superpixel_segmentation_node" name="superpixel_segmentation_node" output="screen">
-
+        <param name="depth_image_topic" value="/egocylinder/floor_image" />
+        <param name="label_image_topic" value="/egocylinder/floor_labels" />
+        <param name="normal_image_topic" value="/egocylinder/floor_normals" />
     </node>
 
 </launch>
