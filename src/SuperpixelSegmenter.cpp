@@ -98,10 +98,58 @@ void SuperpixelSegmenter::runSegmentation()
         return;
     }
 
+    int rows = depth_image_ptr_->image.rows;
+    int cols = depth_image_ptr_->image.cols;
+
     // Sanity check middle pixel
     ROS_INFO_STREAM("Depth image size --- rows: " << depth_image_ptr_->image.rows << ", cols: " << depth_image_ptr_->image.cols);
     ROS_INFO_STREAM("Label image size --- rows: " << label_image_ptr_->image.rows << ", cols: " << label_image_ptr_->image.cols);
     ROS_INFO_STREAM("Normal image size --- rows: " << normal_image_ptr_->image.rows << ", cols: " << normal_image_ptr_->image.cols);
+
+    int non_nan_depth_count = 0;
+    int non_nan_label_count = 0;
+    int non_nan_normal_count = 0;
+
+    for (int r = 0; r < rows; r++)
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            if (depth_image_ptr_->image.at<float>(r, c) != depth_image_ptr_->image.at<float>(r, c))
+            {
+                // ROS_ERROR_STREAM("Depth image has NaN value at row: " << r << ", col: " << c);
+                // return;
+            } else
+            {
+                // ROS_INFO_STREAM("Depth image value at row: " << r << ", col: " << c << " is: " << depth_image_ptr_->image.at<float>(r, c));
+                non_nan_depth_count++;
+            }
+
+            if (label_image_ptr_->image.at<uint8_t>(r, c) != label_image_ptr_->image.at<uint8_t>(r, c))
+            {
+                // ROS_ERROR_STREAM("Label image has NaN value at row: " << r << ", col: " << c);
+                // return;
+            } else
+            {
+                non_nan_label_count++;
+            }
+
+            if (normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] ||
+                normal_image_ptr_->image.at<cv::Vec3f>(r, c)[1] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[1] ||
+                normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2])
+            {
+                // ROS_ERROR_STREAM("Normal image has NaN value at row: " << r << ", col: " << c);
+                // return;
+            } else
+            {
+                // ROS_INFO_STREAM("Normal image value at row: " << r << ", col: " << c << " is: " << normal_image_ptr_->image.at<cv::Vec3f>(r, c));
+                non_nan_normal_count++;
+            }
+        }
+    }
+
+    ROS_INFO_STREAM("Depth image sparsity ratio: " << float(non_nan_depth_count) / (rows * cols));
+    ROS_INFO_STREAM("Label image sparsity ratio: " << float(non_nan_label_count) / (rows * cols));
+    ROS_INFO_STREAM("Normal image sparsity ratio: " << float(non_nan_normal_count) / (rows * cols));
 
     return;
 }
