@@ -59,15 +59,15 @@ target_compile_options(${PROJECT_NAME} PUBLIC ${FLAGS})
 
 # Superpixel algorithm node
 
-add_executable(superpixel_segmentation_node
-        src/SuperpixelSegmentationNode.cpp
+add_executable(superpixel_depth_segmentation_node
+        src/SuperpixelDepthSegmentationNode.cpp
         )
-add_dependencies(superpixel_segmentation_node
+add_dependencies(superpixel_depth_segmentation_node
         ${PROJECT_NAME}
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
         )
-target_link_libraries(superpixel_segmentation_node
+target_link_libraries(superpixel_depth_segmentation_node
         ${PROJECT_NAME}
         ${catkin_LIBRARIES}
         )
