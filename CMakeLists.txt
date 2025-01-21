@@ -41,7 +41,7 @@ include_directories(
 
 # Main library
 add_library(${PROJECT_NAME}
-    src/SuperpixelSegmenter.cpp
+    src/SuperpixelDepthSegmenter.cpp
 )
 
 add_dependencies(${PROJECT_NAME} 

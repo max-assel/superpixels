@@ -1,6 +1,6 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : nh_(nh), it_(nh)
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : SuperpixelSegmenter(nh), nh_(nh), it_(nh)
 {
     std::string depth_image_topic =  "/egocylinder/floor_image";
     std::string label_image_topic =  "/egocylinder/floor_labels";
@@ -67,6 +67,10 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
     return (notReceivedDepth || notReceivedLabel || notReceivedNormal);
 }
 
+double SuperpixelDepthSegmenter::calculateDistance()
+{
+    return 0.0;
+}
 
 void SuperpixelDepthSegmenter::runSegmentation()
 {

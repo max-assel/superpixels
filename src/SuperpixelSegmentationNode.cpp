@@ -1,21 +1,21 @@
 #include <ros/init.h>
 #include <ros/node_handle.h>
 
-#include <superpixels/SuperpixelSegmenter.h>
+#include <superpixels/SuperpixelDepthSegmenter.h>
 
 int main(int argc, char** argv) 
 {
     ros::init(argc, argv, "superpixel_node");
     ros::NodeHandle nh;
 
-    SuperpixelSegmenter superpixel_segmenter(nh);
+    SuperpixelSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nh);
 
     ros::Rate loop_rate(30.0); // 30 Hz
 
     while (ros::ok())
     {
         // Do something
-        superpixel_segmenter.runSegmentation();
+        superpixel_segmenter->runSegmentation();
     
         ros::spinOnce();
         loop_rate.sleep();
