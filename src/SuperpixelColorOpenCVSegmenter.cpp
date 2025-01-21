@@ -52,7 +52,7 @@ SuperpixelColorOpenCVSegmenter::SuperpixelColorOpenCVSegmenter(ros::NodeHandle n
     slic_ = cv::ximgproc::createSuperpixelSLIC(color_image_ptr_->image, algorithm, region_size, ruler);
 
     color_image_pub_ = it.advertise("/superpixels/color", 1);
-    mask_image_pub_ = it.advertise("/superpixels/mask", 1);
+    overlay_image_pub_ = it.advertise("/superpixels/overlaid_color", 1);
 
     return;
 }
@@ -62,30 +62,93 @@ void SuperpixelColorOpenCVSegmenter::runSegmentation()
     color_image_ptr_->header.stamp = ros::Time::now();
 
     // Superpixels algorithm
-    cv::Mat contourMask = runSuperpixels();
+    cv::Mat contourMask;
+    cv::Mat labels;
+    int num_superpixels;
+    runSuperpixels(contourMask, labels, num_superpixels);
 
-    // mask_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    // mask_image_ptr_->header = color_image_ptr_->header;
-    // mask_image_ptr_->encoding = color_image_ptr_->encoding;
-    // mask_image_ptr_->image = cv::Mat::zeros(color_image_ptr_->image.size(), CV_8UC3);
-    
+    cv::Mat overlaidContours;
+    overlayContoursWithMeans(overlaidContours, contourMask, labels, num_superpixels);
+
+    // Overlay contours on top of image
+    // cv::Mat overlay;
+    // color_image_ptr_->image.copyTo(overlay);
+    overlaidContours.setTo(cv::Scalar(0, 0, 0), contourMask);
+
+    overlay_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    overlay_image_ptr_->header = color_image_ptr_->header;
+    overlay_image_ptr_->encoding = color_image_ptr_->encoding;
+    overlay_image_ptr_->image = overlaidContours;
+
     // ROS_INFO_STREAM("contourMask middle pixel: " << contourMask.at<uint8_t>(contourMask.rows/2, contourMask.cols/2));
 
     color_image_pub_.publish(color_image_ptr_->toImageMsg());
-    // mask_image_pub_.publish(mask_image_ptr_->toImageMsg());
+    overlay_image_pub_.publish(overlay_image_ptr_->toImageMsg());
 
     return;
 }
 
-cv::Mat SuperpixelColorOpenCVSegmenter::runSuperpixels()
+void SuperpixelColorOpenCVSegmenter::overlayContoursWithMeans(cv::Mat & overlaidContours, const cv::Mat & contourMask, const cv::Mat & labels, const int & num_superpixels)
+{
+    std::vector<cv::Vec3i> means_int(num_superpixels, cv::Vec3i(0, 0, 0));
+    std::vector<cv::Vec3b> means_byte(num_superpixels, cv::Vec3b(0, 0, 0));
+    std::vector<int> counts(num_superpixels, 0);
+
+    for (int r = 0; r < labels.rows; r++)
+    {
+        for (int c = 0; c < labels.cols; c++)
+        {
+            // ROS_INFO_STREAM("[" << r << ", " << c << "]");
+            cv::Vec3b color = color_image_ptr_->image.at<cv::Vec3b>(r, c);
+            cv::Vec3i color_int = color;
+            // ROS_INFO_STREAM("       color: " << color);
+            const int label = labels.at<int>(r, c);
+            // ROS_INFO_STREAM("       label: " << label);
+
+            // ROS_INFO_STREAM("       pre-counts[" << label << "]: " << counts[label]);
+            // ROS_INFO_STREAM("       pre-means_int[" << label << "]: " << means_int[label]);            
+
+            counts[label] = counts[label] + 1;
+            // ROS_INFO_STREAM("       counts[" << label << "]: " << counts[label]);
+            cv::Vec3i mult = means_int[label] * (counts[label] - 1);
+            // ROS_INFO_STREAM("       mult: " << mult);
+            cv::Vec3i num = mult + color_int;
+            // ROS_INFO_STREAM("       num: " << num);
+            means_int[label] = (num) / counts[label];
+            // ROS_INFO_STREAM("       means_int[" << label << "]: " << means_int[label]);            
+        }
+    }
+
+    // ROS_INFO_STREAM("means:");
+    for (int i = 0; i < num_superpixels; i++)
+    {
+        means_byte[i] = means_int[i];
+        // ROS_INFO_STREAM("   [" << i << "]: " << means[i]);
+    }
+
+    overlaidContours = cv::Mat::zeros(labels.size(), CV_8UC3);
+    for (int r = 0; r < labels.rows; r++)
+    {
+        for (int c = 0; c < labels.cols; c++)
+        {
+            const int label = labels.at<int>(r, c);
+            overlaidContours.at<cv::Vec3b>(r, c) = means_byte[label];
+        }
+    }
+}
+
+void SuperpixelColorOpenCVSegmenter::runSuperpixels(cv::Mat & contourMask, cv::Mat & labels, int & num_superpixels)
 {
     // Run superpixels algorithm
     slic_->iterate(num_iterations_);
 
-    cv::Mat contourMask;
     slic_->getLabelContourMask(contourMask, true);
+
+    slic_->getLabels(labels);
     
-    return contourMask;
+    num_superpixels = slic_->getNumberOfSuperpixels();
+
+    return;
 }
 
 double SuperpixelColorOpenCVSegmenter::calculateDistance()
