@@ -1,4 +1,5 @@
 <launch>
+    <param name="config_path"           value="$(find superpixels)/cfg/depth.yaml"/>
 
     <!-- Superpixel Segmentation -->
     <node pkg="superpixels" type="superpixel_depth_segmentation_node" name="superpixel_depth_segmentation_node" output="screen">

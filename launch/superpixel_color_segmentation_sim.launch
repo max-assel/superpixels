@@ -1,4 +1,5 @@
 <launch>
+    <param name="config_path"           value="$(find superpixels)/cfg/color.yaml"/>
 
     <!-- Superpixel Segmentation -->
     <node pkg="superpixels" type="superpixel_color_segmentation_node" name="superpixel_color_segmentation_node" output="screen">

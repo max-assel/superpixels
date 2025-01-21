@@ -1,8 +1,14 @@
 #include <superpixels/SuperpixelColorSegmenter.h>
 
-SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh) : SuperpixelSegmenter(nh), nh_(nh) 
+SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std::string & config_path) : SuperpixelSegmenter(nh, config_path), nh_(nh)
 {
+
     image_transport::ImageTransport it(nh);
+
+    // Load configs
+    YAML::Node configYamlNode = YAML::LoadFile(config_path);
+
+    params_.k_ = configYamlNode["superpixels"]["k"].as<int>();
 
     color_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
@@ -29,9 +35,24 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh) : Superpi
 
 void SuperpixelColorSegmenter::runSegmentation()
 {
+    // Superpixels algorithm
+
     color_image_ptr_->header.stamp = ros::Time::now();
 
     color_image_pub_.publish(color_image_ptr_->toImageMsg());
+
+    return;
+}
+
+void SuperpixelColorSegmenter::runSuperpixels()
+{
+    // Superpixels algorithm
+
+    // Initialize clust centers via uniform sampling
+
+    // Move clusters to lowest gradient position in a 3x3 neighborhood (don't know what this means quite yet)
+
+
 
     return;
 }

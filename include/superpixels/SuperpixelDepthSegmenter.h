@@ -19,7 +19,7 @@
 class SuperpixelDepthSegmenter : public SuperpixelSegmenter
 {
     public:
-        SuperpixelDepthSegmenter(ros::NodeHandle nh);
+        SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path);
 
         void runSegmentation();
 

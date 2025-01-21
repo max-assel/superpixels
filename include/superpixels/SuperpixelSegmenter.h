@@ -6,7 +6,7 @@
 class SuperpixelSegmenter 
 {
     public:
-        SuperpixelSegmenter(ros::NodeHandle nh) {}
+        SuperpixelSegmenter(ros::NodeHandle nh, const std::string & config_path) {}
 
         virtual void runSegmentation() = 0;
 

@@ -1,6 +1,6 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : SuperpixelSegmenter(nh), nh_(nh)
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path) : SuperpixelSegmenter(nh, config_path), nh_(nh)
 {
     image_transport::ImageTransport it(nh);
 
