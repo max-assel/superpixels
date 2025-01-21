@@ -14,10 +14,10 @@
 
 #include <math.h>
 
-class SuperpixelSegmenter
+class SuperpixelDepthSegmenter
 {
     public:
-        SuperpixelSegmenter(ros::NodeHandle nh);
+        SuperpixelDepthSegmenter(ros::NodeHandle nh);
 
         void runSegmentation();
 

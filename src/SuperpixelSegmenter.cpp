@@ -1,6 +1,6 @@
-#include <superpixels/SuperpixelSegmenter.h>
+#include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelSegmenter::SuperpixelSegmenter(ros::NodeHandle nh) : nh_(nh), it_(nh)
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : nh_(nh), it_(nh)
 {
     std::string depth_image_topic =  "/egocylinder/floor_image";
     std::string label_image_topic =  "/egocylinder/floor_labels";
@@ -15,16 +15,16 @@ SuperpixelSegmenter::SuperpixelSegmenter(ros::NodeHandle nh) : nh_(nh), it_(nh)
     normal_image_sub_.subscribe(it_, normal_image_topic, 3);
 
     msg_sync_ = boost::make_shared<MsgSynchronizer>(depth_image_sub_, label_image_sub_, normal_image_sub_, 10);
-    msg_sync_->registerCallback(boost::bind(&SuperpixelSegmenter::allImageCallback, this, _1, _2, _3));
+    msg_sync_->registerCallback(boost::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2, _3));
 }
 
-void SuperpixelSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
-                                            const sensor_msgs::ImageConstPtr& label_image_msg, 
-                                            const sensor_msgs::ImageConstPtr& normal_image_msg)
+void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
+                                                const sensor_msgs::ImageConstPtr& label_image_msg, 
+                                                const sensor_msgs::ImageConstPtr& normal_image_msg)
 {   
     std::lock_guard<std::mutex> lock(img_mutex_);
 
-    // ROS_INFO_STREAM("[SuperpixelSegmenter::allImageCallback]");
+    // ROS_INFO_STREAM("[SuperpixelDepthSegmenter::allImageCallback]");
     // ROS_INFO_STREAM("       time stamp: " << depth_image->header.stamp);
 
     depth_image_msg_ = depth_image_msg;
@@ -34,22 +34,22 @@ void SuperpixelSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& dep
     return;
 }
 
-bool SuperpixelSegmenter::notReceivedDepthImage()
+bool SuperpixelDepthSegmenter::notReceivedDepthImage()
 {
     return (depth_image_msg_ == nullptr);
 }
 
-bool SuperpixelSegmenter::notReceivedLabelImage()
+bool SuperpixelDepthSegmenter::notReceivedLabelImage()
 {
     return (label_image_msg_ == nullptr);
 }
 
-bool SuperpixelSegmenter::notReceivedNormalImage()
+bool SuperpixelDepthSegmenter::notReceivedNormalImage()
 {
     return (normal_image_msg_ == nullptr);
 }
 
-bool SuperpixelSegmenter::notReceivedImage()
+bool SuperpixelDepthSegmenter::notReceivedImage()
 {
     bool notReceivedDepth = notReceivedDepthImage();
     bool notReceivedLabel = notReceivedLabelImage();
@@ -68,7 +68,7 @@ bool SuperpixelSegmenter::notReceivedImage()
 }
 
 
-void SuperpixelSegmenter::runSegmentation()
+void SuperpixelDepthSegmenter::runSegmentation()
 {
     std::lock_guard<std::mutex> lock(img_mutex_);
 
