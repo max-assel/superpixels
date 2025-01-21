@@ -42,6 +42,7 @@ include_directories(
 # Main library
 add_library(${PROJECT_NAME}
     src/SuperpixelDepthSegmenter.cpp
+    src/SuperpixelColorSegmenter.cpp
 )
 
 add_dependencies(${PROJECT_NAME} 
@@ -68,6 +69,21 @@ add_dependencies(superpixel_depth_segmentation_node
         ${catkin_EXPORTED_TARGETS}
         )
 target_link_libraries(superpixel_depth_segmentation_node
+        ${PROJECT_NAME}
+        ${catkin_LIBRARIES}
+        )
+
+# Superpixel algorithm node
+
+add_executable(superpixel_color_segmentation_node
+        src/SuperpixelColorSegmentationNode.cpp
+        )
+add_dependencies(superpixel_color_segmentation_node
+        ${PROJECT_NAME}
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+        ${catkin_EXPORTED_TARGETS}
+        )
+target_link_libraries(superpixel_color_segmentation_node
         ${PROJECT_NAME}
         ${catkin_LIBRARIES}
         )
