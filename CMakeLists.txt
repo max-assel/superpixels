@@ -41,8 +41,9 @@ include_directories(
 
 # Main library
 add_library(${PROJECT_NAME}
-    src/SuperpixelDepthSegmenter.cpp
+    src/SuperpixelColorOpenCVSegmenter.cpp
     src/SuperpixelColorSegmenter.cpp
+    src/SuperpixelDepthSegmenter.cpp
 )
 
 add_dependencies(${PROJECT_NAME} 
@@ -58,7 +59,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC ${FLAGS})
 
 ## Declare a C++ executable
 
-# Superpixel algorithm node
+# Superpixel algorithm node for depth images (custom implementation)
 
 add_executable(superpixel_depth_segmentation_node
         src/SuperpixelDepthSegmentationNode.cpp
@@ -73,7 +74,7 @@ target_link_libraries(superpixel_depth_segmentation_node
         ${catkin_LIBRARIES}
         )
 
-# Superpixel algorithm node
+# Superpixel algorithm node for color images (custom implementation)
 
 add_executable(superpixel_color_segmentation_node
         src/SuperpixelColorSegmentationNode.cpp
@@ -84,6 +85,21 @@ add_dependencies(superpixel_color_segmentation_node
         ${catkin_EXPORTED_TARGETS}
         )
 target_link_libraries(superpixel_color_segmentation_node
+        ${PROJECT_NAME}
+        ${catkin_LIBRARIES}
+        )
+
+# Superpixel algorithm node for color images (OTS implementation)
+
+add_executable(superpixel_color_opencv_segmentation_node
+        src/SuperpixelColorOpenCVSegmentationNode.cpp
+        )
+add_dependencies(superpixel_color_opencv_segmentation_node
+        ${PROJECT_NAME}
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+        ${catkin_EXPORTED_TARGETS}
+        )
+target_link_libraries(superpixel_color_opencv_segmentation_node
         ${PROJECT_NAME}
         ${catkin_LIBRARIES}
         )
