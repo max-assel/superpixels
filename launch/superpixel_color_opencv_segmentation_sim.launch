@@ -1,0 +1,11 @@
+<launch>
+    <param name="config_path"           value="$(find superpixels)/cfg/color_opencv.yaml"/>
+
+    <!-- Superpixel Segmentation -->
+    <node pkg="superpixels" type="superpixel_color_opencv_segmentation_node" name="superpixel_color_opencv_segmentation_node" output="screen">
+    </node>
+
+    <!-- Launch rviz -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find superpixels)/rviz/superpixels_color_opencv.rviz" output="screen"/>
+
+</launch>
