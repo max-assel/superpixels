@@ -1,2 +1,13 @@
+# parameters taken from https://amroamroamro.github.io/mexopencv/opencv_contrib/superpixels_demo.html
 superpixels:
-  k: 100
+  algorithm: SLIC           # Options: [SLIC, SLICO, MSLIC, SEEDS, LSC]
+  num_superpixels: 100      # SEEDS number of pixels
+  num_levels: 4             # SEEDS number of levels
+  prior: 2                  # SEEDS prior
+  num_histogram_bins: 5     # SEEDS histogram bins
+  double_step: false        # SEEDS two steps
+  region_size: 20           # SLIC/SLICO/MSLIC/LSC average superpixel size
+  ruler: 15.0               # SLIC/MSLIC smoothness (spatial regularization)
+  ratio: 0.075              # LSC compactness
+  min_element_size: 25      # SLIC/SLICO/MSLIC/LSC minimum component size percentage
+  num_iterations: 10        # Iterations

@@ -13,6 +13,10 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <opencv2/ximgproc/lsc.hpp>
+#include <opencv2/ximgproc/slic.hpp>
+#include <opencv2/ximgproc/seeds.hpp>
+
 /**
 * \brief Base class for superpixel segmenter
 */
@@ -24,23 +28,20 @@ class SuperpixelColorOpenCVSegmenter : public SuperpixelSegmenter
         void runSegmentation();
 
     private:
-        void runSuperpixels();
+        cv::Mat runSuperpixels();
 
         double calculateDistance();
 
         ros::NodeHandle nh_;
 
         cv_bridge::CvImagePtr color_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr superpixel_label_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr superpixel_distance_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr mask_image_ptr_ = nullptr;
 
         image_transport::Publisher color_image_pub_;
+        image_transport::Publisher mask_image_pub_;
 
-        struct SuperpixelParams
-        {
-            int k_ = 0; // Desired number of approximately equally-sized superpixels
-        };
+        cv::Ptr<cv::ximgproc::SuperpixelSLIC> slic_;
 
-        SuperpixelParams params_;
+        int num_iterations_ = 0;
 
 };

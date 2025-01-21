@@ -17,7 +17,7 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     const std::string image_name = "flower.jpg";
 
     color_image_ptr_->header.stamp = ros::Time::now();
-    color_image_ptr_->header.frame_id = "camera_link";
+    color_image_ptr_->header.frame_id = "N/A";
     color_image_ptr_->header.seq = 0;
     color_image_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
     color_image_ptr_->image = cv::imread(superixels_path + "/images/" + image_name, cv::IMREAD_COLOR);
