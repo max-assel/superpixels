@@ -40,7 +40,7 @@ class SuperpixelDepthSegmenter : public SuperpixelSegmenter
 
         ros::NodeHandle nh_;
 
-        image_transport::ImageTransport it_;
+        // image_transport::ImageTransport it_;
         
         image_transport::SubscriberFilter depth_image_sub_;
         image_transport::SubscriberFilter label_image_sub_;

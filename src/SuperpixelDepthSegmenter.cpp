@@ -1,7 +1,9 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : SuperpixelSegmenter(nh), nh_(nh), it_(nh)
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : SuperpixelSegmenter(nh), nh_(nh)
 {
+    image_transport::ImageTransport it(nh);
+
     std::string depth_image_topic =  "/egocylinder/floor_image";
     std::string label_image_topic =  "/egocylinder/floor_labels";
     std::string normal_image_topic = "/egocylinder/floor_normals";
@@ -10,9 +12,9 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh) : Superpi
     nh_.getParam("label_image_topic", label_image_topic);
     nh_.getParam("normal_image_topic", normal_image_topic);
 
-    depth_image_sub_.subscribe(it_, depth_image_topic, 3);
-    label_image_sub_.subscribe(it_, label_image_topic, 3);
-    normal_image_sub_.subscribe(it_, normal_image_topic, 3);
+    depth_image_sub_.subscribe(it, depth_image_topic, 3);
+    label_image_sub_.subscribe(it, label_image_topic, 3);
+    normal_image_sub_.subscribe(it, normal_image_topic, 3);
 
     msg_sync_ = boost::make_shared<MsgSynchronizer>(depth_image_sub_, label_image_sub_, normal_image_sub_, 10);
     msg_sync_->registerCallback(boost::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2, _3));
