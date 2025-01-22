@@ -78,13 +78,13 @@ void SuperpixelColorSegmenter::run()
     // Superpixels algorithm
     generateSuperpixels();
 
+    // Create connectivity
+    // createConnectivity();
+
     timeEnd = std::chrono::steady_clock::now();
     int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
     double total_time_sec = total_time / 1.0e6; 
     ROS_INFO_STREAM("Superpixels took: " << total_time_sec << " seconds");
-
-    // Create connectivity
-    // createConnectivity(lab_image);
 
     // color_image_ptr_->header.stamp = ros::Time::now();
 
@@ -214,13 +214,76 @@ void SuperpixelColorSegmenter::generateSuperpixels()
     return;
 }
 
-void SuperpixelColorSegmenter::createConnectivity(const cv::Mat & image)
+void SuperpixelColorSegmenter::createConnectivity()
 {
+    int label = 0, adjlabel = 0;
+    const int lims = (lab_image.cols * lab_image.rows) / centers_.size();
+    
+    const int dx4[4] = {-1, 0, 1, 0};
+    const int dy4[4] = {0, -1, 0, 1};       
+
     // Create connectivity
 
-    // Calculate distance between superpixels
+    /* Initialize the new cluster matrix. */
+    cv::Mat new_clusters = cv::Mat(lab_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
-    // Create graph
+    /* Go through all the pixels. */
+    for (int c = 0; c < lab_image.cols; c++) 
+    {
+        for (int r = 0; r < lab_image.rows; r++) 
+        {
+            if (new_clusters.at<int>(r, c) == -1) // if pixel is not assigned
+            {
+                std::vector<cv::Point> elements;
+                elements.push_back(cv::Point(c, r));
+                
+                /* Find an adjacent label, for possible use later. */
+                for (int k = 0; k < 4; k++) 
+                {
+                    int nc = c + dx4[k], nr = r + dy4[k];
+                    
+                    if (nc >= 0 && nc < lab_image.cols && nr >= 0 && nr < lab_image.rows) 
+                    {
+                        if (new_clusters.at<int>(nr, nc) >= 0) // if neighboring pixel is assigned
+                        {
+                            adjlabel = new_clusters.at<int>(nr, nc); 
+                        }
+                    }
+                }
+
+                int count = 1;
+                for (int i = 0; i < elements.size(); i++) 
+                {
+                    for (int k = 0; k < 4; k++) 
+                    {
+                        int nc = elements[i].x + dx4[k], nr = elements[i].y + dy4[k];
+                        
+                        if (nc >= 0 && nc < lab_image.cols && nr >= 0 && nr < lab_image.rows) 
+                        {
+                            if (new_clusters.at<int>(nr, nc) == -1 && clusters_.at<int>(r, c) == clusters_.at<int>(nr, nc)) 
+                            {
+                                elements.push_back(cv::Point(nc, nr));
+                                new_clusters.at<int>(nr, nc) = label;
+                                count += 1;
+                            }
+                        }
+                    }
+                }
+
+                /* Use the earlier found adjacent label if a segment size is less than a limit. */
+                if (count <= lims >> 2) 
+                {
+                    for (int i = 0; i < elements.size(); i++) 
+                    {
+                        new_clusters.at<int>(elements[i].y, elements[i].x) = adjlabel;
+                    }
+                    label -= 1;
+                }
+                label += 1;
+            }
+
+        }
+    }    
 
     return;
 }

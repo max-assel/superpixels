@@ -32,7 +32,7 @@ class SuperpixelColorSegmenter
     private:
         void generateSuperpixels();
 
-        void createConnectivity(const cv::Mat & image);
+        void createConnectivity();
 
         void preprocessing(); // cv::Mat & lab_image
 
