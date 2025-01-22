@@ -23,26 +23,29 @@ class SuperpixelColorSegmenter
 
         void run();
 
-        void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
-
-        void displayContours(cv::Mat & contours);
-
-        void displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image);
+        void visualize();
 
     private:
+
+        void reset_data();
+
+        void init_data();
+
+        void preprocessing(); // cv::Mat & lab_image
+
         void generateSuperpixels();
 
         void createConnectivity();
-
-        void preprocessing(); // cv::Mat & lab_image
 
         double computeDistance(const int & center_idx, const cv::Vec3b & color, const cv::Point & pixel);
 
         cv::Point findLocalMinimum(const cv::Mat & image, const cv::Point & center);
 
-        void reset_data();
+        void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
 
-        void init_data();
+        void displayContours(cv::Mat & contours);
+
+        void displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image);
 
         ros::NodeHandle nh_;
 
@@ -51,14 +54,11 @@ class SuperpixelColorSegmenter
         cv_bridge::CvImagePtr color_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr overlay_image_ptr_ = nullptr;
-        // cv_bridge::CvImagePtr superpixel_label_image_ptr_ = nullptr;
-        // cv_bridge::CvImagePtr superpixel_distance_image_ptr_ = nullptr;
 
         image_transport::Publisher color_image_pub_;
         image_transport::Publisher center_grid_image_pub_;
         image_transport::Publisher overlay_image_pub_;
 
-        // Adapted from: https://github.com/PSMM/SLIC-Superpixels/tree/master
         cv::Mat clusters_; // per-pixel cluster assignments
         cv::Mat distances_; // per-pixel distances to cluster center
         std::vector<std::vector<double>> centers_; // LAB/xy cluster centers

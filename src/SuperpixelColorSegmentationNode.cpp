@@ -38,9 +38,12 @@ int main(int argc, char** argv)
 
     while (ros::ok())
     {
-        // Do something
+        // Run algorithm
         superpixel_segmenter->run();
-    
+
+        // Visualize outputs
+        superpixel_segmenter->visualize();
+
         ros::spinOnce();
         loop_rate.sleep();
     }
