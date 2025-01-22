@@ -16,6 +16,11 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     params_.n_s_ = configYamlNode["superpixels"]["n_s"].as<int>();
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
 
+    ROS_INFO_STREAM("   params_.num_superpixels_: " << params_.num_superpixels_);
+    ROS_INFO_STREAM("   params_.n_c_: " << params_.n_c_);
+    ROS_INFO_STREAM("   params_.n_s_: " << params_.n_s_);
+    ROS_INFO_STREAM("   params_.num_iterations_: " << params_.num_iterations_);
+
     color_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     // read in example image
@@ -49,28 +54,29 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     center_grid_image_pub_ = it.advertise("/superpixels/center_grid", 1);
     overlay_image_pub_ = it.advertise("/superpixels/overlaid_color", 1);
 
+    // Pre-processing
+    preprocessing();
+
+    // Initialize data
+    init_data(); 
+
+    // ros::Duration(5.0).sleep(); // sleep for half a second
+
     return;
 }
 
 void SuperpixelColorSegmenter::run()
 {
-    // ROS_INFO_STREAM("[SuperpixelColorSegmenter::run]");
+    ROS_INFO_STREAM("[SuperpixelColorSegmenter::run]");
 
     std::chrono::steady_clock::time_point timeBegin, timeEnd;
     timeBegin = std::chrono::steady_clock::now();
 
-    // Pre-processing
-    cv::Mat lab_image;
-    preprocessing(lab_image);
-
     // Clear data
-    clear_data(); // TODO: add flag for warm-starting
-
-    // Initialize data
-    init_data(lab_image);
+    reset_data(); // TODO: add flag for warm-starting
 
     // Superpixels algorithm
-    generateSuperpixels(lab_image);
+    generateSuperpixels();
 
     timeEnd = std::chrono::steady_clock::now();
     int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
@@ -98,33 +104,40 @@ void SuperpixelColorSegmenter::run()
 
     // Display contours with cluster means
     cv::Mat overlaidContours = color_image_ptr_->image.clone();
-    displaySuperpixelsWithClusterMeans(overlaidContours, color_image_ptr_->image);
+    displaySuperpixelsWithClusterMeans(overlaidContours);
+    ROS_INFO_STREAM("Starting overlay");
+    cv::cvtColor(overlaidContours, overlaidContours, cv::COLOR_Lab2BGR);
     overlay_image_ptr_->image = overlaidContours;
     overlay_image_ptr_->header.stamp = ros::Time::now();
     overlay_image_pub_.publish(overlay_image_ptr_->toImageMsg());
+
+    // ros::Duration(1.0).sleep(); // sleep for half a second
+
+    ROS_INFO_STREAM("Done");
     return;
 }
 
-void SuperpixelColorSegmenter::preprocessing(cv::Mat & image)
+void SuperpixelColorSegmenter::preprocessing()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::preprocessing]");
+    ROS_INFO_STREAM("   [SuperpixelColorSegmenter::preprocessing]");
 
-    cv::cvtColor(color_image_ptr_->image, image, cv::COLOR_BGR2Lab);
-    int width = image.cols;
-    int height = image.rows;
+    cv::cvtColor(color_image_ptr_->image, lab_image, cv::COLOR_BGR2Lab);
+    int width = lab_image.cols;
+    int height = lab_image.rows;
     int num_pixels = width * height;
     
     params_.step_ = sqrt(num_pixels / (double)params_.num_superpixels_); // superpixel grid interval
 }
 
-void SuperpixelColorSegmenter::generateSuperpixels(const cv::Mat & image)
+void SuperpixelColorSegmenter::generateSuperpixels()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::generateSuperpixels]");
+    ROS_INFO_STREAM("   [SuperpixelColorSegmenter::generateSuperpixels]");
+    
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
     {
         /* Reset distance values. */
-        distances_ = cv::Mat(image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
+        distances_ = cv::Mat(lab_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
 
         /* Update distances and clusters */
         for (int j = 0; j < (int) centers_.size(); j++) 
@@ -134,9 +147,9 @@ void SuperpixelColorSegmenter::generateSuperpixels(const cv::Mat & image)
             {
                 for (int l = centers_[j][4] - params_.step_; l < centers_[j][4] + params_.step_; l++) 
                 {
-                    if (k >= 0 && k < image.cols && l >= 0 && l < image.rows) 
+                    if (k >= 0 && k < lab_image.cols && l >= 0 && l < lab_image.rows) 
                     {
-                        cv::Vec3b color = image.at<cv::Vec3b>(l, k);
+                        cv::Vec3b color = lab_image.at<cv::Vec3b>(l, k);
                         double d = computeDistance(j, color, cv::Point(k, l));
 
                         if (d < distances_.at<double>(l, k)) 
@@ -161,15 +174,15 @@ void SuperpixelColorSegmenter::generateSuperpixels(const cv::Mat & image)
         }
         
         /* Compute the new cluster centers. */
-        for (int c = 0; c < image.cols; c++) 
+        for (int c = 0; c < lab_image.cols; c++) 
         {
-            for (int r = 0; r < image.rows; r++) 
+            for (int r = 0; r < lab_image.rows; r++) 
             {
                 int c_id = clusters_.at<int>(r, c);
                 
                 if (c_id != -1) 
                 {
-                    cv::Vec3b color = image.at<cv::Vec3b>(r, c);
+                    cv::Vec3b color = lab_image.at<cv::Vec3b>(r, c);
                     
                     centers_[c_id][0] += color.val[0];
                     centers_[c_id][1] += color.val[1];
@@ -209,7 +222,7 @@ void SuperpixelColorSegmenter::createConnectivity(const cv::Mat & image)
 
 void SuperpixelColorSegmenter::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color)
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displayCenterGrid]");
+    ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displayCenterGrid]");
     
     // Display center grid
     for (int i = 0; i < (int) centers_.size(); i++) 
@@ -227,51 +240,61 @@ void SuperpixelColorSegmenter::displayContours(cv::Mat & image, const cv::Vec3b 
     return;
 }
 
-void SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image, const cv::Mat & image)
+void SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image)
 {
-    std::vector<cv::Vec3i> means_int(params_.num_superpixels_, cv::Vec3i(0, 0, 0));
-    std::vector<cv::Vec3b> means_byte(params_.num_superpixels_, cv::Vec3b(0, 0, 0));
-    std::vector<int> counts(params_.num_superpixels_, 0);
+    ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans]");
 
-    for (int r = 0; r < clusters_.rows; r++)
+    std::vector<cv::Scalar> colors(centers_.size());
+    
+    // ROS_INFO_STREAM("       Gathering ...");
+
+    // ROS_INFO_STREAM("           colors.size(): " << colors.size());
+
+
+    /* Gather the colour values per cluster. */
+    for (int c = 0; c < lab_image.cols; c++) 
     {
-        for (int c = 0; c < clusters_.cols; c++)
+        for (int r = 0; r < lab_image.rows; r++) 
         {
-            // ROS_INFO_STREAM("[" << r << ", " << c << "]");
-            cv::Vec3b color = image.at<cv::Vec3b>(r, c);
-            cv::Vec3i color_int = color;
-            // ROS_INFO_STREAM("       color: " << color);
-            const int label = clusters_.at<int>(r, c);
-            // ROS_INFO_STREAM("       label: " << label);
+            int index = clusters_.at<int>(r, c);
 
-            // ROS_INFO_STREAM("       pre-counts[" << label << "]: " << counts[label]);
-            // ROS_INFO_STREAM("       pre-means_int[" << label << "]: " << means_int[label]);            
+            if (index == -1 || index >= colors.size())
+            {
+                // ROS_ERROR_STREAM("       index: " << index);
+                continue;
+            }
 
-            counts[label] = counts[label] + 1;
-            // ROS_INFO_STREAM("       counts[" << label << "]: " << counts[label]);
-            cv::Vec3i mult = means_int[label] * (counts[label] - 1);
-            // ROS_INFO_STREAM("       mult: " << mult);
-            cv::Vec3i num = mult + color_int;
-            // ROS_INFO_STREAM("       num: " << num);
-            means_int[label] = (num) / counts[label];
-            // ROS_INFO_STREAM("       means_int[" << label << "]: " << means_int[label]);            
+            cv::Vec3b color = lab_image.at<cv::Vec3b>(r, c);
+
+            colors[index].val[0] += color.val[0];
+            colors[index].val[1] += color.val[1];
+            colors[index].val[2] += color.val[2];
         }
     }
+    
+    ROS_INFO_STREAM("       Averaging ...");
 
-    // ROS_INFO_STREAM("means:");
-    for (int i = 0; i < params_.num_superpixels_; i++)
+    ROS_INFO_STREAM("           colors.size(): " << colors.size());
+
+    /* Divide by the number of pixels per cluster to get the mean colour. */
+    for (int i = 0; i < colors.size(); i++) 
     {
-        means_byte[i] = means_int[i];
-        // ROS_INFO_STREAM("   [" << i << "]: " << means[i]);
+        // ROS_INFO_STREAM("       center_counts_[i]: " << center_counts_[i]);
+        colors[i].val[0] /= center_counts_[i];
+        colors[i].val[1] /= center_counts_[i];
+        colors[i].val[2] /= center_counts_[i];
     }
+    
+    ROS_INFO_STREAM("       Coloring ...");
 
-    overlaid_image = cv::Mat::zeros(clusters_.size(), CV_8UC3);
-    for (int r = 0; r < clusters_.rows; r++)
+    /* Fill in. */
+    for (int c = 0; c < lab_image.cols; c++) 
     {
-        for (int c = 0; c < clusters_.cols; c++)
+        for (int r = 0; r < lab_image.rows; r++) 
         {
-            const int label = clusters_.at<int>(r, c);
-            overlaid_image.at<cv::Vec3b>(r, c) = means_byte[label];
+            int index = clusters_.at<int>(r, c);
+            cv::Scalar ncolor = colors[index];
+            overlaid_image.at<cv::Vec3b>(r, c) = cv::Vec3b(ncolor.val[0], ncolor.val[1], ncolor.val[2]);
         }
     }
 }
@@ -315,24 +338,32 @@ cv::Point SuperpixelColorSegmenter::findLocalMinimum(const cv::Mat & image, cons
     return loc_min;
 }
 
-void SuperpixelColorSegmenter::clear_data()
+void SuperpixelColorSegmenter::reset_data()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::clear_data]");
-    clusters_.release();
-    distances_.release();
-    centers_.clear();
-    center_counts_.clear();
+    ROS_INFO_STREAM("   [SuperpixelColorSegmenter::reset_data]");
+    
+    // clusters_.release();
+    clusters_ = cv::Mat(lab_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+
+    // distances_.release();
+    distances_ = cv::Mat(lab_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+    
+    // Keep centers
+    // centers_.clear();
+
+    // center_counts_.clear();
+    center_counts_.assign(center_counts_.size(), 0);
 
     return;
 }
 
-void SuperpixelColorSegmenter::init_data(const cv::Mat & image)
+void SuperpixelColorSegmenter::init_data()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::init_data]");
+    ROS_INFO_STREAM("   [SuperpixelColorSegmenter::init_data]");
 
     /* Initialize the cluster and distance matrices. */
-    clusters_ = cv::Mat(image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-    distances_ = cv::Mat(image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+    clusters_ = cv::Mat(lab_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+    distances_ = cv::Mat(lab_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
     // ROS_INFO_STREAM("       image.cols: " << image.cols);
     // ROS_INFO_STREAM("       image.rows: " << image.rows);
@@ -341,9 +372,9 @@ void SuperpixelColorSegmenter::init_data(const cv::Mat & image)
     /* Initialize the centers and counters. */
     centers_.clear();
     center_counts_.clear();
-    for (int i = params_.step_; i < image.cols - (params_.step_ / 2); i += params_.step_)
+    for (int i = params_.step_; i < lab_image.cols - (params_.step_ / 2); i += params_.step_)
     {
-        for (int j = params_.step_; j < image.rows - (params_.step_ / 2); j += params_.step_)
+        for (int j = params_.step_; j < lab_image.rows - (params_.step_ / 2); j += params_.step_)
         {
 
             // ROS_INFO_STREAM("       (i, j): (" << i << ", " << j << ")");
@@ -352,8 +383,8 @@ void SuperpixelColorSegmenter::init_data(const cv::Mat & image)
             std::vector<double> center;
 
             /* Find the local minimum (gradient-wise). */
-            cv::Point localMinimum = findLocalMinimum(image, cv::Point(i, j));
-            cv::Vec3b color = image.at<cv::Vec3b>(localMinimum.y, localMinimum.x);
+            cv::Point localMinimum = findLocalMinimum(lab_image, cv::Point(i, j));
+            cv::Vec3b color = lab_image.at<cv::Vec3b>(localMinimum.y, localMinimum.x);
 
             /* Generate the center vector. */
             center.push_back(color.val[0]);

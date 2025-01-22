@@ -27,24 +27,26 @@ class SuperpixelColorSegmenter
 
         void displayContours(cv::Mat & image, const cv::Vec3b & color);
 
-        void displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image, const cv::Mat & image);
+        void displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image);
 
     private:
-        void generateSuperpixels(const cv::Mat & image);
+        void generateSuperpixels();
 
         void createConnectivity(const cv::Mat & image);
 
-        void preprocessing(cv::Mat & lab_image);
+        void preprocessing(); // cv::Mat & lab_image
 
         double computeDistance(const int & center_idx, const cv::Vec3b & color, const cv::Point & pixel);
 
         cv::Point findLocalMinimum(const cv::Mat & image, const cv::Point & center);
 
-        void clear_data();
+        void reset_data();
 
-        void init_data(const cv::Mat & image);
+        void init_data();
 
         ros::NodeHandle nh_;
+
+        cv::Mat lab_image;
 
         cv_bridge::CvImagePtr color_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
