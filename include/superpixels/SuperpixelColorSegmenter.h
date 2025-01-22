@@ -27,7 +27,7 @@ class SuperpixelColorSegmenter
 
         void displayContours(cv::Mat & image, const cv::Vec3b & color);
 
-        void displaySuperpixelsWithClusterMeans(cv::Mat & image);
+        void displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image, const cv::Mat & image);
 
     private:
         void generateSuperpixels(const cv::Mat & image);
@@ -48,11 +48,13 @@ class SuperpixelColorSegmenter
 
         cv_bridge::CvImagePtr color_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr overlay_image_ptr_ = nullptr;
         // cv_bridge::CvImagePtr superpixel_label_image_ptr_ = nullptr;
         // cv_bridge::CvImagePtr superpixel_distance_image_ptr_ = nullptr;
 
         image_transport::Publisher color_image_pub_;
         image_transport::Publisher center_grid_image_pub_;
+        image_transport::Publisher overlay_image_pub_;
 
         // Adapted from: https://github.com/PSMM/SLIC-Superpixels/tree/master
         cv::Mat clusters_; // per-pixel cluster assignments
@@ -66,6 +68,7 @@ class SuperpixelColorSegmenter
             int step_ = 0; // superpixel grid interval
             int n_c_ = 0; // Color parameter
             int n_s_ = 0; // Spatial parameter
+            int num_iterations_ = 0; // Number of iterations
         };
 
         SuperpixelParams params_;
