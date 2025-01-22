@@ -26,6 +26,10 @@ SuperpixelColorOpenCVSegmenter::SuperpixelColorOpenCVSegmenter(ros::NodeHandle n
         return;
     }
 
+    overlay_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    overlay_image_ptr_->header = color_image_ptr_->header;
+    overlay_image_ptr_->encoding = color_image_ptr_->encoding;
+
     // Load algorithm
     const std::string algorithm_name = configYamlNode["superpixels"]["algorithm"].as<std::string>();
     num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
@@ -60,31 +64,23 @@ SuperpixelColorOpenCVSegmenter::SuperpixelColorOpenCVSegmenter(ros::NodeHandle n
 void SuperpixelColorOpenCVSegmenter::runSegmentation()
 {
     // Superpixels algorithm
-    cv::Mat contourMask;
-    cv::Mat labels;
-    int num_superpixels;
+
     std::chrono::steady_clock::time_point timeBegin, timeEnd;
     timeBegin = std::chrono::steady_clock::now();
-    runSuperpixels(contourMask, labels, num_superpixels);
+    runSuperpixels(); // contourMask, labels, num_superpixels
     timeEnd = std::chrono::steady_clock::now();
     int64_t tracking_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
     double tracking_time_sec = tracking_time / 1.0e6; 
     ROS_INFO_STREAM("Superpixels took: " << tracking_time_sec << " seconds");
 
-    cv::Mat overlaidContours;
-    overlayContoursWithMeans(overlaidContours, contourMask, labels, num_superpixels);
+    overlayContoursWithMeans(); // overlaidContours, contourMask, labels, num_superpixels
 
     // Overlay contours on top of image
-    // cv::Mat overlay;
-    // color_image_ptr_->image.copyTo(overlay);
     overlaidContours.setTo(cv::Scalar(0, 0, 0), contourMask);
 
 
     color_image_ptr_->header.stamp = ros::Time::now();
-
-    overlay_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    overlay_image_ptr_->header = color_image_ptr_->header;
-    overlay_image_ptr_->encoding = color_image_ptr_->encoding;
+    overlay_image_ptr_->header.stamp = color_image_ptr_->header.stamp;
     overlay_image_ptr_->image = overlaidContours;
 
     // ROS_INFO_STREAM("contourMask middle pixel: " << contourMask.at<uint8_t>(contourMask.rows/2, contourMask.cols/2));
@@ -95,7 +91,7 @@ void SuperpixelColorOpenCVSegmenter::runSegmentation()
     return;
 }
 
-void SuperpixelColorOpenCVSegmenter::overlayContoursWithMeans(cv::Mat & overlaidContours, const cv::Mat & contourMask, const cv::Mat & labels, const int & num_superpixels)
+void SuperpixelColorOpenCVSegmenter::overlayContoursWithMeans() // cv::Mat & overlaidContours
 {
     std::vector<cv::Vec3i> means_int(num_superpixels, cv::Vec3i(0, 0, 0));
     std::vector<cv::Vec3b> means_byte(num_superpixels, cv::Vec3b(0, 0, 0));
@@ -144,7 +140,7 @@ void SuperpixelColorOpenCVSegmenter::overlayContoursWithMeans(cv::Mat & overlaid
     }
 }
 
-void SuperpixelColorOpenCVSegmenter::runSuperpixels(cv::Mat & contourMask, cv::Mat & labels, int & num_superpixels)
+void SuperpixelColorOpenCVSegmenter::runSuperpixels() // cv::Mat & contourMask, cv::Mat & labels, int & num_superpixels
 {
     // Run superpixels algorithm
     slic_->iterate(num_iterations_);

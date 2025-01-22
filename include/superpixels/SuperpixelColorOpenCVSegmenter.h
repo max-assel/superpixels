@@ -28,14 +28,11 @@ class SuperpixelColorOpenCVSegmenter : public SuperpixelSegmenter
         void runSegmentation();
 
     private:
-        void runSuperpixels(cv::Mat & contourMask, cv::Mat & labels, int & num_superpixels);
+        void runSuperpixels(); // cv::Mat & contourMask, cv::Mat & labels, int & num_superpixels
 
         double calculateDistance();
 
-        void overlayContoursWithMeans(cv::Mat & overlaidContours, 
-                                        const cv::Mat & contourMask, 
-                                        const cv::Mat & labels, 
-                                        const int & num_superpixels);
+        void overlayContoursWithMeans(); // cv::Mat & overlaidContours
 
         ros::NodeHandle nh_;
 
@@ -48,5 +45,10 @@ class SuperpixelColorOpenCVSegmenter : public SuperpixelSegmenter
         cv::Ptr<cv::ximgproc::SuperpixelSLIC> slic_;
 
         int num_iterations_ = 0;
+
+        cv::Mat contourMask;
+        cv::Mat labels;
+        cv::Mat overlaidContours;
+        int num_superpixels = 0;        
 
 };
