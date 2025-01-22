@@ -15,6 +15,7 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     params_.n_c_ = configYamlNode["superpixels"]["n_c"].as<int>();
     params_.n_s_ = configYamlNode["superpixels"]["n_s"].as<int>();
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
+    params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
 
     ROS_INFO_STREAM("   params_.num_superpixels_: " << params_.num_superpixels_);
     ROS_INFO_STREAM("   params_.n_c_: " << params_.n_c_);
@@ -448,17 +449,24 @@ void SuperpixelColorSegmenter::reset_data()
 {
     ROS_INFO_STREAM("   [SuperpixelColorSegmenter::reset_data]");
     
-    // clusters_.release();
-    clusters_ = cv::Mat(lab_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+    if (params_.warm_start_)
+    {
+        clusters_ = cv::Mat(lab_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
-    // distances_.release();
-    distances_ = cv::Mat(lab_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
-    
-    // Keep centers
-    // centers_.clear();
+        distances_ = cv::Mat(lab_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+        
+        // Keep centers as is
 
-    // center_counts_.clear();
-    center_counts_.assign(center_counts_.size(), 0);
+        center_counts_.assign(center_counts_.size(), 0);
+    } else
+    {
+        clusters_.release();
+        distances_.release();
+        centers_.clear();
+        center_counts_.clear();
+
+        init_data();
+    }
 
     return;
 }
