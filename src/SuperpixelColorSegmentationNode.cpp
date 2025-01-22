@@ -32,12 +32,12 @@ int main(int argc, char** argv)
     std::string config_path;
     ros_throw_param_load(nh, "/config_path", config_path);
 
-    SuperpixelSegmenter * superpixel_segmenter = new SuperpixelColorSegmenter(nh, config_path);
+    SuperpixelColorSegmenter * superpixel_segmenter = new SuperpixelColorSegmenter(nh, config_path);
 
     while (ros::ok())
     {
         // Do something
-        superpixel_segmenter->runSegmentation();
+        superpixel_segmenter->run();
     
         ros::spinOnce();
         loop_rate.sleep();
