@@ -38,23 +38,25 @@ class SuperpixelColorSegmenter
 
         double computeDistance(const int & center_idx, const cv::Vec3b & color, const cv::Point & pixel);
 
-        cv::Point findLocalMinimum(cv::Mat & image, const cv::Point & center);
+        cv::Point findLocalMinimum(const cv::Mat & image, const cv::Point & center);
 
         void clear_data();
 
-        void init_data(cv::Mat & image);
+        void init_data(const cv::Mat & image);
 
         ros::NodeHandle nh_;
 
         cv_bridge::CvImagePtr color_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr superpixel_label_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr superpixel_distance_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr superpixel_label_image_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr superpixel_distance_image_ptr_ = nullptr;
 
         image_transport::Publisher color_image_pub_;
+        image_transport::Publisher center_grid_image_pub_;
 
         // Adapted from: https://github.com/PSMM/SLIC-Superpixels/tree/master
-        std::vector<std::vector<int>> clusters_; // per-pixel cluster assignments
-        std::vector<std::vector<double>> distances_; // per-pixel distances to cluster center
+        cv::Mat clusters_; // per-pixel cluster assignments
+        cv::Mat distances_; // per-pixel distances to cluster center
         std::vector<std::vector<double>> centers_; // LAB/xy cluster centers
         std::vector<int> center_counts_; // Number of occurrences of each center
 
