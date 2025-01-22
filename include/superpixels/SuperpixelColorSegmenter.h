@@ -25,7 +25,7 @@ class SuperpixelColorSegmenter
 
         void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
 
-        void displayContours(cv::Mat & image, const cv::Vec3b & color);
+        void displayContours(cv::Mat & contours);
 
         void displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image);
 

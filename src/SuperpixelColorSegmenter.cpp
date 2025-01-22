@@ -102,11 +102,16 @@ void SuperpixelColorSegmenter::run()
     center_grid_image_ptr_->header.stamp = ros::Time::now();
     center_grid_image_pub_.publish(center_grid_image_ptr_->toImageMsg());
 
+    // Display contours
+    cv::Mat contours = cv::Mat::zeros(lab_image.size(), CV_8U);
+    displayContours(contours);
+
     // Display contours with cluster means
     cv::Mat overlaidContours = color_image_ptr_->image.clone();
     displaySuperpixelsWithClusterMeans(overlaidContours);
     ROS_INFO_STREAM("Starting overlay");
     cv::cvtColor(overlaidContours, overlaidContours, cv::COLOR_Lab2BGR);
+    overlaidContours.setTo(cv::Scalar(255,255,255), contours);
     overlay_image_ptr_->image = overlaidContours;
     overlay_image_ptr_->header.stamp = ros::Time::now();
     overlay_image_pub_.publish(overlay_image_ptr_->toImageMsg());
@@ -233,9 +238,47 @@ void SuperpixelColorSegmenter::displayCenterGrid(cv::Mat & image, const cv::Vec3
     return;
 }
 
-void SuperpixelColorSegmenter::displayContours(cv::Mat & image, const cv::Vec3b & color)
+void SuperpixelColorSegmenter::displayContours(cv::Mat & contours)
 {
     // Display contours
+    const int dx8[8] = {-1, -1,  0,  1, 1, 1, 0, -1}; // eight neighboring pixels
+	const int dy8[8] = { 0, -1, -1, -1, 0, 1, 1,  1}; // eight neighboring pixels
+
+    /* Initialize the contour vector and the matrix detailing whether a pixel
+	 * is already taken to be a contour. */
+    cv::Mat isTaken = cv::Mat(lab_image.size(), CV_8U, cv::Scalar(0));
+
+    /* Go through all the pixels. */
+    for (int c = 0; c < lab_image.cols; c++) 
+    {
+        for (int r = 0; r < lab_image.rows; r++) 
+        {
+            int nr_p = 0;
+
+            /* Compare the pixel to its 8 neighbours. */
+            for (int k = 0; k < 8; k++) 
+            {
+                int c_neighbor = c + dx8[k], r_neighbor = r + dy8[k];
+                
+                if (c_neighbor >= 0 && c_neighbor < lab_image.cols && r_neighbor >= 0 && r_neighbor < lab_image.rows) 
+                {
+                    if (isTaken.at<uint8_t>(r_neighbor, c_neighbor) == 0 && 
+                        clusters_.at<int>(r, c) != clusters_.at<int>(r_neighbor, c_neighbor))
+                    {
+                        nr_p += 1;
+                    }
+                }
+            }
+
+            /* Add the pixel to the contour list if desired. */
+            if (nr_p >= 2) 
+            {
+                contours.at<uint8_t>(r, c) = 1;
+                isTaken.at<uint8_t>(r, c) = 1;
+            }            
+
+        }
+    }
 
     return;
 }

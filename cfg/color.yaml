@@ -2,4 +2,4 @@ superpixels:
   num_superpixels: 100
   n_c: 1
   n_s: 1
-  num_iterations: 1
+  num_iterations: 10
