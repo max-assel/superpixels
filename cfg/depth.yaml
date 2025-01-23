@@ -1,2 +1,6 @@
 superpixels:
-  k: 100
+  num_superpixels: 100
+  n_c: 1
+  n_s: 1
+  num_iterations: 1
+  warm_start: True

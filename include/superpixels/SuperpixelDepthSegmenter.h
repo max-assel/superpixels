@@ -16,15 +16,21 @@
 
 #include <math.h>
 
-class SuperpixelDepthSegmenter : public SuperpixelSegmenter
+#include <yaml-cpp/yaml.h>
+
+class SuperpixelDepthSegmenter 
 {
     public:
         SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path);
 
-        void runSegmentation();
+        void run();
+
+        void visualize();
 
     private:
-        double calculateDistance();
+        void preprocessing(const cv::Mat & depth_image);
+
+        void checkSparsity();
 
         bool notReceivedImage();
 
@@ -39,24 +45,49 @@ class SuperpixelDepthSegmenter : public SuperpixelSegmenter
                                 const sensor_msgs::ImageConstPtr& normal_image);
 
         ros::NodeHandle nh_;
-
-        // image_transport::ImageTransport it_;
         
+        // Subscribers
         image_transport::SubscriberFilter depth_image_sub_;
         image_transport::SubscriberFilter label_image_sub_;
         image_transport::SubscriberFilter normal_image_sub_;
 
+        // Image message pointers
         sensor_msgs::ImageConstPtr depth_image_msg_ = nullptr;
         sensor_msgs::ImageConstPtr label_image_msg_ = nullptr;
         sensor_msgs::ImageConstPtr normal_image_msg_ = nullptr;
 
+        // Image pointers
         cv_bridge::CvImagePtr depth_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr label_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr normal_image_ptr_ = nullptr;
 
+        // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
         boost::shared_ptr<MsgSynchronizer> msg_sync_;
 
+        // Mutex
         std::mutex img_mutex_;
+
+        // Flags
+        bool initialized_ = false;
+
+        // Superpixel matrices and vector
+        cv::Mat clusters_; // per-pixel cluster assignments
+        cv::Mat distances_; // per-pixel distances to cluster center
+        std::vector<std::vector<double>> centers_; // LAB/xy cluster centers
+        std::vector<int> center_counts_; // Number of occurrences of each center
+
+        // Parameters
+        struct SuperpixelParams
+        {
+            int num_superpixels_ = 0; // Desired number of approximately equally-sized superpixels
+            int step_ = 0; // superpixel grid interval
+            int n_c_ = 0; // Color parameter
+            int n_s_ = 0; // Spatial parameter
+            int num_iterations_ = 0; // Number of iterations
+            bool warm_start_ = false; // Warm start
+        };
+
+        SuperpixelParams params_;
 
 };

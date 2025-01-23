@@ -1,7 +1,26 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path) : SuperpixelSegmenter(nh, config_path), nh_(nh)
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path)
 {
+    nh_ = nh;
+
+    // Load configs
+    YAML::Node configYamlNode = YAML::LoadFile(config_path);
+
+    params_.num_superpixels_ = configYamlNode["superpixels"]["num_superpixels"].as<int>();
+    params_.n_c_ = configYamlNode["superpixels"]["n_c"].as<int>();
+    params_.n_s_ = configYamlNode["superpixels"]["n_s"].as<int>();
+    params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
+    params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
+
+    ROS_INFO_STREAM("   params_:");
+    ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
+    ROS_INFO_STREAM("       n_c_: " << params_.n_c_);
+    ROS_INFO_STREAM("       n_s_: " << params_.n_s_);
+    ROS_INFO_STREAM("       num_iterations_: " << params_.num_iterations_);
+    ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
+
+    // Set up subscribers and publishers
     image_transport::ImageTransport it(nh);
 
     std::string depth_image_topic =  "/egocylinder/floor_image";
@@ -69,12 +88,7 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
     return (notReceivedDepth || notReceivedLabel || notReceivedNormal);
 }
 
-double SuperpixelDepthSegmenter::calculateDistance()
-{
-    return 0.0;
-}
-
-void SuperpixelDepthSegmenter::runSegmentation()
+void SuperpixelDepthSegmenter::run()
 {
     std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -83,7 +97,7 @@ void SuperpixelDepthSegmenter::runSegmentation()
         ROS_WARN("Not ready to segment, no images received yet.");
         return;
     }
-
+ 
     try
     {
         depth_image_ptr_ = cv_bridge::toCvCopy(depth_image_msg_, sensor_msgs::image_encodings::TYPE_32FC1);
@@ -103,6 +117,48 @@ void SuperpixelDepthSegmenter::runSegmentation()
         ROS_ERROR("Image sizes do not match.");
         return;
     }
+
+    cv::Mat depth_image = depth_image_ptr_->image;
+    cv::Mat label_image = label_image_ptr_->image;
+    cv::Mat normal_image = normal_image_ptr_->image;
+
+    if (!initialized_)
+    {
+        // Pre-processing
+        preprocessing(depth_image);
+
+        // Initialize data
+        // init_data();
+
+        initialized_ = true;
+    }
+
+    return;
+}
+
+void SuperpixelDepthSegmenter::visualize()
+{
+    return;
+}
+
+void SuperpixelDepthSegmenter::preprocessing(const cv::Mat & depth_image)
+{
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessing]");
+
+    int width = depth_image.cols;
+    int height = depth_image.rows;
+    int num_pixels = width * height;
+    
+    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+}
+
+// void SuperpixelDepthSegmenter::init_data()
+// {
+
+// }
+
+void SuperpixelDepthSegmenter::checkSparsity()
+{
 
     int rows = depth_image_ptr_->image.rows;
     int cols = depth_image_ptr_->image.cols;
@@ -159,5 +215,5 @@ void SuperpixelDepthSegmenter::runSegmentation()
     ROS_INFO_STREAM("Label image sparsity ratio: " << float(non_nan_label_count) / total_pixels);
     ROS_INFO_STREAM("Normal image sparsity ratio: " << float(non_nan_normal_count) / total_pixels);
 
-    return;
+    return;    
 }
