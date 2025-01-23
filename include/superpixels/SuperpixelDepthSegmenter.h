@@ -30,6 +30,10 @@ class SuperpixelDepthSegmenter
     private:
         void preprocessing(const cv::Mat & depth_image);
 
+        void init_data(const cv::Mat & depth_image);
+
+        bool findLocalMinimum(const cv::Mat & image, cv::Point & center);
+
         void checkSparsity();
 
         bool notReceivedImage();
@@ -60,6 +64,7 @@ class SuperpixelDepthSegmenter
         cv_bridge::CvImagePtr depth_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr label_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr normal_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr cluster_image_ptr_ = nullptr;
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
@@ -89,5 +94,7 @@ class SuperpixelDepthSegmenter
         };
 
         SuperpixelParams params_;
+
+        float DELTA = std::numeric_limits<float>::epsilon();
 
 };

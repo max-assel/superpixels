@@ -118,19 +118,20 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
-    checkSparsity();
+    // checkSparsity();
 
-    // cv::Mat depth_image = depth_image_ptr_->image;
-    // cv::Mat label_image = label_image_ptr_->image;
-    // cv::Mat normal_image = normal_image_ptr_->image;
+    cv::Mat depth_image = depth_image_ptr_->image;
+    cv::Mat label_image = label_image_ptr_->image;
+    cv::Mat normal_image = normal_image_ptr_->image;
 
     // if (!initialized_)
     // {
-    //     // Pre-processing
-    //     preprocessing(depth_image);
 
-    //     // Initialize data
-    //     // init_data();
+    // Pre-processing
+    preprocessing(depth_image);
+
+    // Initialize data
+    init_data(depth_image);
 
     //     initialized_ = true;
     // }
@@ -154,10 +155,94 @@ void SuperpixelDepthSegmenter::preprocessing(const cv::Mat & depth_image)
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
 }
 
-// void SuperpixelDepthSegmenter::init_data()
-// {
+void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image)
+{
+    /* Initialize the cluster and distance matrices. */
+    clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+    distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
-// }
+    /* Initialize the centers and counters. */
+    // int rough_center_count = 0;
+    centers_.clear();
+    center_counts_.clear();
+    for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
+    {
+        for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
+        {
+            // ROS_INFO_STREAM("       (r, c): (" << r << ", " << c << ")");
+
+            // float depth = depth_image.at<float>(r, c);
+
+            // if (std::isnan(depth) || std::fabs(depth) < 1e-6)
+            // {
+            //     continue;
+            // }
+
+            std::vector<double> center;
+
+            /* Find the local minimum (gradient-wise). */
+            cv::Point localMinimum(c, r);
+            bool success = findLocalMinimum(depth_image, localMinimum);
+            // cv::Vec3b color = lab_image.at<cv::Vec3b>(localMinimum.y, localMinimum.x);
+
+            if (!success)
+            {
+                continue;
+            }
+
+
+            /* Generate the center vector. */
+            // center.push_back(depth);
+            center.push_back(localMinimum.x);
+            center.push_back(localMinimum.y);
+
+            /* Append to vector of centers. */
+            centers_.push_back(center);
+            center_counts_.push_back(0);
+        }
+    }
+
+    ROS_INFO_STREAM("       centers_.size(): " << centers_.size());
+    ROS_INFO_STREAM("       center_counts_.size(): " << center_counts_.size());
+
+}
+
+bool SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, cv::Point & loc_min)
+{
+    // double min_grad = std::numeric_limits<double>::max();
+    // cv::Point loc_min = center;
+    const cv::Point center = loc_min; 
+
+    int deltaX = 1;
+    int deltaY = 1;
+
+    float center_color = depth_image.at<float>(center.y, center.x);
+
+    for (int c = center.x - deltaX; c <= center.x + deltaX; c++)
+    {
+        for (int r = center.y - deltaY; r <= center.y + deltaY; r++)
+        {
+            float depth = depth_image.at<float>(r, c);
+
+            // double grad = sqrt(pow(color.val[0] - center_color.val[0], 2) +
+            //                    pow(color.val[1] - center_color.val[1], 2) +
+            //                    pow(color.val[2] - center_color.val[2], 2));
+
+            if (std::isnan(depth) || std::fabs(depth) < 1e-6)
+            {
+                continue;
+            } else
+            {
+                loc_min = cv::Point(c, r);
+                return true;
+            }
+        }
+    }
+
+    return false;
+
+    // return loc_min;
+}
 
 void SuperpixelDepthSegmenter::checkSparsity()
 {
