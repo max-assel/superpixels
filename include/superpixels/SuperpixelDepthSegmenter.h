@@ -34,7 +34,11 @@ class SuperpixelDepthSegmenter
 
         bool findLocalMinimum(const cv::Mat & image, cv::Point & center);
 
+        void dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image);
+
         void checkSparsity();
+
+        void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
 
         bool notReceivedImage();
 
@@ -55,16 +59,23 @@ class SuperpixelDepthSegmenter
         image_transport::SubscriberFilter label_image_sub_;
         image_transport::SubscriberFilter normal_image_sub_;
 
+        // Publishers
+        image_transport::Publisher process_depth_image_pub_;
+        image_transport::Publisher center_grid_image_pub_;
+
         // Image message pointers
         sensor_msgs::ImageConstPtr depth_image_msg_ = nullptr;
         sensor_msgs::ImageConstPtr label_image_msg_ = nullptr;
         sensor_msgs::ImageConstPtr normal_image_msg_ = nullptr;
+        sensor_msgs::ImageConstPtr process_depth_img_msgs_ = nullptr;
+        cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
 
         // Image pointers
         cv_bridge::CvImagePtr depth_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr label_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr normal_image_ptr_ = nullptr;
         cv_bridge::CvImagePtr cluster_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr process_depth_image_ptr_ = nullptr;
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  

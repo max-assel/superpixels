@@ -38,6 +38,9 @@ int main(int argc, char** argv)
     {
         // Do something
         superpixel_segmenter->run();
+
+        // Visualize outputs
+        superpixel_segmenter->visualize();
     
         ros::spinOnce();
         loop_rate.sleep();

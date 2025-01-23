@@ -37,6 +37,10 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 
     msg_sync_ = boost::make_shared<MsgSynchronizer>(depth_image_sub_, label_image_sub_, normal_image_sub_, 10);
     msg_sync_->registerCallback(boost::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2, _3));
+
+    process_depth_image_pub_ = it.advertise("/superpixels/process_depth", 1);
+
+    process_depth_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 }
 
 void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
@@ -118,20 +122,29 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
+
+    process_depth_image_ptr_->header = depth_image_ptr_->header;
+    process_depth_image_ptr_->encoding = depth_image_ptr_->encoding;
+
+    cv::Mat dilated_image;
+    dilate_depth_image(depth_image_ptr_->image, dilated_image);
+
+    process_depth_image_ptr_->image = dilated_image;
+
     // checkSparsity();
 
-    cv::Mat depth_image = depth_image_ptr_->image;
-    cv::Mat label_image = label_image_ptr_->image;
-    cv::Mat normal_image = normal_image_ptr_->image;
+    // cv::Mat depth_image = depth_image_ptr_->image;
+    // cv::Mat label_image = label_image_ptr_->image;
+    // cv::Mat normal_image = normal_image_ptr_->image;
 
     // if (!initialized_)
     // {
 
     // Pre-processing
-    preprocessing(depth_image);
+    preprocessing(dilated_image);
 
     // Initialize data
-    init_data(depth_image);
+    init_data(dilated_image);
 
     //     initialized_ = true;
     // }
@@ -141,7 +154,24 @@ void SuperpixelDepthSegmenter::run()
 
 void SuperpixelDepthSegmenter::visualize()
 {
+    std::lock_guard<std::mutex> lock(img_mutex_);
+
+    if (notReceivedImage())
+    {
+        ROS_WARN("Not ready to visualize, no images received yet.");
+        return;
+    }
+
+    process_depth_image_pub_.publish(process_depth_image_ptr_->toImageMsg());
+
+
     return;
+}
+
+void SuperpixelDepthSegmenter::dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image)
+{
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::dilate(image, dilated_image, element, cv::Point(-1, -1), 3);
 }
 
 void SuperpixelDepthSegmenter::preprocessing(const cv::Mat & depth_image)
@@ -202,8 +232,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image)
         }
     }
 
-    ROS_INFO_STREAM("       centers_.size(): " << centers_.size());
-    ROS_INFO_STREAM("       center_counts_.size(): " << center_counts_.size());
+    // ROS_INFO_STREAM("       centers_.size(): " << centers_.size());
+    // ROS_INFO_STREAM("       center_counts_.size(): " << center_counts_.size());
 
 }
 
@@ -213,8 +243,8 @@ bool SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, cv:
     // cv::Point loc_min = center;
     const cv::Point center = loc_min; 
 
-    int deltaX = 1;
-    int deltaY = 1;
+    int deltaX = 3;
+    int deltaY = 3;
 
     float center_color = depth_image.at<float>(center.y, center.x);
 
@@ -247,11 +277,11 @@ bool SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, cv:
 void SuperpixelDepthSegmenter::checkSparsity()
 {
 
-    int rows = depth_image_ptr_->image.rows;
-    int cols = depth_image_ptr_->image.cols;
+    int rows = process_depth_image_ptr_->image.rows;
+    int cols = process_depth_image_ptr_->image.cols;
 
     // Sanity check middle pixel
-    ROS_INFO_STREAM("Depth image size --- rows: " << depth_image_ptr_->image.rows << ", cols: " << depth_image_ptr_->image.cols);
+    ROS_INFO_STREAM("Depth image size --- rows: " << process_depth_image_ptr_->image.rows << ", cols: " << process_depth_image_ptr_->image.cols);
     ROS_INFO_STREAM("Label image size --- rows: " << label_image_ptr_->image.rows << ", cols: " << label_image_ptr_->image.cols);
     ROS_INFO_STREAM("Normal image size --- rows: " << normal_image_ptr_->image.rows << ", cols: " << normal_image_ptr_->image.cols);
 
@@ -271,16 +301,16 @@ void SuperpixelDepthSegmenter::checkSparsity()
     {
         for (int c = 0; c < cols; c++)
         {
-            if (depth_image_ptr_->image.at<float>(r, c) != depth_image_ptr_->image.at<float>(r, c))
+            if (process_depth_image_ptr_->image.at<float>(r, c) != process_depth_image_ptr_->image.at<float>(r, c))
             {
                 // ROS_ERROR_STREAM("Depth image has NaN value at row: " << r << ", col: " << c);
                 nan_depth_count++;
-            } else if (depth_image_ptr_->image.at<float>(r, c) == 0)
+            } else if (process_depth_image_ptr_->image.at<float>(r, c) == 0)
             {
                 zero_depth_count++;
             } else
             {
-                // ROS_INFO_STREAM("Depth image value at row: " << r << ", col: " << c << " is: " << depth_image_ptr_->image.at<float>(r, c));
+                // ROS_INFO_STREAM("Depth image value at row: " << r << ", col: " << c << " is: " << process_depth_image_ptr_->image.at<float>(r, c));
                 finite_depth_count++;
             }
 
@@ -321,15 +351,15 @@ void SuperpixelDepthSegmenter::checkSparsity()
     ROS_INFO_STREAM("Depth image zero count: " << zero_depth_count);
     ROS_INFO_STREAM("Depth image finite count: " << finite_depth_count);
 
-    ROS_INFO_STREAM("Label image NaN count: " << nan_label_count);
-    ROS_INFO_STREAM("Label image zero count: " << zero_label_count);
-    ROS_INFO_STREAM("Label image finite count: " << finite_label_count);
+    // ROS_INFO_STREAM("Label image NaN count: " << nan_label_count);
+    // ROS_INFO_STREAM("Label image zero count: " << zero_label_count);
+    // ROS_INFO_STREAM("Label image finite count: " << finite_label_count);
 
-    ROS_INFO_STREAM("Normal image NaN count: " << nan_normal_count);
-    ROS_INFO_STREAM("Normal image zero count: " << zero_normal_count);
-    ROS_INFO_STREAM("Normal image finite count: " << finite_normal_count);
+    // ROS_INFO_STREAM("Normal image NaN count: " << nan_normal_count);
+    // ROS_INFO_STREAM("Normal image zero count: " << zero_normal_count);
+    // ROS_INFO_STREAM("Normal image finite count: " << finite_normal_count);
 
-    // ROS_INFO_STREAM("Depth image sparsity ratio: " << float(finite_depth_count) / total_pixels);
+    ROS_INFO_STREAM("Depth image sparsity ratio: " << float(finite_depth_count) / total_pixels);
     // ROS_INFO_STREAM("Label image sparsity ratio: " << float(finite_label_count) / total_pixels);
     // ROS_INFO_STREAM("Normal image sparsity ratio: " << float(finite_normal_count) / total_pixels);
 
