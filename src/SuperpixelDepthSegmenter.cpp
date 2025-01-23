@@ -118,20 +118,22 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
-    cv::Mat depth_image = depth_image_ptr_->image;
-    cv::Mat label_image = label_image_ptr_->image;
-    cv::Mat normal_image = normal_image_ptr_->image;
+    checkSparsity();
 
-    if (!initialized_)
-    {
-        // Pre-processing
-        preprocessing(depth_image);
+    // cv::Mat depth_image = depth_image_ptr_->image;
+    // cv::Mat label_image = label_image_ptr_->image;
+    // cv::Mat normal_image = normal_image_ptr_->image;
 
-        // Initialize data
-        // init_data();
+    // if (!initialized_)
+    // {
+    //     // Pre-processing
+    //     preprocessing(depth_image);
 
-        initialized_ = true;
-    }
+    //     // Initialize data
+    //     // init_data();
+
+    //     initialized_ = true;
+    // }
 
     return;
 }
@@ -168,9 +170,17 @@ void SuperpixelDepthSegmenter::checkSparsity()
     ROS_INFO_STREAM("Label image size --- rows: " << label_image_ptr_->image.rows << ", cols: " << label_image_ptr_->image.cols);
     ROS_INFO_STREAM("Normal image size --- rows: " << normal_image_ptr_->image.rows << ", cols: " << normal_image_ptr_->image.cols);
 
-    int non_nan_depth_count = 0;
-    int non_nan_label_count = 0;
-    int non_nan_normal_count = 0;
+    int nan_depth_count = 0;
+    int nan_label_count = 0;
+    int nan_normal_count = 0;
+
+    int finite_depth_count = 0;
+    int finite_label_count = 0;
+    int finite_normal_count = 0;
+
+    int zero_depth_count = 0;
+    int zero_label_count = 0;
+    int zero_normal_count = 0;
 
     for (int r = 0; r < rows; r++)
     {
@@ -179,20 +189,26 @@ void SuperpixelDepthSegmenter::checkSparsity()
             if (depth_image_ptr_->image.at<float>(r, c) != depth_image_ptr_->image.at<float>(r, c))
             {
                 // ROS_ERROR_STREAM("Depth image has NaN value at row: " << r << ", col: " << c);
-                // return;
+                nan_depth_count++;
+            } else if (depth_image_ptr_->image.at<float>(r, c) == 0)
+            {
+                zero_depth_count++;
             } else
             {
                 // ROS_INFO_STREAM("Depth image value at row: " << r << ", col: " << c << " is: " << depth_image_ptr_->image.at<float>(r, c));
-                non_nan_depth_count++;
+                finite_depth_count++;
             }
 
             if (label_image_ptr_->image.at<uint8_t>(r, c) != label_image_ptr_->image.at<uint8_t>(r, c))
             {
                 // ROS_ERROR_STREAM("Label image has NaN value at row: " << r << ", col: " << c);
-                // return;
+                nan_label_count++;
+            } else if (label_image_ptr_->image.at<uint8_t>(r, c) == 0)
+            {
+                zero_label_count++;
             } else
             {
-                non_nan_label_count++;
+                finite_label_count++;
             }
 
             if (normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] ||
@@ -200,20 +216,37 @@ void SuperpixelDepthSegmenter::checkSparsity()
                 normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2])
             {
                 // ROS_ERROR_STREAM("Normal image has NaN value at row: " << r << ", col: " << c);
-                // return;
+                nan_normal_count++;
+            } else if (normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] == 0 &&
+                       normal_image_ptr_->image.at<cv::Vec3f>(r, c)[1] == 0 &&
+                       normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2] == 0)
+            {
+                zero_normal_count++;
             } else
             {
                 // ROS_INFO_STREAM("Normal image value at row: " << r << ", col: " << c << " is: " << normal_image_ptr_->image.at<cv::Vec3f>(r, c));
-                non_nan_normal_count++;
+                finite_normal_count++;
             }
         }
     }
 
-    int total_pixels = M_PI * (rows / 2) * (cols / 2);
+    int total_pixels = rows * cols;
 
-    ROS_INFO_STREAM("Depth image sparsity ratio: " << float(non_nan_depth_count) / total_pixels);
-    ROS_INFO_STREAM("Label image sparsity ratio: " << float(non_nan_label_count) / total_pixels);
-    ROS_INFO_STREAM("Normal image sparsity ratio: " << float(non_nan_normal_count) / total_pixels);
+    ROS_INFO_STREAM("Depth image NaN count: " << nan_depth_count);
+    ROS_INFO_STREAM("Depth image zero count: " << zero_depth_count);
+    ROS_INFO_STREAM("Depth image finite count: " << finite_depth_count);
+
+    ROS_INFO_STREAM("Label image NaN count: " << nan_label_count);
+    ROS_INFO_STREAM("Label image zero count: " << zero_label_count);
+    ROS_INFO_STREAM("Label image finite count: " << finite_label_count);
+
+    ROS_INFO_STREAM("Normal image NaN count: " << nan_normal_count);
+    ROS_INFO_STREAM("Normal image zero count: " << zero_normal_count);
+    ROS_INFO_STREAM("Normal image finite count: " << finite_normal_count);
+
+    // ROS_INFO_STREAM("Depth image sparsity ratio: " << float(finite_depth_count) / total_pixels);
+    // ROS_INFO_STREAM("Label image sparsity ratio: " << float(finite_label_count) / total_pixels);
+    // ROS_INFO_STREAM("Normal image sparsity ratio: " << float(finite_normal_count) / total_pixels);
 
     return;    
 }
