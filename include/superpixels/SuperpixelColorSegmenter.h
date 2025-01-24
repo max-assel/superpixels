@@ -68,8 +68,8 @@ class SuperpixelColorSegmenter
         {
             int num_superpixels_ = 0; // Desired number of approximately equally-sized superpixels
             int step_ = 0; // superpixel grid interval
-            int n_c_ = 0; // Color parameter
-            int n_s_ = 0; // Spatial parameter
+            double n_c_ = 0; // Color parameter
+            double n_s_ = 0; // Spatial parameter
             int num_iterations_ = 0; // Number of iterations
             bool warm_start_ = false; // Warm start
         };

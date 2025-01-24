@@ -41,6 +41,10 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     process_depth_image_pub_ = it.advertise("/superpixels/process_depth", 1);
 
     process_depth_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+
+    center_grid_image_pub_ = it.advertise("/superpixels/center_grid", 1);
+
+    center_grid_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 }
 
 void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
@@ -164,6 +168,66 @@ void SuperpixelDepthSegmenter::visualize()
 
     process_depth_image_pub_.publish(process_depth_image_ptr_->toImageMsg());
 
+    // overlay center grid on color version of depth image
+
+    convertDepthImageToColor();
+
+    // // overlay centers
+    cv::Mat overlaid_image = color_depth_image_.clone();
+
+    cv::Vec3b color(255, 0, 255);
+    displayCenterGrid(overlaid_image, color);
+
+    center_grid_image_ptr_->header = process_depth_image_ptr_->header;
+    center_grid_image_ptr_->header.stamp = ros::Time::now();
+    center_grid_image_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
+
+    center_grid_image_ptr_->image = overlaid_image;
+    center_grid_image_pub_.publish(center_grid_image_ptr_->toImageMsg());
+
+    return;
+}
+
+void SuperpixelDepthSegmenter::convertDepthImageToColor()
+{
+    color_depth_image_ = cv::Mat(process_depth_image_ptr_->image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+
+    double min_depth = 0.0, max_depth = 0.0;
+    cv::minMaxLoc(process_depth_image_ptr_->image, &min_depth, &max_depth);
+
+    // ROS_INFO_STREAM("Converting to 8UC3...");
+
+    for (int r = 0; r < color_depth_image_.rows; r++)
+    {
+        for (int c = 0; c < color_depth_image_.cols; c++)
+        {
+            float depth = depth_image_ptr_->image.at<float>(r, c);
+
+            if (std::isnan(depth) || std::fabs(depth) < 1e-6)
+            {
+                continue;
+            }
+
+            ROS_INFO_STREAM("   (r, c): (" << r << ", " << c << ")");
+            ROS_INFO_STREAM("       depth: " << depth);
+
+            int quantized_depth = (int) (depth * 255.0 / max_depth);
+
+            cv::Vec3b color = cv::Vec3b(quantized_depth, quantized_depth, quantized_depth);
+            color_depth_image_.at<cv::Vec3b>(r, c) = color;
+        }
+    }    
+}
+
+void SuperpixelDepthSegmenter::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color)
+{
+    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displayCenterGrid]");
+    
+    // Display center grid
+    for (int i = 0; i < (int) centers_.size(); i++) 
+    {
+        cv::circle(image, cv::Point(centers_[i][0], centers_[i][1]), 2, color, -1);
+    }
 
     return;
 }

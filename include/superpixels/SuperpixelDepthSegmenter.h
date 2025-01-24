@@ -40,6 +40,8 @@ class SuperpixelDepthSegmenter
 
         void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
 
+        void convertDepthImageToColor();
+
         bool notReceivedImage();
 
         bool notReceivedDepthImage();
@@ -92,6 +94,8 @@ class SuperpixelDepthSegmenter
         cv::Mat distances_; // per-pixel distances to cluster center
         std::vector<std::vector<double>> centers_; // LAB/xy cluster centers
         std::vector<int> center_counts_; // Number of occurrences of each center
+
+        cv::Mat color_depth_image_;
 
         // Parameters
         struct SuperpixelParams

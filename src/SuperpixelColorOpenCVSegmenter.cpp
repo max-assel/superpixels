@@ -12,7 +12,7 @@ SuperpixelColorOpenCVSegmenter::SuperpixelColorOpenCVSegmenter(ros::NodeHandle n
 
     // read in example image
     const std::string superixels_path = ros::package::getPath("superpixels");
-    const std::string image_name = "flower.jpg";
+    const std::string image_name = "stairs.jpg";
 
     color_image_ptr_->header.stamp = ros::Time::now();
     color_image_ptr_->header.frame_id = "N/A";

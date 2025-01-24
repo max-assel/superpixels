@@ -18,8 +18,8 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     YAML::Node configYamlNode = YAML::LoadFile(config_path);
 
     params_.num_superpixels_ = configYamlNode["superpixels"]["num_superpixels"].as<int>();
-    params_.n_c_ = configYamlNode["superpixels"]["n_c"].as<int>();
-    params_.n_s_ = configYamlNode["superpixels"]["n_s"].as<int>();
+    params_.n_c_ = configYamlNode["superpixels"]["n_c"].as<double>();
+    params_.n_s_ = configYamlNode["superpixels"]["n_s"].as<double>();
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
     params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
 
@@ -34,7 +34,7 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
 
     // read in example image
     const std::string superixels_path = ros::package::getPath("superpixels");
-    const std::string image_name = "flower.jpg";
+    const std::string image_name = "stairs.jpg";
 
     color_image_ptr_->header.stamp = ros::Time::now();
     color_image_ptr_->header.frame_id = "N/A";
@@ -69,7 +69,7 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     // Initialize data
     init_data(); 
 
-    // ros::Duration(5.0).sleep(); // sleep for half a second
+    ros::Duration(10.0).sleep(); // sleep for half a second
 
     return;
 }
@@ -78,8 +78,8 @@ void SuperpixelColorSegmenter::run()
 {
     // ROS_INFO_STREAM("[SuperpixelColorSegmenter::run]");
 
-    // std::chrono::steady_clock::time_point timeBegin, timeEnd;
-    // timeBegin = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point timeBegin, timeEnd;
+    timeBegin = std::chrono::steady_clock::now();
 
     // Clear data
     reset_data();
@@ -90,10 +90,10 @@ void SuperpixelColorSegmenter::run()
     // Create connectivity
     // createConnectivity();
 
-    // timeEnd = std::chrono::steady_clock::now();
-    // int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
-    // double total_time_sec = total_time / 1.0e6; 
-    // ROS_INFO_STREAM("Superpixels took: " << total_time_sec << " seconds");
+    timeEnd = std::chrono::steady_clock::now();
+    int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
+    double total_time_sec = total_time / 1.0e6; 
+    ROS_INFO_STREAM("Superpixels took: " << total_time_sec << " seconds");
 
     return;
 }

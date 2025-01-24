@@ -7,7 +7,7 @@ superpixels:
   # num_histogram_bins: 5     # SEEDS histogram bins
   # double_step: false        # SEEDS two steps
   region_size: 50           # SLIC/SLICO/MSLIC/LSC average superpixel size
-  ruler: 15.0               # SLIC/MSLIC smoothness (spatial regularization)
+  ruler: 100.0               # SLIC/MSLIC smoothness (spatial regularization)
   # ratio: 0.075              # LSC compactness
   # min_element_size: 25      # SLIC/SLICO/MSLIC/LSC minimum component size percentage
   num_iterations: 10        # Iterations
