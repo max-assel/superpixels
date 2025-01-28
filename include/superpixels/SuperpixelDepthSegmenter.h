@@ -28,7 +28,9 @@ class SuperpixelDepthSegmenter
         void visualize();
 
     private:
-        void preprocessing(const cv::Mat & depth_image);
+        void preprocessImages();
+
+        void calculateStep(const cv::Mat & depth_image);
 
         void init_data(const cv::Mat & depth_image);
 
@@ -57,27 +59,29 @@ class SuperpixelDepthSegmenter
         ros::NodeHandle nh_;
         
         // Subscribers
-        image_transport::SubscriberFilter depth_image_sub_;
-        image_transport::SubscriberFilter label_image_sub_;
-        image_transport::SubscriberFilter normal_image_sub_;
+        image_transport::SubscriberFilter raw_depth_img_sub_;
+        image_transport::SubscriberFilter raw_label_img_sub_;
+        image_transport::SubscriberFilter raw_normal_img_sub_;
 
         // Publishers
-        image_transport::Publisher process_depth_image_pub_;
+        image_transport::Publisher fin_depth_img_pub_;
         image_transport::Publisher center_grid_image_pub_;
 
         // Image message pointers
-        sensor_msgs::ImageConstPtr depth_image_msg_ = nullptr;
-        sensor_msgs::ImageConstPtr label_image_msg_ = nullptr;
-        sensor_msgs::ImageConstPtr normal_image_msg_ = nullptr;
-        sensor_msgs::ImageConstPtr process_depth_img_msgs_ = nullptr;
-        cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
+        sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
+        sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;
+        sensor_msgs::ImageConstPtr raw_normal_img_msg_ = nullptr;
 
         // Image pointers
-        cv_bridge::CvImagePtr depth_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr label_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr normal_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr depth_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr label_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr normal_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
+
         cv_bridge::CvImagePtr cluster_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr process_depth_image_ptr_ = nullptr;
+        cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  

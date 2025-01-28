@@ -23,27 +23,28 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     // Set up subscribers and publishers
     image_transport::ImageTransport it(nh);
 
-    std::string depth_image_topic =  "/egocylinder/floor_image";
-    std::string label_image_topic =  "/egocylinder/floor_labels";
-    std::string normal_image_topic = "/egocylinder/floor_normals";
+    std::string depth_img_topic =  "/egocylinder/floor_image";
+    std::string label_img_topic =  "/egocylinder/floor_labels";
+    std::string normal_img_topic = "/egocylinder/floor_normals";
 
-    nh_.getParam("depth_image_topic", depth_image_topic);
-    nh_.getParam("label_image_topic", label_image_topic);
-    nh_.getParam("normal_image_topic", normal_image_topic);
+    nh_.getParam("depth_img_topic", depth_img_topic);
+    nh_.getParam("label_img_topic", label_img_topic);
+    nh_.getParam("normal_img_topic", normal_img_topic);
 
-    depth_image_sub_.subscribe(it, depth_image_topic, 3);
-    label_image_sub_.subscribe(it, label_image_topic, 3);
-    normal_image_sub_.subscribe(it, normal_image_topic, 3);
+    raw_depth_img_sub_.subscribe(it, depth_img_topic, 3);
+    raw_label_img_sub_.subscribe(it, label_img_topic, 3);
+    raw_normal_img_sub_.subscribe(it, normal_img_topic, 3);
 
-    msg_sync_ = boost::make_shared<MsgSynchronizer>(depth_image_sub_, label_image_sub_, normal_image_sub_, 10);
+    msg_sync_ = boost::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_label_img_sub_, raw_normal_img_sub_, 10);
     msg_sync_->registerCallback(boost::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2, _3));
 
-    process_depth_image_pub_ = it.advertise("/superpixels/process_depth", 1);
+    fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
+    fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    process_depth_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     center_grid_image_pub_ = it.advertise("/superpixels/center_grid", 1);
-
     center_grid_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 }
 
@@ -56,26 +57,26 @@ void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr
     // ROS_INFO_STREAM("[SuperpixelDepthSegmenter::allImageCallback]");
     // ROS_INFO_STREAM("       time stamp: " << depth_image->header.stamp);
 
-    depth_image_msg_ = depth_image_msg;
-    label_image_msg_ = label_image_msg;
-    normal_image_msg_ = normal_image_msg;
+    raw_depth_img_msg_ = depth_image_msg;
+    raw_label_img_msg_ = label_image_msg;
+    raw_normal_img_msg_ = normal_image_msg;
 
     return;
 }
 
 bool SuperpixelDepthSegmenter::notReceivedDepthImage()
 {
-    return (depth_image_msg_ == nullptr);
+    return (raw_depth_img_msg_ == nullptr);
 }
 
 bool SuperpixelDepthSegmenter::notReceivedLabelImage()
 {
-    return (label_image_msg_ == nullptr);
+    return (raw_label_img_msg_ == nullptr);
 }
 
 bool SuperpixelDepthSegmenter::notReceivedNormalImage()
 {
-    return (normal_image_msg_ == nullptr);
+    return (raw_normal_img_msg_ == nullptr);
 }
 
 bool SuperpixelDepthSegmenter::notReceivedImage()
@@ -108,9 +109,9 @@ void SuperpixelDepthSegmenter::run()
  
     try
     {
-        depth_image_ptr_ = cv_bridge::toCvCopy(depth_image_msg_, sensor_msgs::image_encodings::TYPE_32FC1);
-        label_image_ptr_ = cv_bridge::toCvCopy(label_image_msg_, sensor_msgs::image_encodings::TYPE_8UC1);
-        normal_image_ptr_ = cv_bridge::toCvCopy(normal_image_msg_, sensor_msgs::image_encodings::TYPE_32FC3);
+        depth_img_ptr_ = cv_bridge::toCvCopy(raw_depth_img_msg_, sensor_msgs::image_encodings::TYPE_32FC1);
+        label_img_ptr_ = cv_bridge::toCvCopy(raw_label_img_msg_, sensor_msgs::image_encodings::TYPE_8UC1);
+        normal_img_ptr_ = cv_bridge::toCvCopy(raw_normal_img_msg_, sensor_msgs::image_encodings::TYPE_32FC3);
 
     } catch (cv_bridge::Exception& e)
     {
@@ -118,42 +119,63 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
-    if (depth_image_ptr_->image.size() != label_image_ptr_->image.size() || 
-        depth_image_ptr_->image.size() != normal_image_ptr_->image.size() ||
-        label_image_ptr_->image.size() != normal_image_ptr_->image.size())
+    if (depth_img_ptr_->image.size() != label_img_ptr_->image.size() || 
+        depth_img_ptr_->image.size() != normal_img_ptr_->image.size() ||
+        label_img_ptr_->image.size() != normal_img_ptr_->image.size())
     {
         ROS_ERROR("Image sizes do not match.");
         return;
     }
 
-
-    process_depth_image_ptr_->header = depth_image_ptr_->header;
-    process_depth_image_ptr_->encoding = depth_image_ptr_->encoding;
-
-    cv::Mat dilated_image;
-    dilate_depth_image(depth_image_ptr_->image, dilated_image);
-
-    process_depth_image_ptr_->image = dilated_image;
+    // Pre-processing
+    preprocessImages();
 
     // checkSparsity();
 
-    // cv::Mat depth_image = depth_image_ptr_->image;
-    // cv::Mat label_image = label_image_ptr_->image;
-    // cv::Mat normal_image = normal_image_ptr_->image;
+    // cv::Mat depth_image = depth_img_ptr_->image;
+    // cv::Mat label_image = label_img_ptr_->image;
+    // cv::Mat normal_image = normal_img_ptr_->image;
 
     // if (!initialized_)
     // {
 
     // Pre-processing
-    preprocessing(dilated_image);
+    calculateStep(fin_depth_img_ptr_->image);
 
     // Initialize data
-    init_data(dilated_image);
+    init_data(fin_depth_img_ptr_->image);
 
     //     initialized_ = true;
     // }
 
     return;
+}
+
+void SuperpixelDepthSegmenter::preprocessImages()
+{
+    // Depth
+    fin_depth_img_ptr_->header = depth_img_ptr_->header;
+    fin_depth_img_ptr_->encoding = depth_img_ptr_->encoding;
+
+    cv::Mat dilated_depth_img;
+    dilate_depth_image(depth_img_ptr_->image, dilated_depth_img);
+    fin_depth_img_ptr_->image = dilated_depth_img;
+
+    // Label
+    fin_label_img_ptr_->header = label_img_ptr_->header;
+    fin_label_img_ptr_->encoding = label_img_ptr_->encoding;
+
+    cv::Mat dilated_label_img;
+    dilate_depth_image(label_img_ptr_->image, dilated_label_img);
+    fin_label_img_ptr_->image = dilated_label_img;
+
+    // Normal
+    fin_normal_img_ptr_->header = normal_img_ptr_->header;
+    fin_normal_img_ptr_->encoding = normal_img_ptr_->encoding;
+
+    cv::Mat dilated_normal_img;
+    dilate_depth_image(normal_img_ptr_->image, dilated_normal_img);
+    fin_normal_img_ptr_->image = dilated_normal_img;
 }
 
 void SuperpixelDepthSegmenter::visualize()
@@ -166,7 +188,7 @@ void SuperpixelDepthSegmenter::visualize()
         return;
     }
 
-    process_depth_image_pub_.publish(process_depth_image_ptr_->toImageMsg());
+    fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // overlay center grid on color version of depth image
 
@@ -178,7 +200,7 @@ void SuperpixelDepthSegmenter::visualize()
     cv::Vec3b color(255, 0, 255);
     displayCenterGrid(overlaid_image, color);
 
-    center_grid_image_ptr_->header = process_depth_image_ptr_->header;
+    center_grid_image_ptr_->header = fin_depth_img_ptr_->header;
     center_grid_image_ptr_->header.stamp = ros::Time::now();
     center_grid_image_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
 
@@ -190,10 +212,10 @@ void SuperpixelDepthSegmenter::visualize()
 
 void SuperpixelDepthSegmenter::convertDepthImageToColor()
 {
-    color_depth_image_ = cv::Mat(process_depth_image_ptr_->image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    color_depth_image_ = cv::Mat(fin_depth_img_ptr_->image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
 
     double min_depth = 0.0, max_depth = 0.0;
-    cv::minMaxLoc(process_depth_image_ptr_->image, &min_depth, &max_depth);
+    cv::minMaxLoc(fin_depth_img_ptr_->image, &min_depth, &max_depth);
 
     // ROS_INFO_STREAM("Converting to 8UC3...");
 
@@ -201,7 +223,7 @@ void SuperpixelDepthSegmenter::convertDepthImageToColor()
     {
         for (int c = 0; c < color_depth_image_.cols; c++)
         {
-            float depth = depth_image_ptr_->image.at<float>(r, c);
+            float depth = depth_img_ptr_->image.at<float>(r, c);
 
             if (std::isnan(depth) || std::fabs(depth) < 1e-6)
             {
@@ -211,7 +233,7 @@ void SuperpixelDepthSegmenter::convertDepthImageToColor()
             ROS_INFO_STREAM("   (r, c): (" << r << ", " << c << ")");
             ROS_INFO_STREAM("       depth: " << depth);
 
-            int quantized_depth = (int) (depth * 255.0 / max_depth);
+            int quantized_depth = (int) (depth * 255.0 / max_depth); // just scaling by max depth in image. If we do full max depth than image is really hard to see.
 
             cv::Vec3b color = cv::Vec3b(quantized_depth, quantized_depth, quantized_depth);
             color_depth_image_.at<cv::Vec3b>(r, c) = color;
@@ -238,9 +260,9 @@ void SuperpixelDepthSegmenter::dilate_depth_image(const cv::Mat & image, cv::Mat
     cv::dilate(image, dilated_image, element, cv::Point(-1, -1), 3);
 }
 
-void SuperpixelDepthSegmenter::preprocessing(const cv::Mat & depth_image)
+void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessing]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::calculateStep]");
 
     int width = depth_image.cols;
     int height = depth_image.rows;
@@ -341,13 +363,13 @@ bool SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, cv:
 void SuperpixelDepthSegmenter::checkSparsity()
 {
 
-    int rows = process_depth_image_ptr_->image.rows;
-    int cols = process_depth_image_ptr_->image.cols;
+    int rows = fin_depth_img_ptr_->image.rows;
+    int cols = fin_depth_img_ptr_->image.cols;
 
     // Sanity check middle pixel
-    ROS_INFO_STREAM("Depth image size --- rows: " << process_depth_image_ptr_->image.rows << ", cols: " << process_depth_image_ptr_->image.cols);
-    ROS_INFO_STREAM("Label image size --- rows: " << label_image_ptr_->image.rows << ", cols: " << label_image_ptr_->image.cols);
-    ROS_INFO_STREAM("Normal image size --- rows: " << normal_image_ptr_->image.rows << ", cols: " << normal_image_ptr_->image.cols);
+    ROS_INFO_STREAM("Depth image size --- rows: " << fin_depth_img_ptr_->image.rows << ", cols: " << fin_depth_img_ptr_->image.cols);
+    ROS_INFO_STREAM("Label image size --- rows: " << label_img_ptr_->image.rows << ", cols: " << label_img_ptr_->image.cols);
+    ROS_INFO_STREAM("Normal image size --- rows: " << normal_img_ptr_->image.rows << ", cols: " << normal_img_ptr_->image.cols);
 
     int nan_depth_count = 0;
     int nan_label_count = 0;
@@ -365,24 +387,24 @@ void SuperpixelDepthSegmenter::checkSparsity()
     {
         for (int c = 0; c < cols; c++)
         {
-            if (process_depth_image_ptr_->image.at<float>(r, c) != process_depth_image_ptr_->image.at<float>(r, c))
+            if (fin_depth_img_ptr_->image.at<float>(r, c) != fin_depth_img_ptr_->image.at<float>(r, c))
             {
                 // ROS_ERROR_STREAM("Depth image has NaN value at row: " << r << ", col: " << c);
                 nan_depth_count++;
-            } else if (process_depth_image_ptr_->image.at<float>(r, c) == 0)
+            } else if (fin_depth_img_ptr_->image.at<float>(r, c) == 0)
             {
                 zero_depth_count++;
             } else
             {
-                // ROS_INFO_STREAM("Depth image value at row: " << r << ", col: " << c << " is: " << process_depth_image_ptr_->image.at<float>(r, c));
+                // ROS_INFO_STREAM("Depth image value at row: " << r << ", col: " << c << " is: " << fin_depth_img_ptr_->image.at<float>(r, c));
                 finite_depth_count++;
             }
 
-            if (label_image_ptr_->image.at<uint8_t>(r, c) != label_image_ptr_->image.at<uint8_t>(r, c))
+            if (label_img_ptr_->image.at<uint8_t>(r, c) != label_img_ptr_->image.at<uint8_t>(r, c))
             {
                 // ROS_ERROR_STREAM("Label image has NaN value at row: " << r << ", col: " << c);
                 nan_label_count++;
-            } else if (label_image_ptr_->image.at<uint8_t>(r, c) == 0)
+            } else if (label_img_ptr_->image.at<uint8_t>(r, c) == 0)
             {
                 zero_label_count++;
             } else
@@ -390,20 +412,20 @@ void SuperpixelDepthSegmenter::checkSparsity()
                 finite_label_count++;
             }
 
-            if (normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] ||
-                normal_image_ptr_->image.at<cv::Vec3f>(r, c)[1] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[1] ||
-                normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2] != normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2])
+            if (normal_img_ptr_->image.at<cv::Vec3f>(r, c)[0] != normal_img_ptr_->image.at<cv::Vec3f>(r, c)[0] ||
+                normal_img_ptr_->image.at<cv::Vec3f>(r, c)[1] != normal_img_ptr_->image.at<cv::Vec3f>(r, c)[1] ||
+                normal_img_ptr_->image.at<cv::Vec3f>(r, c)[2] != normal_img_ptr_->image.at<cv::Vec3f>(r, c)[2])
             {
                 // ROS_ERROR_STREAM("Normal image has NaN value at row: " << r << ", col: " << c);
                 nan_normal_count++;
-            } else if (normal_image_ptr_->image.at<cv::Vec3f>(r, c)[0] == 0 &&
-                       normal_image_ptr_->image.at<cv::Vec3f>(r, c)[1] == 0 &&
-                       normal_image_ptr_->image.at<cv::Vec3f>(r, c)[2] == 0)
+            } else if (normal_img_ptr_->image.at<cv::Vec3f>(r, c)[0] == 0 &&
+                       normal_img_ptr_->image.at<cv::Vec3f>(r, c)[1] == 0 &&
+                       normal_img_ptr_->image.at<cv::Vec3f>(r, c)[2] == 0)
             {
                 zero_normal_count++;
             } else
             {
-                // ROS_INFO_STREAM("Normal image value at row: " << r << ", col: " << c << " is: " << normal_image_ptr_->image.at<cv::Vec3f>(r, c));
+                // ROS_INFO_STREAM("Normal image value at row: " << r << ", col: " << c << " is: " << normal_img_ptr_->image.at<cv::Vec3f>(r, c));
                 finite_normal_count++;
             }
         }
