@@ -1,7 +1,5 @@
 #pragma once
 
-#include <superpixels/SuperpixelSegmenter.h>
-
 #include <image_transport/subscriber_filter.h>
 #include <tf2_ros/message_filter.h>
 
@@ -23,26 +21,33 @@ class SuperpixelDepthSegmenter
     public:
         SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path);
 
+        /////////////
+        // SEGMENT //
+        /////////////
         void run();
 
+        ///////////////
+        // VISUALIZE //
+        ///////////////
         void visualize();
 
     private:
+        /////////////
+        // SEGMENT //
+        /////////////
         void preprocessImages();
 
         void calculateStep(const cv::Mat & depth_image);
 
-        void init_data(const cv::Mat & depth_image);
+        void init_data(const cv::Mat & depth_image,
+                        const cv::Mat & label_image,
+                        const cv::Mat & normal_image);
 
-        bool findLocalMinimum(const cv::Mat & image, cv::Point & center);
+        cv::Point findLocalMinimum(const cv::Mat & depth_image, const cv::Point & loc_min);
 
         void dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image);
 
         void checkSparsity();
-
-        void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
-
-        void convertDepthImageToColor();
 
         bool notReceivedImage();
 
@@ -52,9 +57,20 @@ class SuperpixelDepthSegmenter
 
         bool notReceivedNormalImage();
 
+        bool isValidPixel(const cv::Mat & image, const cv::Point & pixel);
+
         void allImageCallback(const sensor_msgs::ImageConstPtr& depth_image, 
                                 const sensor_msgs::ImageConstPtr& label_image, 
                                 const sensor_msgs::ImageConstPtr& normal_image);
+
+        ///////////////
+        // VISUALIZE //
+        ///////////////
+        void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
+
+        void convertDepthImageToColor();
+
+        void overlayCenters();
 
         ros::NodeHandle nh_;
         
@@ -65,7 +81,7 @@ class SuperpixelDepthSegmenter
 
         // Publishers
         image_transport::Publisher fin_depth_img_pub_;
-        image_transport::Publisher center_grid_image_pub_;
+        image_transport::Publisher center_grid_img_pub_;
 
         // Image message pointers
         sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
@@ -80,8 +96,8 @@ class SuperpixelDepthSegmenter
         cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
 
-        cv_bridge::CvImagePtr cluster_image_ptr_ = nullptr;
-        cv_bridge::CvImagePtr center_grid_image_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
