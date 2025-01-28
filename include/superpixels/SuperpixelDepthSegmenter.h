@@ -45,6 +45,16 @@ class SuperpixelDepthSegmenter
 
         cv::Point findLocalMinimum(const cv::Mat & depth_image, const cv::Point & loc_min);
 
+        void generateSuperpixels(const cv::Mat & depth_image,
+                                    const cv::Mat & label_image,
+                                    const cv::Mat & normal_image);
+
+        double computeDistance(const int & center_idx, 
+                                const float & depth,
+                                const uint8_t & label,
+                                const cv::Vec3b & normal,
+                                const cv::Point & pixel);
+
         void dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image);
 
         void checkSparsity();

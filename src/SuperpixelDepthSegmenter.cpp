@@ -137,6 +137,9 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
+    std::chrono::steady_clock::time_point timeBegin, timeEnd;
+    timeBegin = std::chrono::steady_clock::now();
+
     // Pre-processing
     preprocessImages();
 
@@ -161,45 +164,81 @@ void SuperpixelDepthSegmenter::run()
     // }
 
     // Generate superpixels
-    // generateSuperpixels(fin_depth_img_ptr_->image);
+    generateSuperpixels(fin_depth_img_ptr_->image,
+                        fin_label_img_ptr_->image,
+                        fin_normal_img_ptr_->image);
+
+    timeEnd = std::chrono::steady_clock::now();
+    int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
+    double total_time_sec = total_time / 1.0e6; 
+    ROS_INFO_STREAM("Superpixels took: " << total_time_sec << " seconds");
 
     return;
 }
 
-// void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image)
-// {
-//     // Generate superpixels
-//     for (int i = 0; i < params_.num_iterations_; i++)
-//     {
-//         /* Reset distance values. */
-//         distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
+void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
+                                                    const cv::Mat & label_image,
+                                                    const cv::Mat & normal_image)
+{
+    // Generate superpixels
+    for (int i = 0; i < params_.num_iterations_; i++)
+    {
+        /* Reset distance values. */
+        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
 
-//         /* Update distances and clusters */
-//         for (int j = 0; j < (int) centers_.size(); j++) 
-//         {
-//             /* Only compare to pixels in a 2 x step by 2 x step region. */
-//             for (int k = centers_[j][3] - params_.step_; k < centers_[j][3] + params_.step_; k++) 
-//             {
-//                 for (int l = centers_[j][4] - params_.step_; l < centers_[j][4] + params_.step_; l++) 
-//                 {
-//                     if (k >= 0 && k < lab_image.cols && l >= 0 && l < lab_image.rows) 
-//                     {
-//                         cv::Vec3b color = lab_image.at<cv::Vec3b>(l, k);
-//                         double d = computeDistance(j, color, cv::Point(k, l));
+        /* Update distances and clusters */
+        for (int j = 0; j < (int) centers_.size(); j++) 
+        {
+            /* Only compare to pixels in a 2 x step by 2 x step region. */
+            for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
+            {
+                for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
+                {
+                    cv::Point current(c, r);
+                    if (isValidPixel(depth_image, current)) 
+                    {
+                        float depth = depth_image.at<float>(r, c);
+                        uint8_t label = label_image.at<uint8_t>(r, c);
+                        cv::Vec3b normal = normal_img_ptr_->image.at<cv::Vec3b>(r, c);
 
-//                         if (d < distances_.at<double>(l, k)) 
-//                         {
-//                             distances_.at<double>(l, k) = d;
-//                             clusters_.at<int>(l, k) = j;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
+                        double d = computeDistance(j, 
+                                                    depth,
+                                                    label,
+                                                    normal,
+                                                    current);
 
-//     }
+                        if (d < distances_.at<double>(r, c)) 
+                        {
+                            distances_.at<double>(r, c) = d;
+                            clusters_.at<int>(r, c) = j;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
-// }
+double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
+                                                    const float & depth,
+                                                    const uint8_t & label,
+                                                    const cv::Vec3b & normal,
+                                                    const cv::Point & pixel)
+{
+    return 0.0;
+
+    // // Color term
+    // double dc = sqrt(pow(color.val[0] - centers_[center_idx][0], 2) +
+    //                  pow(color.val[1] - centers_[center_idx][1], 2) +
+    //                  pow(color.val[2] - centers_[center_idx][2], 2));
+
+    // // Spatial term
+    // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
+    //                  pow(pixel.y - centers_[center_idx][4], 2));
+    
+    // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
+}
+
 
 void SuperpixelDepthSegmenter::preprocessImages()
 {
@@ -314,8 +353,8 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
-    int deltaX = 3;
-    int deltaY = 3;
+    int deltaX = (params_.step_ / 2); // 5;
+    int deltaY = (params_.step_ / 2); // 5;
 
     for (int c = og_center.x - deltaX; c <= og_center.x + deltaX; c++)
     {
