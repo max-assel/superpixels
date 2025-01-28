@@ -81,6 +81,10 @@ class SuperpixelDepthSegmenter
                                 const sensor_msgs::ImageConstPtr& label_image, 
                                 const sensor_msgs::ImageConstPtr& normal_image);
 
+        void floorPixelToWorld(cv::Vec3b & worldPt,
+                                const cv::Point & pixel,
+                                const float & depth);
+
         ///////////////
         // VISUALIZE //
         ///////////////
@@ -140,10 +144,15 @@ class SuperpixelDepthSegmenter
         {
             int num_superpixels_ = 0; // Desired number of approximately equally-sized superpixels
             int step_ = 0; // superpixel grid interval
-            int n_c_ = 0; // Color parameter
-            int n_s_ = 0; // Spatial parameter
+            int w_normal_ = 1.0; // Weighting parameter for normal similarity term
+            int w_pos_ = 1.0; // Weighting parameter for plane - position distance term
             int num_iterations_ = 0; // Number of iterations
             bool warm_start_ = false; // Warm start
+
+            int k_c_ = 512; // Floor width (pixels)
+            double v_fov_ = M_PI / 2; // Vertical field of view (radians)
+            double v_offset_ = 0.0;
+            double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
         };
 
         SuperpixelParams params_;

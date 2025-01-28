@@ -8,17 +8,19 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     YAML::Node configYamlNode = YAML::LoadFile(config_path);
 
     params_.num_superpixels_ = configYamlNode["superpixels"]["num_superpixels"].as<int>();
-    params_.n_c_ = configYamlNode["superpixels"]["n_c"].as<int>();
-    params_.n_s_ = configYamlNode["superpixels"]["n_s"].as<int>();
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
     params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
 
     ROS_INFO_STREAM("   params_:");
     ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
-    ROS_INFO_STREAM("       n_c_: " << params_.n_c_);
-    ROS_INFO_STREAM("       n_s_: " << params_.n_s_);
     ROS_INFO_STREAM("       num_iterations_: " << params_.num_iterations_);
     ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
+    ROS_INFO_STREAM("       w_normal_: " << params_.w_normal_);
+    ROS_INFO_STREAM("       w_pos_: " << params_.w_pos_);
+    ROS_INFO_STREAM("       k_c_: " << params_.k_c_);
+    ROS_INFO_STREAM("       v_fov_: " << params_.v_fov_);
+    ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
+    ROS_INFO_STREAM("       h_: " << params_.h_);
 
     // Set up subscribers and publishers
     image_transport::ImageTransport it(nh);
@@ -305,24 +307,45 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     }
 }
 
+void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3b & worldPt,
+                                                    const cv::Point & pixel,
+                                                    const float & depth)
+{
+    worldPt[0] = (pixel.x - params_.k_c_) * (depth / (params_.h_ * params_.k_c_));
+    worldPt[1] = depth;
+    worldPt[2] = (pixel.y - params_.k_c_) * (depth / (params_.h_ * params_.k_c_));
+}
+
 double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
                                                     const float & depth,
                                                     const uint8_t & label,
                                                     const cv::Vec3b & normal,
                                                     const cv::Point & pixel)
 {
-    return 0.0;
+    float center_depth = centers_[center_idx][2];
+    uint8_t center_label = centers_[center_idx][3];
+    cv::Vec3b center_normal = cv::Vec3b(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
-    // // Color term
+    // Normal term
+    double d_normal = params_.w_normal_ * (1.0 - normal.dot(center_normal));
     // double dc = sqrt(pow(color.val[0] - centers_[center_idx][0], 2) +
     //                  pow(color.val[1] - centers_[center_idx][1], 2) +
     //                  pow(color.val[2] - centers_[center_idx][2], 2));
 
+    // Position term
+    cv::Vec3b worldPt;
+    floorPixelToWorld(worldPt, pixel, depth);
+
+    cv::Vec3b centerWorldPt;
+    floorPixelToWorld(centerWorldPt, cv::Point(centers_[center_idx][0], centers_[center_idx][1]), center_depth);
+    double d_posn = params_.w_pos_ * std::fabs( (centerWorldPt - worldPt).dot(center_normal) );
+
     // // Spatial term
     // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
     //                  pow(pixel.y - centers_[center_idx][4], 2));
-    
+
     // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
+    return d_normal + d_posn;
 }
 
 
