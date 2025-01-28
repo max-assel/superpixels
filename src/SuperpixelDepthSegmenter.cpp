@@ -523,6 +523,8 @@ void SuperpixelDepthSegmenter::visualize()
 
     overlayCenters();
 
+    colorClusters();
+
     return;
 }
 
@@ -584,6 +586,31 @@ void SuperpixelDepthSegmenter::displayCenterGrid(cv::Mat & image, const cv::Vec3
     }
 
     return;
+}
+
+void SuperpixelDepthSegmenter::colorClusters()
+{
+    // build ector of random colors for clusters
+    std::vector<cv::Scalar> colors(centers_.size());
+    for (int i = 0; i < (int) colors.size(); i++)
+    {
+        colors[i] = cv::Scalar(rand() % 256, rand() % 256, rand() % 256);
+    }
+
+    // iterate through valid pixels and color
+    for (int c = 0; c < fin_depth_img_ptr_->image.cols; c++)
+    {
+        for (int r = 0; r < fin_depth_img_ptr_->image.rows; r++)
+        {
+            int cluster_id = clusters_.at<int>(r, c);
+            if (cluster_id != -1)
+            {
+                cv::Scalar color = colors[cluster_id];
+                color_depth_image_.at<cv::Vec3b>(r, c) = cv::Vec3b(color[0], color[1], color[2]);
+            }
+        }
+    }
+    
 }
 
 void SuperpixelDepthSegmenter::checkSparsity()

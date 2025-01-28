@@ -85,6 +85,8 @@ class SuperpixelDepthSegmenter
                                 const cv::Point & pixel,
                                 const float & depth);
 
+        void colorClusters();
+
         ///////////////
         // VISUALIZE //
         ///////////////
