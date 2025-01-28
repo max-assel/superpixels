@@ -43,7 +43,10 @@ class SuperpixelDepthSegmenter
                         const cv::Mat & label_image,
                         const cv::Mat & normal_image);
 
-        cv::Point findLocalMinimum(const cv::Mat & depth_image, const cv::Point & loc_min);
+        cv::Point findLocalMinimum(const cv::Mat & depth_image, 
+                                    const cv::Mat & label_image,
+                                    const cv::Mat & normal_image,
+                                    const cv::Point & og_center);
 
         void generateSuperpixels(const cv::Mat & depth_image,
                                     const cv::Mat & label_image,
@@ -67,7 +70,12 @@ class SuperpixelDepthSegmenter
 
         bool notReceivedNormalImage();
 
-        bool isValidPixel(const cv::Mat & image, const cv::Point & pixel);
+        bool isPixelInBounds(const cv::Mat & image, const cv::Point & pixel);
+
+        bool isPixelValid(const cv::Mat & depth_image, 
+                            const cv::Mat & label_image,
+                            const cv::Mat & normal_image,
+                            const cv::Point & pixel);
 
         void allImageCallback(const sensor_msgs::ImageConstPtr& depth_image, 
                                 const sensor_msgs::ImageConstPtr& label_image, 

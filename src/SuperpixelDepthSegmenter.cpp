@@ -97,10 +97,46 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
     return (notReceivedDepth || notReceivedLabel || notReceivedNormal);
 }
 
-bool SuperpixelDepthSegmenter::isValidPixel(const cv::Mat & image, const cv::Point & pixel)
+bool SuperpixelDepthSegmenter::isPixelInBounds(const cv::Mat & image, const cv::Point & pixel)
 {
     if (pixel.x < 0 || pixel.x >= image.cols || pixel.y < 0 || pixel.y >= image.rows)
     {
+        return false;
+    }
+
+    return true;
+}
+
+bool SuperpixelDepthSegmenter::isPixelValid(const cv::Mat & depth_image, 
+                                            const cv::Mat & label_image,
+                                            const cv::Mat & normal_image,
+                                            const cv::Point & pixel)
+{
+    if (!isPixelInBounds(depth_image, pixel))
+    {
+        return false;
+    }
+
+    float depth = depth_image.at<float>(pixel.y, pixel.x);
+
+    if (std::isnan(depth) || std::fabs(depth) < 1e-6)
+    {
+        return false;
+    }
+
+    uint8_t label = label_image.at<uint8_t>(pixel.y, pixel.x);
+
+    if (std::isnan(label) || label < 0)
+    {
+        ROS_WARN_STREAM("Passing depth check but failing label check.");
+        return false;
+    }
+
+    cv::Vec3b normal = normal_image.at<cv::Vec3b>(pixel.y, pixel.x);
+
+    if (cv::norm(normal) < DELTA)
+    {
+        ROS_WARN_STREAM("Passing depth check but failing normal check.");
         return false;
     }
 
@@ -183,8 +219,9 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
     {
-        /* Reset distance values. */
+        /* Reset distance and cluster values. */
         distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
+        clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
         /* Update distances and clusters */
         for (int j = 0; j < (int) centers_.size(); j++) 
@@ -195,7 +232,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
                 {
                     cv::Point current(c, r);
-                    if (isValidPixel(depth_image, current)) 
+                    if (isPixelValid(depth_image, label_image, normal_image, current)) 
                     {
                         float depth = depth_image.at<float>(r, c);
                         uint8_t label = label_image.at<uint8_t>(r, c);
@@ -215,6 +252,55 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                     }
                 }
             }
+        }
+
+        /* Clear the center values. */
+        for (int j = 0; j < (int) centers_.size(); j++) 
+        {
+            centers_[j][0] = 0;
+            centers_[j][1] = 0;
+            centers_[j][2] = 0;
+            centers_[j][3] = 0;
+            centers_[j][4] = 0;
+            center_counts_[j] = 0;
+        }
+
+        /* Compute the new cluster centers. */
+        for (int c = 0; c < depth_image.cols; c++) 
+        {
+            for (int r = 0; r < depth_image.rows; r++) 
+            {
+                int cluster_id = clusters_.at<int>(r, c);
+                
+                if (cluster_id != -1) 
+                {
+                    float depth = depth_image.at<float>(r, c);
+                    uint8_t label = label_image.at<uint8_t>(r, c);
+                    cv::Vec3b normal = normal_img_ptr_->image.at<cv::Vec3b>(r, c);
+
+                    centers_[cluster_id][0] += c;
+                    centers_[cluster_id][1] += r;
+                    centers_[cluster_id][2] += depth;
+                    centers_[cluster_id][3] += label;
+                    centers_[cluster_id][4] += normal.val[0];
+                    centers_[cluster_id][5] += normal.val[1];
+                    centers_[cluster_id][6] += normal.val[2];
+                    
+                    center_counts_[cluster_id] += 1;
+                }
+            }
+        }     
+
+        /* Normalize the clusters. */
+        for (int j = 0; j < (int) centers_.size(); j++) 
+        {
+            centers_[j][0] /= center_counts_[j];
+            centers_[j][1] /= center_counts_[j];
+            centers_[j][2] /= center_counts_[j];
+            centers_[j][3] /= center_counts_[j];
+            centers_[j][4] /= center_counts_[j];
+            centers_[j][5] /= center_counts_[j];
+            centers_[j][6] /= center_counts_[j];
         }
     }
 }
@@ -313,14 +399,14 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 
             /* Find the local minimum (gradient-wise). */
             cv::Point originalCenter(c, r); // initialize to an invalid pixel
-            cv::Point localMinimum = findLocalMinimum(depth_image, originalCenter);
+            cv::Point localMinimum = findLocalMinimum(depth_image, label_image, normal_image, originalCenter);
             float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
             uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
-            cv::Vec3b normal = normal_img_ptr_->image.at<cv::Vec3b>(localMinimum.y, localMinimum.x);
+            cv::Vec3b normal = normal_image.at<cv::Vec3b>(localMinimum.y, localMinimum.x);
 
             // cv::Vec3b color = lab_image.at<cv::Vec3b>(localMinimum.y, localMinimum.x);
 
-            if (!isValidPixel(depth_image, localMinimum))
+            if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
             {
                 continue;
             }
@@ -347,7 +433,10 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 
 }
 
-cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, const cv::Point & og_center)
+cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, 
+                                                        const cv::Mat & label_image,
+                                                        const cv::Mat & normal_image,
+                                                        const cv::Point & og_center)
 {
     // double min_grad = std::numeric_limits<double>::max();
     cv::Point loc_min(-1, -1);
@@ -362,7 +451,7 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
         {
             cv::Point current(c, r);
 
-            if (!isValidPixel(depth_image, current))
+            if (!isPixelInBounds(depth_image, current))
             {
                 continue;
             }
@@ -373,12 +462,12 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
             //                    pow(color.val[1] - center_color.val[1], 2) +
             //                    pow(color.val[2] - center_color.val[2], 2));
 
-            if (std::isnan(depth) || std::fabs(depth) < 1e-6)
+            if (!isPixelValid(depth_image, label_image, normal_image, current))
             {
                 continue;
             } else
             {
-                if (isValidPixel(depth_image, loc_min)) // have found a valid pixel in the region, can compare now
+                if (isPixelInBounds(depth_image, loc_min)) // have found a valid pixel in the region, can compare now
                 {
                     if (depth < depth_image.at<float>(loc_min.y, loc_min.x))
                     {
