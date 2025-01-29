@@ -29,7 +29,9 @@ class SuperpixelDepthSegmenter
         ///////////////
         // VISUALIZE //
         ///////////////
-        void visualize();
+        void visualize(const cv::Mat & depth_image,
+                        const cv::Mat & label_image,
+                        const cv::Mat & normal_image);
 
     private:
         /////////////
@@ -85,16 +87,16 @@ class SuperpixelDepthSegmenter
                                 const cv::Point & pixel,
                                 const float & depth);
 
-        void colorClusters();
+        void colorClusters(const cv::Mat & color_depth_image);
 
         ///////////////
         // VISUALIZE //
         ///////////////
         void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
 
-        void convertDepthImageToColor();
+        void convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image);
 
-        void overlayCenters();
+        void overlayCenters(const cv::Mat & color_depth_image);
 
         ros::NodeHandle nh_;
         
@@ -141,7 +143,7 @@ class SuperpixelDepthSegmenter
         std::vector<std::vector<double>> centers_; // LAB/xy cluster centers
         std::vector<int> center_counts_; // Number of occurrences of each center
 
-        cv::Mat color_depth_image_;
+        // cv::Mat color_depth_image_;
 
         std::vector<cv::Scalar> colors_;
 
@@ -150,8 +152,8 @@ class SuperpixelDepthSegmenter
         {
             int num_superpixels_ = 0; // Desired number of approximately equally-sized superpixels
             int step_ = 0; // superpixel grid interval
-            int w_normal_ = 1.0; // Weighting parameter for normal similarity term
-            int w_pos_ = 1.0; // Weighting parameter for plane - position distance term
+            double w_normal_ = 1.0; // Weighting parameter for normal similarity term
+            double w_pos_ = 10.0; // Weighting parameter for plane - position distance term
             int num_iterations_ = 0; // Number of iterations
             bool warm_start_ = false; // Warm start
 
