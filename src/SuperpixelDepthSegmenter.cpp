@@ -460,6 +460,28 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     // cv::Mat dilated_normal_img;
     dilate_img(cleaned_normal_img, preprocessed_normal_img);
     // fin_normal_img_ptr_->image = dilated_normal_img;
+
+    ROS_INFO_STREAM("       Comparing normal image to dilated normal image ...");
+    // Compare normal image with dilated normal image
+    for (int r = 0; r < cleaned_normal_img.rows; r++)
+    {
+        for (int c = 0; c < cleaned_normal_img.cols; c++)
+        {
+            cv::Vec3f normal = cleaned_normal_img.at<cv::Vec3f>(r, c);
+
+            if (cv::norm(normal) < DELTA)
+            {
+                continue;
+            }
+
+
+            cv::Vec3f dilated_normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
+
+            ROS_INFO_STREAM("       Normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
+            ROS_INFO_STREAM("       Dilated Normal: (" << dilated_normal.val[0] << ", " << dilated_normal.val[1] << ", " << dilated_normal.val[2] << ")");
+            
+        }
+    }
 }
 
 void SuperpixelDepthSegmenter::dilate_img(const cv::Mat & image, cv::Mat & dilated_image)
