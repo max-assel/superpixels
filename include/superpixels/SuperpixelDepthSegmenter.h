@@ -37,7 +37,23 @@ class SuperpixelDepthSegmenter
         /////////////
         // SEGMENT //
         /////////////
-        void preprocessImages();
+        void cleanImages(const cv::Mat & raw_depth_img,
+                            const cv::Mat & raw_label_img,
+                            const cv::Mat & raw_normal_img,
+                            cv::Mat & checked_depth_img,
+                            cv::Mat & checked_label_img,
+                            cv::Mat & checked_normal_img);
+
+        void healthCheck(const cv::Mat & depth_img,
+                            const cv::Mat & label_img,
+                            const cv::Mat & normal_img);
+
+        void preprocessImages(const cv::Mat & checked_depth_img,
+                                const cv::Mat & checked_label_img,
+                                const cv::Mat & checked_normal_img,
+                                cv::Mat & preprocessed_depth_img,
+                                cv::Mat & preprocessed_label_img,
+                                cv::Mat & preprocessed_normal_img);
 
         void calculateStep(const cv::Mat & depth_image);
 
@@ -60,9 +76,9 @@ class SuperpixelDepthSegmenter
                                 const cv::Vec3f & normal,
                                 const cv::Point & pixel);
 
-        void dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image);
+        void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
 
-        void checkSparsity();
+        // void checkSparsity();
 
         bool notReceivedImage();
 
@@ -107,6 +123,7 @@ class SuperpixelDepthSegmenter
 
         // Publishers
         image_transport::Publisher fin_depth_img_pub_;
+        image_transport::Publisher fin_normal_img_pub_;
         image_transport::Publisher center_grid_img_pub_;
         image_transport::Publisher colored_cluster_img_pub_;
 
@@ -116,12 +133,13 @@ class SuperpixelDepthSegmenter
         sensor_msgs::ImageConstPtr raw_normal_img_msg_ = nullptr;
 
         // Image pointers
-        cv_bridge::CvImagePtr depth_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr label_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr normal_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr raw_label_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr raw_normal_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
 
         // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;
