@@ -230,6 +230,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                     const cv::Mat & label_image,
                                                     const cv::Mat & normal_image)
 {
+    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::generateSuperpixels]");
+
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
     {
@@ -319,6 +321,12 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             centers_[j][6] /= center_counts_[j];
         }
     }
+
+    ROS_INFO_STREAM("       center_counts:");
+    for (int i = 0; i < (int) center_counts_.size(); i++)
+    {
+        ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
+    }
 }
 
 void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
@@ -326,7 +334,7 @@ void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
                                                     const float & depth)
 {
     worldPt[0] = (pixel.x - params_.k_c_) * (depth / (params_.h_ * params_.k_c_));
-    worldPt[1] = depth;
+    worldPt[1] = -depth;
     worldPt[2] = (pixel.y - params_.k_c_) * (depth / (params_.h_ * params_.k_c_));
 }
 
@@ -336,7 +344,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
                                                     const cv::Vec3f & normal,
                                                     const cv::Point & pixel)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::computeDistance]");
+    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::computeDistance]");
 
     cv::Point center_pixel = cv::Point(centers_[center_idx][0], centers_[center_idx][1]);
     float center_depth = centers_[center_idx][2];
@@ -349,16 +357,18 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     cv::Vec3f centerWorldPt;
     floorPixelToWorld(centerWorldPt, center_pixel, center_depth);
 
-    // ROS_INFO_STREAM("           center_idx: " << center_idx);
-    // ROS_INFO_STREAM("           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
-    // ROS_INFO_STREAM("           center_depth: " << center_depth);
-    // ROS_INFO_STREAM("           center_label: " << center_label);
-    // ROS_INFO_STREAM("           center_normal: " << center_normal);
+    ROS_INFO_STREAM("           center_idx: " << center_idx);
+    ROS_INFO_STREAM("           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
+    ROS_INFO_STREAM("           center_world_pt: " << centerWorldPt);
+    ROS_INFO_STREAM("           center_depth: " << center_depth);
+    ROS_INFO_STREAM("           center_label: " << center_label);
+    ROS_INFO_STREAM("           center_normal: " << center_normal);
 
-    // ROS_INFO_STREAM("           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
-    // ROS_INFO_STREAM("           depth: " << depth);
-    // ROS_INFO_STREAM("           label: " << label);
-    // ROS_INFO_STREAM("           normal: " << normal);
+    ROS_INFO_STREAM("           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
+    ROS_INFO_STREAM("           world_pt: " << worldPt);
+    ROS_INFO_STREAM("           depth: " << depth);
+    ROS_INFO_STREAM("           label: " << label);
+    ROS_INFO_STREAM("           normal: " << normal);
 
 
     // Normal term
@@ -367,7 +377,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     //                  pow(color.val[1] - centers_[center_idx][1], 2) +
     //                  pow(color.val[2] - centers_[center_idx][2], 2));
 
-    // ROS_INFO_STREAM("           d_normal: " << d_normal);
+    ROS_INFO_STREAM("           d_normal: " << d_normal);
 
     // Position term
 
@@ -378,7 +388,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
     //                  pow(pixel.y - centers_[center_idx][4], 2));
 
-    // ROS_INFO_STREAM("           d_posn: " << d_posn);
+    ROS_INFO_STREAM("           d_posn: " << d_posn);
 
     // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
     return d_normal + d_posn;
