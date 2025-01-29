@@ -55,7 +55,7 @@ class SuperpixelDepthSegmenter
         double computeDistance(const int & center_idx, 
                                 const float & depth,
                                 const uint8_t & label,
-                                const cv::Vec3b & normal,
+                                const cv::Vec3f & normal,
                                 const cv::Point & pixel);
 
         void dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image);
@@ -81,7 +81,7 @@ class SuperpixelDepthSegmenter
                                 const sensor_msgs::ImageConstPtr& label_image, 
                                 const sensor_msgs::ImageConstPtr& normal_image);
 
-        void floorPixelToWorld(cv::Vec3b & worldPt,
+        void floorPixelToWorld(cv::Vec3f & worldPt,
                                 const cv::Point & pixel,
                                 const float & depth);
 
@@ -106,6 +106,7 @@ class SuperpixelDepthSegmenter
         // Publishers
         image_transport::Publisher fin_depth_img_pub_;
         image_transport::Publisher center_grid_img_pub_;
+        image_transport::Publisher colored_cluster_img_pub_;
 
         // Image message pointers
         sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
@@ -122,6 +123,7 @@ class SuperpixelDepthSegmenter
 
         // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr colored_cluster_img_ptr_ = nullptr;
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
@@ -140,6 +142,8 @@ class SuperpixelDepthSegmenter
         std::vector<int> center_counts_; // Number of occurrences of each center
 
         cv::Mat color_depth_image_;
+
+        std::vector<cv::Scalar> colors_;
 
         // Parameters
         struct SuperpixelParams

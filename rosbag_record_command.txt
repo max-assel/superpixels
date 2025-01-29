@@ -1,0 +1,1 @@
+rosbag record /camera/color/camera_info /camera/color/image_raw /camera/color_normals /camera/depth/camera_info /camera/depth/image_raw /camera/normals /camera/steppability/labels /camera/steppability/output /egocylinder/floor_image /egocylinder/floor_labels /egocylinder/floor_labels_colored /egocylinder/floor_normals /egocylinder/floor_normals_colored /tf /tf_static
