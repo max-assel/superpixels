@@ -329,11 +329,11 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
     }
 
-    // ROS_INFO_STREAM("       center_counts:");
-    // for (int i = 0; i < (int) center_counts_.size(); i++)
-    // {
-    //     ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
-    // }
+    ROS_INFO_STREAM("       center_counts:");
+    for (int i = 0; i < (int) center_counts_.size(); i++)
+    {
+        ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
+    }
 }
 
 void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
@@ -408,8 +408,27 @@ void SuperpixelDepthSegmenter::preprocessImages()
     fin_depth_img_ptr_->header = depth_img_ptr_->header;
     fin_depth_img_ptr_->encoding = depth_img_ptr_->encoding;
 
+    // zero invalid depth pixels
+    cv::Mat zeroed_depth_img = depth_img_ptr_->image.clone();
+    // cv::Mat zeroed_depth_img = cv::Mat(depth_img_ptr_->image.size(), CV_32F, cv::Scalar(0));
+    // for (int r = 0; r < depth_img_ptr_->image.rows; r++)
+    // {
+    //     for (int c = 0; c < depth_img_ptr_->image.cols; c++)
+    //     {
+    //         float depth = depth_img_ptr_->image.at<float>(r, c);
+
+    //         if (std::isnan(depth) || std::fabs(depth) < 1e-6 || depth < 0)
+    //         {
+    //             zeroed_depth_img.at<float>(r, c) = 0;
+    //         } else
+    //         {
+    //             zeroed_depth_img.at<float>(r, c) = depth;
+    //         }
+    //     }
+    // }
+
     cv::Mat dilated_depth_img;
-    dilate_depth_image(depth_img_ptr_->image, dilated_depth_img);
+    dilate_depth_image(zeroed_depth_img, dilated_depth_img);
     fin_depth_img_ptr_->image = dilated_depth_img;
 
     // Label
@@ -424,15 +443,34 @@ void SuperpixelDepthSegmenter::preprocessImages()
     fin_normal_img_ptr_->header = normal_img_ptr_->header;
     fin_normal_img_ptr_->encoding = normal_img_ptr_->encoding;
 
+    // zero invalid normal pixels
+    cv::Mat zeroed_normal_img = normal_img_ptr_->image.clone(); 
+    // cv::Mat zeroed_normal_img = cv::Mat(normal_img_ptr_->image.size(), CV_32FC3, cv::Scalar(0));
+    // for (int r = 0; r < normal_img_ptr_->image.rows; r++)
+    // {
+    //     for (int c = 0; c < normal_img_ptr_->image.cols; c++)
+    //     {
+    //         cv::Vec3f normal = normal_img_ptr_->image.at<cv::Vec3f>(r, c);
+
+    //         if (cv::norm(normal) < DELTA)
+    //         {
+    //             zeroed_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, 0, 0);
+    //         } else
+    //         {
+    //             zeroed_normal_img.at<cv::Vec3f>(r, c) = normal;
+    //         }
+    //     }
+    // }
+
     cv::Mat dilated_normal_img;
-    dilate_depth_image(normal_img_ptr_->image, dilated_normal_img);
+    dilate_depth_image(zeroed_normal_img, dilated_normal_img);
     fin_normal_img_ptr_->image = dilated_normal_img;
 }
 
 void SuperpixelDepthSegmenter::dilate_depth_image(const cv::Mat & image, cv::Mat & dilated_image)
 {
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-    cv::dilate(image, dilated_image, element, cv::Point(-1, -1), 3);
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+    cv::dilate(image, dilated_image, element, cv::Point(-1, -1), 2);
 }
 
 void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)
@@ -571,7 +609,7 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
     // }
 
     fin_depth_img_ptr_->header.stamp = ros::Time::now();
-    fin_depth_img_ptr_->image = depth_image;
+    // fin_depth_img_ptr_->image = depth_image;
     fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
