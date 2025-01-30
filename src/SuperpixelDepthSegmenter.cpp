@@ -458,8 +458,45 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     // fin_normal_img_ptr_->encoding = normal_img_ptr_->encoding;
 
     // cv::Mat dilated_normal_img;
-    dilate_img(cleaned_normal_img, preprocessed_normal_img);
-    // fin_normal_img_ptr_->image = dilated_normal_img;
+
+    cv::Mat added_normal_img = cleaned_normal_img.clone();
+
+    // Build element-wise norm mask
+    cv::Mat norm_binary_mask = cv::Mat(cleaned_normal_img.size(), CV_8UC1, cv::Scalar(0));
+    for (int r = 0; r < cleaned_normal_img.rows; r++)
+    {
+        for (int c = 0; c < cleaned_normal_img.cols; c++)
+        {
+            cv::Vec3f normal = cleaned_normal_img.at<cv::Vec3f>(r, c);
+
+            if (cv::norm(normal) > DELTA)
+            {
+                norm_binary_mask.at<uint8_t>(r, c) = 1;
+            }
+        }
+    }
+
+    cv::add(added_normal_img, cv::Scalar(2, 2, 2), added_normal_img, norm_binary_mask);
+
+    dilate_img(added_normal_img, preprocessed_normal_img);
+    // // fin_normal_img_ptr_->image = dilated_normal_img;
+
+    // Build element-wise norm mask
+    cv::Mat norm_binary_dilated_mask = cv::Mat(preprocessed_normal_img.size(), CV_8UC1, cv::Scalar(0));
+    for (int r = 0; r < preprocessed_normal_img.rows; r++)
+    {
+        for (int c = 0; c < preprocessed_normal_img.cols; c++)
+        {
+            cv::Vec3f normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
+
+            if (cv::norm(normal) > DELTA)
+            {
+                norm_binary_dilated_mask.at<uint8_t>(r, c) = 1;
+            }
+        }
+    }
+
+    cv::add(preprocessed_normal_img, cv::Scalar(-2, -2, -2), preprocessed_normal_img, norm_binary_dilated_mask);
 
     ROS_INFO_STREAM("       Comparing normal image to dilated normal image ...");
     // Compare normal image with dilated normal image
@@ -468,6 +505,7 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
         for (int c = 0; c < cleaned_normal_img.cols; c++)
         {
             cv::Vec3f normal = cleaned_normal_img.at<cv::Vec3f>(r, c);
+            // cv::Vec3f added_normal = added_normal_img.at<cv::Vec3f>(r, c);
 
             if (cv::norm(normal) < DELTA)
             {
@@ -478,6 +516,7 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
             cv::Vec3f dilated_normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
 
             ROS_INFO_STREAM("       Normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
+            // ROS_INFO_STREAM("       Added normal: (" << added_normal.val[0] << ", " << added_normal.val[1] << ", " << added_normal.val[2] << ")");
             ROS_INFO_STREAM("       Dilated Normal: (" << dilated_normal.val[0] << ", " << dilated_normal.val[1] << ", " << dilated_normal.val[2] << ")");
             
         }
