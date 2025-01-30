@@ -72,6 +72,16 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 
 }
 
+void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
+{
+    params_.kernel_size_ = config.kernel_size;
+    params_.num_iterations_ = config.num_iterations;
+    params_.num_superpixels_ = config.num_superpixels;
+    params_.w_normal_ = config.w_normal;
+    params_.w_pos_ = config.w_pos;
+    params_.w_compact_ = config.w_compact;
+}
+
 void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
                                                 const sensor_msgs::ImageConstPtr& label_image_msg, 
                                                 const sensor_msgs::ImageConstPtr& normal_image_msg)

@@ -33,5 +33,6 @@
   <depend>cv_bridge</depend> 
   <depend>image_transport</depend>
   <depend>yaml-cpp</depend>
+  <depend>dynamic_reconfigure</depend>
 
 </package>

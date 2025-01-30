@@ -34,6 +34,12 @@ int main(int argc, char** argv)
 
     SuperpixelDepthSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nh, config_path);
 
+    dynamic_reconfigure::Server<superpixels::ParametersConfig> server;
+    dynamic_reconfigure::Server<superpixels::ParametersConfig>::CallbackType serverCallback;
+
+    serverCallback = boost::bind(&SuperpixelDepthSegmenter::reconfigureCallback, superpixel_segmenter, _1, _2);
+    server.setCallback(serverCallback);
+
     while (ros::ok())
     {
         // Do something

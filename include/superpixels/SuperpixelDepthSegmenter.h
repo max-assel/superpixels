@@ -16,6 +16,10 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <superpixels/ParametersConfig.h>
+
+
 class SuperpixelDepthSegmenter 
 {
     public:
@@ -32,6 +36,8 @@ class SuperpixelDepthSegmenter
         void visualize(const cv::Mat & depth_image,
                         const cv::Mat & label_image,
                         const cv::Mat & normal_image);
+
+        void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
 
     private:
         /////////////

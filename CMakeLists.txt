@@ -6,6 +6,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
     roslib
     cv_bridge
     image_transport
+    dynamic_reconfigure
     )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -14,6 +15,14 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+
+################################################
+## Declare ROS dynamic reconfigure parameters ##
+################################################
+
+generate_dynamic_reconfigure_options(
+  cfg/Parameters.cfg
+)
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -68,6 +77,7 @@ add_dependencies(superpixel_depth_segmentation_node
         ${PROJECT_NAME}
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
+        ${PROJECT_NAME}_gencfg
         )
 target_link_libraries(superpixel_depth_segmentation_node
         ${PROJECT_NAME}
@@ -83,6 +93,7 @@ add_dependencies(superpixel_color_segmentation_node
         ${PROJECT_NAME}
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
+        ${PROJECT_NAME}_gencfg
         )
 target_link_libraries(superpixel_color_segmentation_node
         ${PROJECT_NAME}
@@ -98,6 +109,7 @@ add_dependencies(superpixel_color_opencv_segmentation_node
         ${PROJECT_NAME}
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
+        ${PROJECT_NAME}_gencfg
         )
 target_link_libraries(superpixel_color_opencv_segmentation_node
         ${PROJECT_NAME}
