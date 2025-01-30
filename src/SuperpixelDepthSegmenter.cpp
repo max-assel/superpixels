@@ -11,6 +11,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
     params_.w_normal_ = configYamlNode["superpixels"]["w_normal"].as<double>();
     params_.w_pos_ = configYamlNode["superpixels"]["w_pos"].as<double>();
+    params_.w_compact_ = configYamlNode["superpixels"]["w_compact"].as<double>();
     params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
 
     ROS_INFO_STREAM("   params_:");
@@ -19,6 +20,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
     ROS_INFO_STREAM("       w_normal_: " << params_.w_normal_);
     ROS_INFO_STREAM("       w_pos_: " << params_.w_pos_);
+    ROS_INFO_STREAM("       w_compact_: " << params_.w_compact_);
     ROS_INFO_STREAM("       k_c_: " << params_.k_c_);
     ROS_INFO_STREAM("       v_fov_: " << params_.v_fov_);
     ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
@@ -224,20 +226,16 @@ void SuperpixelDepthSegmenter::run()
     // {
 
     // Pre-processing
-    // calculateStep(fin_depth_img_ptr_->image);
+    calculateStep(preprocessed_depth_img);
 
     // Initialize data
-    // init_data(fin_depth_img_ptr_->image,
-            //   fin_label_img_ptr_->image,
-            //   fin_normal_img_ptr_->image);
+    init_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     //     initialized_ = true;
     // }
 
     // Generate superpixels
-    // generateSuperpixels(fin_depth_img_ptr_->image,
-    //                     fin_label_img_ptr_->image,
-    //                     fin_normal_img_ptr_->image);
+    generateSuperpixels(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     timeEnd = std::chrono::steady_clock::now();
     int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
@@ -437,90 +435,81 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
                                                 cv::Mat & preprocessed_normal_img)
 {
     ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
-    // Depth
-    // fin_depth_img_ptr_->header = depth_img_ptr_->header;
-    // fin_depth_img_ptr_->encoding = depth_img_ptr_->encoding;
 
-    // cv::Mat dilated_depth_img;
-    dilate_img(cleaned_depth_img, preprocessed_depth_img);
-    // fin_depth_img_ptr_->image = dilated_depth_img;
+    // Custom dilation implementation
+    int kernel_size = 7;
 
-    // Label
-    // fin_label_img_ptr_->header = label_img_ptr_->header;
-    // fin_label_img_ptr_->encoding = label_img_ptr_->encoding;
+    cv::Mat dilated_depth_img = cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
+    cv::Mat dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
+    cv::Mat dilated_normal_img = cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
-    // cv::Mat dilated_label_img;
-    dilate_img(cleaned_label_img, preprocessed_label_img);
-    // fin_label_img_ptr_->image = dilated_label_img;
-
-    // Normal
-    // fin_normal_img_ptr_->header = normal_img_ptr_->header;
-    // fin_normal_img_ptr_->encoding = normal_img_ptr_->encoding;
-
-    // cv::Mat dilated_normal_img;
-
-    cv::Mat added_normal_img = cleaned_normal_img.clone();
-
-    // Build element-wise norm mask
-    cv::Mat norm_binary_mask = cv::Mat(cleaned_normal_img.size(), CV_8UC1, cv::Scalar(0));
-    for (int r = 0; r < cleaned_normal_img.rows; r++)
+    for (int r = 0; r < cleaned_depth_img.rows; r++)
     {
-        for (int c = 0; c < cleaned_normal_img.cols; c++)
+        for (int c = 0; c < cleaned_depth_img.cols; c++)
         {
-            cv::Vec3f normal = cleaned_normal_img.at<cv::Vec3f>(r, c);
+            float max_depth = 0;
+            int max_label = 0;
+            cv::Vec3f max_normal(0, 0, 0);
+            cv::Point max_depth_pixel(-1, -1);
 
-            if (cv::norm(normal) > DELTA)
+            int k = kernel_size / 2;
+            for (int i = -k; i <= k; i++)
             {
-                norm_binary_mask.at<uint8_t>(r, c) = 1;
+                for (int j = -k; j <= k; j++)
+                {
+                    int new_r = r + i;
+                    int new_c = c + j;
+
+                    if (!isPixelInBounds(cleaned_depth_img, cv::Point(new_c, new_r)))
+                    {
+                        continue;
+                    }
+
+                    float depth = cleaned_depth_img.at<float>(new_r, new_c);
+
+                    if (depth > max_depth)
+                    {
+                        max_depth = depth;
+                        max_label = cleaned_label_img.at<uint8_t>(new_r, new_c);
+                        max_normal = cleaned_normal_img.at<cv::Vec3f>(new_r, new_c);
+                        max_depth_pixel = cv::Point(new_c, new_r);
+                    }
+                }
             }
+
+            dilated_depth_img.at<float>(r, c) = max_depth;
+            dilated_label_img.at<uint8_t>(r, c) = max_label;
+            dilated_normal_img.at<cv::Vec3f>(r, c) = max_normal;
         }
     }
 
-    cv::add(added_normal_img, cv::Scalar(2, 2, 2), added_normal_img, norm_binary_mask);
-
-    dilate_img(added_normal_img, preprocessed_normal_img);
-    // // fin_normal_img_ptr_->image = dilated_normal_img;
-
-    // Build element-wise norm mask
-    cv::Mat norm_binary_dilated_mask = cv::Mat(preprocessed_normal_img.size(), CV_8UC1, cv::Scalar(0));
-    for (int r = 0; r < preprocessed_normal_img.rows; r++)
-    {
-        for (int c = 0; c < preprocessed_normal_img.cols; c++)
-        {
-            cv::Vec3f normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
-
-            if (cv::norm(normal) > DELTA)
-            {
-                norm_binary_dilated_mask.at<uint8_t>(r, c) = 1;
-            }
-        }
-    }
-
-    cv::add(preprocessed_normal_img, cv::Scalar(-2, -2, -2), preprocessed_normal_img, norm_binary_dilated_mask);
+    preprocessed_depth_img = dilated_depth_img;
+    preprocessed_label_img = dilated_label_img;
+    preprocessed_normal_img = dilated_normal_img;
 
     ROS_INFO_STREAM("       Comparing normal image to dilated normal image ...");
     // Compare normal image with dilated normal image
-    for (int r = 0; r < cleaned_normal_img.rows; r++)
-    {
-        for (int c = 0; c < cleaned_normal_img.cols; c++)
-        {
-            cv::Vec3f normal = cleaned_normal_img.at<cv::Vec3f>(r, c);
-            // cv::Vec3f added_normal = added_normal_img.at<cv::Vec3f>(r, c);
+    // for (int r = 0; r < cleaned_normal_img.rows; r++)
+    // {
+    //     for (int c = 0; c < cleaned_normal_img.cols; c++)
+    //     {
+    //         cv::Vec3f normal = cleaned_normal_img.at<cv::Vec3f>(r, c);
+    //         // cv::Vec3f added_normal = added_normal_img.at<cv::Vec3f>(r, c);
 
-            if (cv::norm(normal) < DELTA)
-            {
-                continue;
-            }
+    //         if (cv::norm(normal) < DELTA)
+    //         {
+    //             continue;
+    //         }
 
 
-            cv::Vec3f dilated_normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
+    //         cv::Vec3f dilated_normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
 
-            ROS_INFO_STREAM("       Normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
-            // ROS_INFO_STREAM("       Added normal: (" << added_normal.val[0] << ", " << added_normal.val[1] << ", " << added_normal.val[2] << ")");
-            ROS_INFO_STREAM("       Dilated Normal: (" << dilated_normal.val[0] << ", " << dilated_normal.val[1] << ", " << dilated_normal.val[2] << ")");
+    //         ROS_INFO_STREAM("       Normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
+    //         // ROS_INFO_STREAM("       Added normal: (" << added_normal.val[0] << ", " << added_normal.val[1] << ", " << added_normal.val[2] << ")");
+    //         ROS_INFO_STREAM("       Dilated Normal: (" << dilated_normal.val[0] << ", " << dilated_normal.val[1] << ", " << dilated_normal.val[2] << ")");
             
-        }
-    }
+    //     }
+    // }    
 }
 
 void SuperpixelDepthSegmenter::dilate_img(const cv::Mat & image, cv::Mat & dilated_image)
@@ -627,11 +616,11 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
     }
 
-    ROS_INFO_STREAM("       center_counts:");
-    for (int i = 0; i < (int) center_counts_.size(); i++)
-    {
-        ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
-    }
+    // ROS_INFO_STREAM("       center_counts:");
+    // for (int i = 0; i < (int) center_counts_.size(); i++)
+    // {
+    //     ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
+    // }
 }
 
 void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
@@ -695,8 +684,11 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // ROS_INFO_STREAM("           d_posn: " << d_posn);
 
+    // Compactness term
+    double d_compact = params_.w_compact_ * sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
+
     // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
-    return d_normal + d_posn;
+    return d_normal + d_posn + d_compact;
 }
 
 void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)
@@ -862,12 +854,12 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
     fin_normal_img_colored_ptr_->image.convertTo(fin_normal_img_colored_ptr_->image, CV_8UC3, 255.0);
     fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
-    // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-    // convertDepthImageToColor(color_depth_image, depth_image);
+    cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    convertDepthImageToColor(color_depth_image, depth_image);
 
-    // overlayCenters(color_depth_image);
+    overlayCenters(color_depth_image);
 
-    // colorClusters(color_depth_image);
+    colorClusters(color_depth_image);
 
     return;
 }

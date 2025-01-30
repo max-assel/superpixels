@@ -3,4 +3,5 @@ superpixels:
   num_iterations: 5
   w_normal: 1.0
   w_pos: 10.0
+  w_compact: 0.005
   warm_start: True
