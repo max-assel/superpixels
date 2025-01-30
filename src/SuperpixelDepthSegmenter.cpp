@@ -13,8 +13,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     params_.w_pos_ = configYamlNode["superpixels"]["w_pos"].as<double>();
     params_.w_compact_ = configYamlNode["superpixels"]["w_compact"].as<double>();
     // params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
-    params_.kernel_size_ = configYamlNode["superpixels"]["kernel_size"].as<int>();
-    params_.k_dilation_ = (params_.kernel_size_ / 2);
+    params_.kernel_radius_ = configYamlNode["superpixels"]["kernel_radius"].as<int>();
 
     ROS_INFO_STREAM("   params_:");
     ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
@@ -23,7 +22,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     ROS_INFO_STREAM("       w_normal_: " << params_.w_normal_);
     ROS_INFO_STREAM("       w_pos_: " << params_.w_pos_);
     ROS_INFO_STREAM("       w_compact_: " << params_.w_compact_);
-    ROS_INFO_STREAM("       kernel_size_: " << params_.kernel_size_);
+    ROS_INFO_STREAM("       kernel_radius_: " << params_.kernel_radius_);
     ROS_INFO_STREAM("       k_c_: " << params_.k_c_);
     ROS_INFO_STREAM("       v_fov_: " << params_.v_fov_);
     ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
@@ -74,7 +73,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
 {
-    params_.kernel_size_ = config.kernel_size;
+    params_.kernel_radius_ = config.kernel_radius;
     params_.num_iterations_ = config.num_iterations;
     params_.num_superpixels_ = config.num_superpixels;
     params_.w_normal_ = config.w_normal;
@@ -468,9 +467,9 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
             max_normal = cv::Vec3f(0, 0, 0);
             max_depth_pixel = cv::Point(-1, -1);
 
-            for (int i = -params_.k_dilation_; i <= params_.k_dilation_; i++)
+            for (int i = -params_.kernel_radius_; i <= params_.kernel_radius_; i++)
             {
-                for (int j = -params_.k_dilation_; j <= params_.k_dilation_; j++)
+                for (int j = -params_.kernel_radius_; j <= params_.kernel_radius_; j++)
                 {
                     int new_r = r + i;
                     int new_c = c + j;
@@ -653,7 +652,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
                                                     const cv::Vec3f & normal,
                                                     const cv::Point & pixel)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::computeDistance]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::computeDistance]");
 
     cv::Point center_pixel = cv::Point(centers_[center_idx][0], centers_[center_idx][1]);
     float center_depth = centers_[center_idx][2];
@@ -681,25 +680,31 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
 
     // Normal term
-    double d_normal = params_.w_normal_ * (1.0 - normal.dot(center_normal));
+    double d_normal =  (1.0 - normal.dot(center_normal));
+    double max_d_normal = 2.0;
+    double weighted_d_normal = params_.w_normal_ * d_normal;
     // double dc = sqrt(pow(color.val[0] - centers_[center_idx][0], 2) +
     //                  pow(color.val[1] - centers_[center_idx][1], 2) +
     //                  pow(color.val[2] - centers_[center_idx][2], 2));
 
-    double max_normal_dist = 1.0;
-
-    if (d_normal > max_normal_dist)
+    if (d_normal > max_d_normal)
     {
-        ROS_WARN_STREAM("       d_normal exceeds max, d_normal: " << d_normal << ", max_normal_dist: " << max_normal_dist);
+        ROS_WARN_STREAM("       d_normal exceeds max, d_normal: " << d_normal << ", max_d_normal: " << max_d_normal);
     }
 
     // ROS_INFO_STREAM("           d_normal: " << d_normal);
 
     // Position term
 
-    double d_posn = params_.w_pos_ * std::fabs( (centerWorldPt - worldPt).dot(center_normal) );
+    double d_posn = std::fabs( (centerWorldPt - worldPt).dot(center_normal) );
+    double max_d_posn = params_.h_;
+    double weighted_d_posn = params_.w_pos_ * d_posn;
 
-    double max_posn_dist = params_.h_;
+    if (d_posn > max_d_posn)
+    {
+        ROS_WARN_STREAM("       d_posn exceeds max, d_posn: " << d_posn << ", max_d_posn: " << max_d_posn);
+    }
+
     // // Spatial term
     // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
     //                  pow(pixel.y - centers_[center_idx][4], 2));
@@ -708,11 +713,16 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // Compactness term
     double d_compact = params_.w_compact_ * sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
-
     double max_compact_dist = sqrt(pow(params_.step_, 2) + pow(params_.step_, 2));
+    double weighted_d_compact = params_.w_compact_ * d_compact;
+
+    if (d_compact > max_compact_dist)
+    {
+        ROS_WARN_STREAM("       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
+    }
 
     // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
-    return d_normal + d_posn + d_compact;
+    return weighted_d_normal + weighted_d_posn + weighted_d_compact;
 }
 
 void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)

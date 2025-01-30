@@ -181,8 +181,7 @@ class SuperpixelDepthSegmenter
             double w_compact_ = 1.0; // Weighting parameter for compactness term
             int num_iterations_ = 0; // Number of iterations
             bool warm_start_ = false; // Warm start
-            int kernel_size_ = 5; // Kernel size for dilation
-            int k_dilation_ = (kernel_size_ / 2);
+            int kernel_radius_ = 2; // Kernel size for dilation
 
             int k_c_ = 512; // Floor width (pixels)
             double v_fov_ = M_PI / 2; // Vertical field of view (radians)

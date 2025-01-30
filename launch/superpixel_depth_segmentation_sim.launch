@@ -11,4 +11,5 @@
     <!-- Launch rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find superpixels)/rviz/superpixels_depth.rviz" output="screen"/>
 
+    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" output="screen"/>
 </launch>

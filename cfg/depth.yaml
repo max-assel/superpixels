@@ -4,5 +4,5 @@ superpixels:
   w_normal: 1.0
   w_pos: 10.0
   w_compact: 0.0
-  kernel_size: 3
+  kernel_radius: 1
   warm_start: True
