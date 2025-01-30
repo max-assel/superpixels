@@ -12,15 +12,18 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     params_.w_normal_ = configYamlNode["superpixels"]["w_normal"].as<double>();
     params_.w_pos_ = configYamlNode["superpixels"]["w_pos"].as<double>();
     params_.w_compact_ = configYamlNode["superpixels"]["w_compact"].as<double>();
-    params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
+    // params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
+    params_.kernel_size_ = configYamlNode["superpixels"]["kernel_size"].as<int>();
+    params_.k_dilation_ = (params_.kernel_size_ / 2);
 
     ROS_INFO_STREAM("   params_:");
     ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
     ROS_INFO_STREAM("       num_iterations_: " << params_.num_iterations_);
-    ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
+    // ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
     ROS_INFO_STREAM("       w_normal_: " << params_.w_normal_);
     ROS_INFO_STREAM("       w_pos_: " << params_.w_pos_);
     ROS_INFO_STREAM("       w_compact_: " << params_.w_compact_);
+    ROS_INFO_STREAM("       kernel_size_: " << params_.kernel_size_);
     ROS_INFO_STREAM("       k_c_: " << params_.k_c_);
     ROS_INFO_STREAM("       v_fov_: " << params_.v_fov_);
     ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
@@ -437,7 +440,10 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
 
     // Custom dilation implementation
-    int kernel_size = 7;
+    float max_depth = 0;
+    int max_label = 0;
+    cv::Vec3f max_normal(0, 0, 0);
+    cv::Point max_depth_pixel(-1, -1);
 
     cv::Mat dilated_depth_img = cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
     cv::Mat dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
@@ -447,15 +453,14 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     {
         for (int c = 0; c < cleaned_depth_img.cols; c++)
         {
-            float max_depth = 0;
-            int max_label = 0;
-            cv::Vec3f max_normal(0, 0, 0);
-            cv::Point max_depth_pixel(-1, -1);
+            max_depth = 0;
+            max_label = 0;
+            max_normal = cv::Vec3f(0, 0, 0);
+            max_depth_pixel = cv::Point(-1, -1);
 
-            int k = kernel_size / 2;
-            for (int i = -k; i <= k; i++)
+            for (int i = -params_.k_dilation_; i <= params_.k_dilation_; i++)
             {
-                for (int j = -k; j <= k; j++)
+                for (int j = -params_.k_dilation_; j <= params_.k_dilation_; j++)
                 {
                     int new_r = r + i;
                     int new_c = c + j;
@@ -627,9 +632,9 @@ void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
                                                     const cv::Point & pixel,
                                                     const float & depth)
 {
-    worldPt[0] = (pixel.x - params_.k_c_) * (depth / (params_.h_ * params_.k_c_));
-    worldPt[1] = -depth;
-    worldPt[2] = (pixel.y - params_.k_c_) * (depth / (params_.h_ * params_.k_c_));
+    worldPt[0] = (pixel.x - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
+    worldPt[1] = depth;
+    worldPt[2] = (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
 }
 
 double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
@@ -671,13 +676,15 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     //                  pow(color.val[1] - centers_[center_idx][1], 2) +
     //                  pow(color.val[2] - centers_[center_idx][2], 2));
 
+    double max_normal_dist = 1.0;
+
     // ROS_INFO_STREAM("           d_normal: " << d_normal);
 
     // Position term
 
-
     double d_posn = params_.w_pos_ * std::fabs( (centerWorldPt - worldPt).dot(center_normal) );
 
+    double max_posn_dist = params_.egocan_radius_;
     // // Spatial term
     // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
     //                  pow(pixel.y - centers_[center_idx][4], 2));

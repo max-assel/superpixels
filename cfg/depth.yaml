@@ -1,7 +1,8 @@
 superpixels:
-  num_superpixels: 25
+  num_superpixels: 50
   num_iterations: 5
   w_normal: 1.0
   w_pos: 10.0
-  w_compact: 0.005
+  w_compact: 0.0
+  kernel_size: 3
   warm_start: True
