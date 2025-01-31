@@ -209,8 +209,7 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
-    std::chrono::steady_clock::time_point timeBegin, timeEnd;
-    timeBegin = std::chrono::steady_clock::now();
+    cleanBegin = std::chrono::steady_clock::now();
 
     cv::Mat raw_depth_img = raw_depth_img_ptr_->image;
     cv::Mat raw_label_img = raw_label_img_ptr_->image;
@@ -224,26 +223,23 @@ void SuperpixelDepthSegmenter::run()
     cleanImages(raw_depth_img, raw_label_img, raw_normal_img, 
                 cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
 
-    timeEnd = std::chrono::steady_clock::now();
-    int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
-    double total_time_sec = total_time / 1.0e6; 
-    ROS_INFO_STREAM_THROTTLE(3, "Image cleaning took: " << total_time_sec << " seconds");
+    cleanEnd = std::chrono::steady_clock::now();
+    int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
+    double clean_total_time_sec = clean_total_time / 1.0e6; 
 
     // Health check
     // healthCheck(cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
 
-    timeBegin = std::chrono::steady_clock::now();
+    preprocessBegin = std::chrono::steady_clock::now();
 
     // Pre-processing
     cv::Mat preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img;
     preprocessImages(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
                         preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
-    timeEnd = std::chrono::steady_clock::now();
-    total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
-    total_time_sec = total_time / 1.0e6; 
-    ROS_INFO_STREAM_THROTTLE(3, "Image preprocessing took: " << total_time_sec << " seconds");
-
+    preprocessEnd = std::chrono::steady_clock::now();
+    int64_t preprocess_total_time = std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
+    double preprocess_total_time_sec = preprocess_total_time / 1.0e6; 
 
     // Health check
     // healthCheck(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
@@ -253,7 +249,7 @@ void SuperpixelDepthSegmenter::run()
     // if (!initialized_)
     // {
 
-    timeBegin = std::chrono::steady_clock::now();
+    superpixelBegin = std::chrono::steady_clock::now();
 
     // Pre-processing
     calculateStep(preprocessed_depth_img);
@@ -270,10 +266,15 @@ void SuperpixelDepthSegmenter::run()
     // Generate superpixels
     generateSuperpixels(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
-    timeEnd = std::chrono::steady_clock::now();
-    total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
-    total_time_sec = total_time / 1.0e6; 
-    ROS_INFO_STREAM_THROTTLE(3, "Superpixels took: " << total_time_sec << " seconds");
+    superpixelEnd = std::chrono::steady_clock::now();
+    int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
+    double superpixel_total_time_sec = superpixel_total_time / 1.0e6; 
+
+    ROS_INFO_STREAM_THROTTLE(3, "Timing ---- \n" << 
+                                "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
+                                "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
+                                "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
+                                "   Total: " << clean_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec << " seconds");
 
     // Visualize
     visualize(preprocessed_depth_img, 
@@ -468,6 +469,14 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
                                                 cv::Mat & preprocessed_normal_img)
 {
     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
+
+    if (params_.kernel_radius_ < 1)
+    {
+        preprocessed_depth_img = cleaned_depth_img.clone();
+        preprocessed_label_img = cleaned_label_img.clone();
+        preprocessed_normal_img = cleaned_normal_img.clone();
+        return;
+    }
 
     // Custom dilation implementation
     float max_depth = -std::numeric_limits<float>::max();
@@ -757,7 +766,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     // Position term
 
     double d_posn = std::fabs( (centerWorldPt - worldPt).dot(center_normal) );
-    double max_d_posn = params_.h_;
+    double max_d_posn = params_.v_fov_;
     double weighted_d_posn = params_.w_pos_ * (d_posn / max_d_posn);
 
     if (d_posn > max_d_posn)

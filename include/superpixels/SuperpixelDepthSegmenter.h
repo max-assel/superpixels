@@ -199,4 +199,10 @@ class SuperpixelDepthSegmenter
 
         float DELTA = std::numeric_limits<float>::epsilon();
 
+        std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
+        std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
+        std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
+
+
+
 };
