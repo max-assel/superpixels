@@ -133,6 +133,7 @@ class SuperpixelDepthSegmenter
 
         // Publishers
         image_transport::Publisher fin_depth_img_pub_;
+        image_transport::Publisher fin_label_img_pub_;
         image_transport::Publisher fin_normal_img_pub_;
         image_transport::Publisher center_grid_img_pub_;
         image_transport::Publisher colored_cluster_img_pub_;

@@ -51,6 +51,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
     fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
+    fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
     fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
@@ -967,7 +968,7 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
     fin_label_img_ptr_->header = raw_label_img_ptr_->header;
     fin_label_img_ptr_->encoding = raw_label_img_ptr_->encoding;
     fin_label_img_ptr_->image = label_image;
-    // No publishing label image
+    fin_label_img_pub_.publish(fin_label_img_ptr_->toImageMsg());
 
     // ROS_INFO_STREAM("       Preparing final normal image");
     fin_normal_img_ptr_->header = raw_normal_img_ptr_->header;
