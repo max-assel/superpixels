@@ -216,28 +216,43 @@ void SuperpixelDepthSegmenter::run()
     cv::Mat raw_normal_img = raw_normal_img_ptr_->image;
 
     // Health check
-    healthCheck(raw_depth_img, raw_label_img, raw_normal_img);
+    // healthCheck(raw_depth_img, raw_label_img, raw_normal_img);
 
     // Clean images
     cv::Mat cleaned_depth_img, cleaned_label_img, cleaned_normal_img;
     cleanImages(raw_depth_img, raw_label_img, raw_normal_img, 
                 cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
 
+    timeEnd = std::chrono::steady_clock::now();
+    int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
+    double total_time_sec = total_time / 1.0e6; 
+    ROS_INFO_STREAM_THROTTLE(3, "Image cleaning took: " << total_time_sec << " seconds");
+
     // Health check
-    healthCheck(cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
+    // healthCheck(cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
+
+    timeBegin = std::chrono::steady_clock::now();
 
     // Pre-processing
     cv::Mat preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img;
     preprocessImages(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
                         preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
+    timeEnd = std::chrono::steady_clock::now();
+    total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
+    total_time_sec = total_time / 1.0e6; 
+    ROS_INFO_STREAM_THROTTLE(3, "Image preprocessing took: " << total_time_sec << " seconds");
+
+
     // Health check
-    healthCheck(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
+    // healthCheck(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     // checkSparsity();
 
     // if (!initialized_)
     // {
+
+    timeBegin = std::chrono::steady_clock::now();
 
     // Pre-processing
     calculateStep(preprocessed_depth_img);
@@ -252,9 +267,9 @@ void SuperpixelDepthSegmenter::run()
     generateSuperpixels(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     timeEnd = std::chrono::steady_clock::now();
-    int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
-    double total_time_sec = total_time / 1.0e6; 
-    ROS_INFO_STREAM("Superpixels took: " << total_time_sec << " seconds");
+    total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
+    total_time_sec = total_time / 1.0e6; 
+    ROS_INFO_STREAM_THROTTLE(3, "Superpixels took: " << total_time_sec << " seconds");
 
     // Visualize
     visualize(preprocessed_depth_img, 
@@ -271,7 +286,7 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
                                             cv::Mat & cleaned_label_img,
                                             cv::Mat & cleaned_normal_img)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::cleanImages]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::cleanImages]");
 
 
     // Depth
@@ -295,7 +310,7 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
         }
     }    
 
-    ROS_INFO_STREAM("       Checking label image ...");
+    // ROS_INFO_STREAM("       Checking label image ...");
 
     // Labels
     cleaned_label_img = cv::Mat(raw_label_img.size(), CV_8UC1, cv::Scalar(0));
@@ -314,7 +329,7 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
         }
     }
 
-    ROS_INFO_STREAM("       Checking normal image ...");
+    // ROS_INFO_STREAM("       Checking normal image ...");
 
     // Normals
     cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
@@ -340,7 +355,7 @@ void SuperpixelDepthSegmenter::healthCheck(const cv::Mat & depth_img,
                                             const cv::Mat & label_img,
                                             const cv::Mat & normal_img)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::healthCheck]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::healthCheck]");
     // Detecting invalid pixels
 
     int nan_depth_count = 0;
@@ -356,7 +371,7 @@ void SuperpixelDepthSegmenter::healthCheck(const cv::Mat & depth_img,
     int finite_normal_count = 0;
     int zero_normal_count = 0;
 
-    ROS_INFO_STREAM("        Checking images ...");
+    // ROS_INFO_STREAM("        Checking images ...");
 
     // Depth
     for (int r = 0; r < depth_img.rows; r++)
@@ -448,7 +463,7 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
                                                 cv::Mat & preprocessed_label_img,
                                                 cv::Mat & preprocessed_normal_img)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
 
     // Custom dilation implementation
     float max_depth = -std::numeric_limits<float>::max();
@@ -574,7 +589,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                     const cv::Mat & label_image,
                                                     const cv::Mat & normal_image)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::generateSuperpixels]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::generateSuperpixels]");
 
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
@@ -888,7 +903,7 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
                                             const cv::Mat & label_image,
                                             const cv::Mat & normal_image)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::visualize]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::visualize]");
 
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -898,25 +913,25 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
     //     return;
     // }
 
-    ROS_INFO_STREAM("       Publishing final depth image");
+    // ROS_INFO_STREAM("       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr_->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr_->encoding;
     fin_depth_img_ptr_->image = depth_image;
     fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
-    ROS_INFO_STREAM("       Preparing final label image");
+    // ROS_INFO_STREAM("       Preparing final label image");
     fin_label_img_ptr_->header = raw_label_img_ptr_->header;
     fin_label_img_ptr_->encoding = raw_label_img_ptr_->encoding;
     fin_label_img_ptr_->image = label_image;
     // No publishing label image
 
-    ROS_INFO_STREAM("       Preparing final normal image");
+    // ROS_INFO_STREAM("       Preparing final normal image");
     fin_normal_img_ptr_->header = raw_normal_img_ptr_->header;
     fin_normal_img_ptr_->encoding = raw_normal_img_ptr_->encoding;
     fin_normal_img_ptr_->image = normal_image;
     // No publishing normal image
 
-    ROS_INFO_STREAM("       Publishing final colored normal image");
+    // ROS_INFO_STREAM("       Publishing final colored normal image");
     fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
     fin_normal_img_colored_ptr_->encoding = "rgb8";
     fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
