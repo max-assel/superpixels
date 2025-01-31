@@ -9,6 +9,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 
     params_.num_superpixels_ = configYamlNode["superpixels"]["num_superpixels"].as<int>();
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
+    params_.num_dilation_iterations_ = configYamlNode["superpixels"]["num_dilation_iterations"].as<int>();
     params_.w_normal_ = configYamlNode["superpixels"]["w_normal"].as<double>();
     params_.w_pos_ = configYamlNode["superpixels"]["w_pos"].as<double>();
     params_.w_compact_ = configYamlNode["superpixels"]["w_compact"].as<double>();
@@ -18,7 +19,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     ROS_INFO_STREAM("   params_:");
     ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
     ROS_INFO_STREAM("       num_iterations_: " << params_.num_iterations_);
-    // ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
+    ROS_INFO_STREAM("       num_dilation_iterations_: " << params_.num_dilation_iterations_);
     ROS_INFO_STREAM("       w_normal_: " << params_.w_normal_);
     ROS_INFO_STREAM("       w_pos_: " << params_.w_pos_);
     ROS_INFO_STREAM("       w_compact_: " << params_.w_compact_);
@@ -75,6 +76,7 @@ void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig
 {
     params_.kernel_radius_ = config.kernel_radius;
     params_.num_iterations_ = config.num_iterations;
+    params_.num_dilation_iterations_ = config.num_dilation_iterations;
     params_.num_superpixels_ = config.num_superpixels;
     params_.w_normal_ = config.w_normal;
     params_.w_pos_ = config.w_pos;
@@ -449,59 +451,95 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
 
     // Custom dilation implementation
-    float max_depth = 0;
+    float max_depth = -std::numeric_limits<float>::max();
     int max_label = 0;
     cv::Vec3f max_normal(0, 0, 0);
     cv::Point max_depth_pixel(-1, -1);
 
-    cv::Mat dilated_depth_img = cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
-    cv::Mat dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
-    cv::Mat dilated_normal_img = cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
+    float min_depth = std::numeric_limits<float>::max();
+    int min_label = 0;
+    cv::Vec3f min_normal(0, 0, 0);
+    cv::Point min_depth_pixel(-1, -1);
 
-    for (int r = 0; r < cleaned_depth_img.rows; r++)
+    cv::Mat dilated_depth_img = cleaned_depth_img.clone(); // cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
+    cv::Mat dilated_label_img = cleaned_label_img.clone(); // cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
+    cv::Mat dilated_normal_img = cleaned_normal_img.clone(); // cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
+
+    cv::Mat temp_dilated_depth_img = cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
+    cv::Mat temp_dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
+    cv::Mat temp_dilated_normal_img = cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
+
+    for (int iter = 0; iter < params_.num_dilation_iterations_; iter++)
     {
-        for (int c = 0; c < cleaned_depth_img.cols; c++)
+        for (int r = 0; r < cleaned_depth_img.rows; r++)
         {
-            max_depth = 0;
-            max_label = 0;
-            max_normal = cv::Vec3f(0, 0, 0);
-            max_depth_pixel = cv::Point(-1, -1);
-
-            for (int i = -params_.kernel_radius_; i <= params_.kernel_radius_; i++)
+            for (int c = 0; c < cleaned_depth_img.cols; c++)
             {
-                for (int j = -params_.kernel_radius_; j <= params_.kernel_radius_; j++)
+                // max_depth = 0;
+                // max_label = 0;
+                // max_normal = cv::Vec3f(0, 0, 0);
+                // max_depth_pixel = cv::Point(-1, -1);
+
+                min_depth = std::numeric_limits<float>::max();
+                min_label = 0;
+                min_normal = cv::Vec3f(0, 0, 0);
+                min_depth_pixel = cv::Point(-1, -1);
+
+                for (int i = -params_.kernel_radius_; i <= params_.kernel_radius_; i++)
                 {
-                    int new_r = r + i;
-                    int new_c = c + j;
-
-                    if (!isPixelInBounds(cleaned_depth_img, cv::Point(new_c, new_r)))
+                    for (int j = -params_.kernel_radius_; j <= params_.kernel_radius_; j++)
                     {
-                        continue;
-                    }
+                        int new_r = r + i;
+                        int new_c = c + j;
 
-                    float depth = cleaned_depth_img.at<float>(new_r, new_c);
+                        if (!isPixelInBounds(dilated_depth_img, cv::Point(new_c, new_r)))
+                        {
+                            continue;
+                        }
 
-                    if (depth > max_depth)
-                    {
-                        max_depth = depth;
-                        max_label = cleaned_label_img.at<uint8_t>(new_r, new_c);
-                        max_normal = cleaned_normal_img.at<cv::Vec3f>(new_r, new_c);
-                        max_depth_pixel = cv::Point(new_c, new_r);
+                        float depth = dilated_depth_img.at<float>(new_r, new_c);
+
+                        if (depth > 0.0 && depth < min_depth)
+                        {
+                            min_depth = depth;
+                            min_label = dilated_label_img.at<uint8_t>(new_r, new_c);
+                            min_normal = dilated_normal_img.at<cv::Vec3f>(new_r, new_c);
+                            min_depth_pixel = cv::Point(new_c, new_r);
+                            temp_dilated_depth_img.at<float>(r, c) = min_depth;
+                            temp_dilated_label_img.at<uint8_t>(r, c) = min_label;
+                            temp_dilated_normal_img.at<cv::Vec3f>(r, c) = min_normal;                            
+                        }
+
+                        // if (depth > max_depth)
+                        // {
+                        //     max_depth = depth;
+                        //     max_label = dilated_label_img.at<uint8_t>(new_r, new_c);
+                        //     max_normal = dilated_normal_img.at<cv::Vec3f>(new_r, new_c);
+                        //     max_depth_pixel = cv::Point(new_c, new_r);
+                        // }
                     }
                 }
-            }
 
-            dilated_depth_img.at<float>(r, c) = max_depth;
-            dilated_label_img.at<uint8_t>(r, c) = max_label;
-            dilated_normal_img.at<cv::Vec3f>(r, c) = max_normal;
+                // temp_dilated_depth_img.at<float>(r, c) = max_depth;
+                // temp_dilated_label_img.at<uint8_t>(r, c) = max_label;
+                // temp_dilated_normal_img.at<cv::Vec3f>(r, c) = max_normal;
+
+                // temp_dilated_depth_img.at<float>(r, c) = min_depth;
+                // temp_dilated_label_img.at<uint8_t>(r, c) = min_label;
+                // temp_dilated_normal_img.at<cv::Vec3f>(r, c) = min_normal;
+            }
         }
+
+        dilated_depth_img = temp_dilated_depth_img.clone();
+        dilated_label_img = temp_dilated_label_img.clone();
+        dilated_normal_img = temp_dilated_normal_img.clone();
     }
 
-    preprocessed_depth_img = dilated_depth_img;
-    preprocessed_label_img = dilated_label_img;
-    preprocessed_normal_img = dilated_normal_img;
+    preprocessed_depth_img = dilated_depth_img.clone();
+    preprocessed_label_img = dilated_label_img.clone();
+    preprocessed_normal_img = dilated_normal_img.clone();
 
-    ROS_INFO_STREAM("       Comparing normal image to dilated normal image ...");
+    // ROS_INFO_STREAM("       Comparing normal image to dilated normal image ...");
     // Compare normal image with dilated normal image
     // for (int r = 0; r < cleaned_normal_img.rows; r++)
     // {
@@ -526,13 +564,11 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     // }    
 }
 
-void SuperpixelDepthSegmenter::dilate_img(const cv::Mat & image, cv::Mat & dilated_image)
-{
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
-    cv::dilate(image, dilated_image, element, cv::Point(-1, -1), 1);
-}
-
-
+// void SuperpixelDepthSegmenter::dilate_img(const cv::Mat & image, cv::Mat & dilated_image)
+// {
+    // cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+    // cv::dilate(image, dilated_image, element, cv::Point(-1, -1), 1);
+// }
 
 void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                     const cv::Mat & label_image,
@@ -680,9 +716,9 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
 
     // Normal term
-    double d_normal =  (1.0 - normal.dot(center_normal));
+    double d_normal = (1.0 - normal.dot(center_normal));
     double max_d_normal = 2.0;
-    double weighted_d_normal = params_.w_normal_ * d_normal;
+    double weighted_d_normal = params_.w_normal_ * (d_normal / max_d_normal);
     // double dc = sqrt(pow(color.val[0] - centers_[center_idx][0], 2) +
     //                  pow(color.val[1] - centers_[center_idx][1], 2) +
     //                  pow(color.val[2] - centers_[center_idx][2], 2));
@@ -698,7 +734,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     double d_posn = std::fabs( (centerWorldPt - worldPt).dot(center_normal) );
     double max_d_posn = params_.h_;
-    double weighted_d_posn = params_.w_pos_ * d_posn;
+    double weighted_d_posn = params_.w_pos_ * (d_posn / max_d_posn);
 
     if (d_posn > max_d_posn)
     {
@@ -712,9 +748,9 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     // ROS_INFO_STREAM("           d_posn: " << d_posn);
 
     // Compactness term
-    double d_compact = params_.w_compact_ * sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
+    double d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
     double max_compact_dist = sqrt(pow(params_.step_, 2) + pow(params_.step_, 2));
-    double weighted_d_compact = params_.w_compact_ * d_compact;
+    double weighted_d_compact = params_.w_compact_ * (d_compact / max_compact_dist);
 
     if (d_compact > max_compact_dist)
     {

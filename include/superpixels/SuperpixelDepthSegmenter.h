@@ -179,6 +179,7 @@ class SuperpixelDepthSegmenter
             double w_normal_ = 1.0; // Weighting parameter for normal similarity term
             double w_pos_ = 10.0; // Weighting parameter for plane - position distance term
             double w_compact_ = 1.0; // Weighting parameter for compactness term
+            int num_dilation_iterations_ = 0; // Number of dilation iterations
             int num_iterations_ = 0; // Number of iterations
             bool warm_start_ = false; // Warm start
             int kernel_radius_ = 2; // Kernel size for dilation
