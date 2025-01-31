@@ -13,7 +13,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     params_.w_normal_ = configYamlNode["superpixels"]["w_normal"].as<double>();
     params_.w_pos_ = configYamlNode["superpixels"]["w_pos"].as<double>();
     params_.w_compact_ = configYamlNode["superpixels"]["w_compact"].as<double>();
-    // params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
+    params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
     params_.kernel_radius_ = configYamlNode["superpixels"]["kernel_radius"].as<int>();
 
     ROS_INFO_STREAM("   params_:");
@@ -28,6 +28,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     ROS_INFO_STREAM("       v_fov_: " << params_.v_fov_);
     ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
     ROS_INFO_STREAM("       h_: " << params_.h_);
+    ROS_INFO_STREAM("       warm_start_: " << params_.warm_start_);
 
     // Set up subscribers and publishers
     image_transport::ImageTransport it(nh);
@@ -257,6 +258,9 @@ void SuperpixelDepthSegmenter::run()
     // Pre-processing
     calculateStep(preprocessed_depth_img);
 
+    // Clear data
+    reset_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
+
     // Initialize data
     init_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
@@ -484,6 +488,11 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
     cv::Mat temp_dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
     cv::Mat temp_dilated_normal_img = cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
+    int new_r = 0;
+    int new_c = 0;
+
+    float depth = 0;
+
     for (int iter = 0; iter < params_.num_dilation_iterations_; iter++)
     {
         for (int r = 0; r < cleaned_depth_img.rows; r++)
@@ -504,15 +513,15 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
                 {
                     for (int j = -params_.kernel_radius_; j <= params_.kernel_radius_; j++)
                     {
-                        int new_r = r + i;
-                        int new_c = c + j;
+                        new_r = r + i;
+                        new_c = c + j;
 
                         if (!isPixelInBounds(dilated_depth_img, cv::Point(new_c, new_r)))
                         {
                             continue;
                         }
 
-                        float depth = dilated_depth_img.at<float>(new_r, new_c);
+                        depth = dilated_depth_img.at<float>(new_r, new_c);
 
                         if (depth > 0.0 && depth < min_depth)
                         {
@@ -787,6 +796,32 @@ void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
 }
 
+void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
+                                            const cv::Mat & label_image,
+                                            const cv::Mat & normal_image)
+{
+    if (params_.warm_start_ && initialized_)
+    {
+        clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+
+        // Keep centers as is
+
+        center_counts_.assign(center_counts_.size(), 0);
+    } else
+    {
+        clusters_.release();
+        distances_.release();
+        centers_.clear();
+        center_counts_.clear();
+
+        init_data(depth_image, label_image, normal_image);
+
+        initialized_ = true;
+    }
+
+}
+
 void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
                                          const cv::Mat & label_image,
                                          const cv::Mat & normal_image)
@@ -821,10 +856,10 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
             cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
-            if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
-            {
-                continue;
-            }
+            // if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
+            // {
+            //     continue;
+            // }
 
 
             /* Generate the center vector. */

@@ -2,8 +2,8 @@ superpixels:
   num_superpixels: 50
   num_iterations: 5
   num_dilation_iterations: 3
-  w_normal: 1.0
+  w_normal: 5.0
   w_pos: 10.0
-  w_compact: 0.0
-  kernel_radius: 1
-  warm_start: True
+  w_compact: 1.0
+  kernel_radius: 3
+  warm_start: True 

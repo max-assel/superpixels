@@ -63,6 +63,10 @@ class SuperpixelDepthSegmenter
 
         void calculateStep(const cv::Mat & depth_image);
 
+        void reset_data(const cv::Mat & depth_image,
+                        const cv::Mat & label_image,
+                        const cv::Mat & normal_image);
+
         void init_data(const cv::Mat & depth_image,
                         const cv::Mat & label_image,
                         const cv::Mat & normal_image);
@@ -82,7 +86,7 @@ class SuperpixelDepthSegmenter
                                 const cv::Vec3f & normal,
                                 const cv::Point & pixel);
 
-        void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
+        // void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
 
         // void checkSparsity();
 
