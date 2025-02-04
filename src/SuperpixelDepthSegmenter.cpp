@@ -700,11 +700,11 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
     }
 
-    // ROS_INFO_STREAM("       center_counts:");
-    // for (int i = 0; i < (int) center_counts_.size(); i++)
-    // {
-    //     ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
-    // }
+    ROS_INFO_STREAM("       center_counts:");
+    for (int i = 0; i < (int) center_counts_.size(); i++)
+    {
+        ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
+    }
 }
 
 void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
