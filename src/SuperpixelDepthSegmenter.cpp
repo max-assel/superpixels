@@ -216,6 +216,9 @@ void SuperpixelDepthSegmenter::run()
     cv::Mat raw_label_img = raw_label_img_ptr_->image;
     cv::Mat raw_normal_img = raw_normal_img_ptr_->image;
 
+    // Pre-processing
+    calculateStep(raw_depth_img);
+
     // Health check
     // healthCheck(raw_depth_img, raw_label_img, raw_normal_img);
 
@@ -228,6 +231,10 @@ void SuperpixelDepthSegmenter::run()
     int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
     double clean_total_time_sec = clean_total_time / 1.0e6; 
 
+    cv::Mat filled_depth_img, filled_label_img, filled_normal_img;
+    fillInImage(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
+                filled_depth_img, filled_label_img, filled_normal_img);
+
     // Health check
     // healthCheck(cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
 
@@ -235,7 +242,7 @@ void SuperpixelDepthSegmenter::run()
 
     // Pre-processing
     cv::Mat preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img;
-    preprocessImages(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
+    preprocessImages(filled_depth_img, filled_label_img, filled_normal_img,
                         preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     preprocessEnd = std::chrono::steady_clock::now();
@@ -251,9 +258,6 @@ void SuperpixelDepthSegmenter::run()
     // {
 
     superpixelBegin = std::chrono::steady_clock::now();
-
-    // Pre-processing
-    calculateStep(preprocessed_depth_img);
 
     // Clear data
     reset_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
@@ -285,6 +289,66 @@ void SuperpixelDepthSegmenter::run()
     return;
 }
 
+void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
+                                            const cv::Mat & cleaned_label_img,
+                                            const cv::Mat & cleaned_normal_img,
+                                            cv::Mat & filled_depth_img,
+                                            cv::Mat & filled_label_img,
+                                            cv::Mat & filled_normal_img)
+{
+    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::fillInImage]");
+
+    // Depth
+    filled_depth_img = cleaned_depth_img.clone();
+
+    // Labels
+    filled_label_img = cleaned_label_img.clone();
+
+    // Normals
+    filled_normal_img = cleaned_normal_img.clone();
+
+    for (int c = params_.step_; c < filled_depth_img.cols - params_.step_; c += params_.step_)
+    {
+        for (int r = params_.step_; r < filled_depth_img.rows - params_.step_; r += params_.step_)
+        {
+            ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
+
+            bool found_valid_pixel = false;
+
+            for (int i = -params_.step_; i <= params_.step_; i++)
+            {
+                for (int j = -params_.step_; j <= params_.step_; j++)
+                {
+                    cv::Point pixel(c + j, r + i);
+
+                    if (isPixelValid(filled_depth_img, filled_label_img, filled_normal_img, pixel))
+                    {
+                        found_valid_pixel = true;
+                        break;
+                    }
+                }
+
+                if (found_valid_pixel)
+                {
+                    break;
+                }
+            }
+
+            if (!found_valid_pixel)
+            {
+                ROS_INFO_STREAM("       valid");
+
+                filled_depth_img.at<float>(r, c) = 0.385;
+                filled_label_img.at<uint8_t>(r, c) = 3;
+                filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
+            } else
+            {
+                ROS_INFO_STREAM("       invalid");
+            }
+        }
+    }
+}
+
 void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
                                             const cv::Mat & raw_label_img,
                                             const cv::Mat & raw_normal_img,
@@ -297,6 +361,12 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
 
     // Depth
     cleaned_depth_img = cv::Mat(raw_depth_img.size(), CV_32F, cv::Scalar(0));
+
+    // Labels
+    cleaned_label_img = cv::Mat(raw_label_img.size(), CV_8UC1, cv::Scalar(0));
+
+    // Normals
+    cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
     // zero invalid depth pixels
     for (int r = 0; r < cleaned_depth_img.rows; r++)
@@ -313,17 +383,15 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
                 cleaned_depth_img.at<float>(r, c) = 0;
             else
                 cleaned_depth_img.at<float>(r, c) = depth;
-        }
-    }    
+    //     }
+    // }    
 
     // ROS_INFO_STREAM("       Checking label image ...");
 
-    // Labels
-    cleaned_label_img = cv::Mat(raw_label_img.size(), CV_8UC1, cv::Scalar(0));
-    for (int r = 0; r < cleaned_label_img.rows; r++)
-    {
-        for (int c = 0; c < cleaned_label_img.cols; c++)
-        {
+    // for (int r = 0; r < cleaned_label_img.rows; r++)
+    // {
+    //     for (int c = 0; c < cleaned_label_img.cols; c++)
+    //     {
             uint8_t label = raw_label_img.at<uint8_t>(r, c);
 
             if (std::isnan(label))
@@ -332,17 +400,15 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
                 cleaned_label_img.at<uint8_t>(r, c) = 0;
             else
                 cleaned_label_img.at<uint8_t>(r, c) = label;
-        }
-    }
+    //     }
+    // }
 
     // ROS_INFO_STREAM("       Checking normal image ...");
 
-    // Normals
-    cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
-    for (int r = 0; r < cleaned_normal_img.rows; r++)
-    {
-        for (int c = 0; c < cleaned_normal_img.cols; c++)
-        {
+    // for (int r = 0; r < cleaned_normal_img.rows; r++)
+    // {
+    //     for (int c = 0; c < cleaned_normal_img.cols; c++)
+    //     {
             cv::Vec3f normal = raw_normal_img.at<cv::Vec3f>(r, c);
 
             if (std::isnan(normal.val[0]) || std::isnan(normal.val[1]) || std::isnan(normal.val[2]))
@@ -700,11 +766,11 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
     }
 
-    ROS_INFO_STREAM("       center_counts:");
-    for (int i = 0; i < (int) center_counts_.size(); i++)
-    {
-        ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
-    }
+    // ROS_INFO_STREAM("       center_counts:");
+    // for (int i = 0; i < (int) center_counts_.size(); i++)
+    // {
+    //     ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
+    // }
 }
 
 void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
@@ -902,8 +968,8 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
-    int deltaX = (params_.step_ / 2); // 5;
-    int deltaY = (params_.step_ / 2); // 5;
+    int deltaX = params_.step_; // 5;
+    int deltaY = params_.step_; // 5;
 
     for (int c = og_center.x - deltaX; c <= og_center.x + deltaX; c++)
     {

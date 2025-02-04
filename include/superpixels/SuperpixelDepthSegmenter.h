@@ -86,6 +86,13 @@ class SuperpixelDepthSegmenter
                                 const cv::Vec3f & normal,
                                 const cv::Point & pixel);
 
+        void fillInImage(const cv::Mat & cleaned_depth_img,
+                            const cv::Mat & cleaned_label_img,
+                            const cv::Mat & cleaned_normal_img,
+                            cv::Mat & filled_depth_img,
+                            cv::Mat & filled_label_img,
+                            cv::Mat & filled_normal_img);
+
         // void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
 
         // void checkSparsity();
