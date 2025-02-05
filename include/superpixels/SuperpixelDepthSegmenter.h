@@ -61,7 +61,7 @@ class SuperpixelDepthSegmenter
                                 cv::Mat & preprocessed_label_img,
                                 cv::Mat & preprocessed_normal_img);
 
-        void calculateStep(const cv::Mat & depth_image);
+        // void calculateStep(const cv::Mat & depth_image);
 
         void reset_data(const cv::Mat & depth_image,
                         const cv::Mat & label_image,

@@ -7,14 +7,14 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     // Load configs
     YAML::Node configYamlNode = YAML::LoadFile(config_path);
 
-    params_.num_superpixels_ = configYamlNode["superpixels"]["num_superpixels"].as<int>();
+    params_.kernel_radius_ = configYamlNode["superpixels"]["kernel_radius"].as<int>();
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
     params_.num_dilation_iterations_ = configYamlNode["superpixels"]["num_dilation_iterations"].as<int>();
+    params_.num_superpixels_ = configYamlNode["superpixels"]["num_superpixels"].as<int>();    
     params_.w_normal_ = configYamlNode["superpixels"]["w_normal"].as<double>();
     params_.w_pos_ = configYamlNode["superpixels"]["w_pos"].as<double>();
     params_.w_compact_ = configYamlNode["superpixels"]["w_compact"].as<double>();
     params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
-    params_.kernel_radius_ = configYamlNode["superpixels"]["kernel_radius"].as<int>();
 
     ROS_INFO_STREAM("   params_:");
     ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
@@ -29,6 +29,11 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
     ROS_INFO_STREAM("       h_: " << params_.h_);
     ROS_INFO_STREAM("       warm_start_: " << params_.warm_start_);
+
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::calculateStep]");
+
+    int num_pixels = params_.k_c_ * params_.k_c_;
+    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
 
     // Set up subscribers and publishers
     image_transport::ImageTransport it(nh);
@@ -67,9 +72,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     colors_.resize(params_.num_superpixels_);
     for (int i = 0; i < (int) colors_.size(); i++)
     {
-        colors_[i] = cv::Scalar(rand() % 255,
-                                rand() % 255, 
-                                rand() % 255);
+        colors_[i] = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
     }
 
 }
@@ -83,6 +86,9 @@ void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig
     params_.w_normal_ = config.w_normal;
     params_.w_pos_ = config.w_pos;
     params_.w_compact_ = config.w_compact;
+
+    int num_pixels = params_.k_c_ * params_.k_c_;
+    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
 }
 
 void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
@@ -217,7 +223,7 @@ void SuperpixelDepthSegmenter::run()
     cv::Mat raw_normal_img = raw_normal_img_ptr_->image;
 
     // Pre-processing
-    calculateStep(raw_depth_img);
+    // calculateStep(raw_depth_img);
 
     // Health check
     // healthCheck(raw_depth_img, raw_label_img, raw_normal_img);
@@ -231,9 +237,9 @@ void SuperpixelDepthSegmenter::run()
     int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
     double clean_total_time_sec = clean_total_time / 1.0e6; 
 
-    cv::Mat filled_depth_img, filled_label_img, filled_normal_img;
-    fillInImage(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
-                filled_depth_img, filled_label_img, filled_normal_img);
+    // cv::Mat filled_depth_img, filled_label_img, filled_normal_img;
+    // fillInImage(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
+    //             filled_depth_img, filled_label_img, filled_normal_img);
 
     // Health check
     // healthCheck(cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
@@ -242,7 +248,7 @@ void SuperpixelDepthSegmenter::run()
 
     // Pre-processing
     cv::Mat preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img;
-    preprocessImages(filled_depth_img, filled_label_img, filled_normal_img,
+    preprocessImages(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
                         preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     preprocessEnd = std::chrono::steady_clock::now();
@@ -263,7 +269,7 @@ void SuperpixelDepthSegmenter::run()
     reset_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     // Initialize data
-    init_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
+    // init_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
     //     initialized_ = true;
     // }
@@ -861,16 +867,16 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     return weighted_d_normal + weighted_d_posn + weighted_d_compact;
 }
 
-void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)
-{
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::calculateStep]");
+// void SuperpixelDepthSegmenter::calculateStep(const cv::Mat & depth_image)
+// {
+//     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::calculateStep]");
 
-    int width = depth_image.cols;
-    int height = depth_image.rows;
-    int num_pixels = width * height;
+//     int width = depth_image.cols;
+//     int height = depth_image.rows;
+//     int num_pixels = width * height;
     
-    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
-}
+//     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+// }
 
 void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
                                             const cv::Mat & label_image,
