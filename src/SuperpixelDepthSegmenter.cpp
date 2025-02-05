@@ -916,9 +916,9 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     // int rough_center_count = 0;
     centers_.clear();
     center_counts_.clear();
-    for (int c = params_.step_; c <= depth_image.cols - params_.step_; c += params_.step_)
+    for (int c = params_.step_; c <= depth_image.cols; c += params_.step_)
     {
-        for (int r = params_.step_; r <= depth_image.rows - params_.step_; r += params_.step_)
+        for (int r = params_.step_; r <= depth_image.rows; r += params_.step_)
         {
             // ROS_INFO_STREAM("       (r, c): (" << r << ", " << c << ")");
 
@@ -932,16 +932,22 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             std::vector<double> center;
 
             /* Find the local minimum (gradient-wise). */
-            cv::Point originalCenter(c, r); // initialize to an invalid pixel
+            cv::Point originalCenter(c, r);
             cv::Point localMinimum = findLocalMinimum(depth_image, label_image, normal_image, originalCenter);
             float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
             uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
             cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
-            // if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
-            // {
-            //     continue;
-            // }
+            if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
+            {
+                ROS_INFO_STREAM("       Invalid local minimum found");
+                ROS_INFO_STREAM("           setting (" << r << ", " << c << ") to default ground floor value ...");
+                // augment center to be default ground floor value
+                localMinimum = originalCenter;
+                depth = 0.385;
+                label = 3;
+                normal = cv::Vec3f(0.0, -1.0, 0.0);                
+            }
 
 
             /* Generate the center vector. */
@@ -952,7 +958,6 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             center.push_back(normal.val[0]);
             center.push_back(normal.val[1]);
             center.push_back(normal.val[2]);
-            // center.push_back(depth);
 
             /* Append to vector of centers. */
             centers_.push_back(center);
@@ -1118,6 +1123,7 @@ void SuperpixelDepthSegmenter::displayCenterGrid(cv::Mat & image, const cv::Vec3
     // Display center grid
     for (int i = 0; i < (int) centers_.size(); i++) 
     {
+        // ROS_INFO_STREAM("       center[" << i << "]: (" << centers_[i][0] << ", " << centers_[i][1] << ")");
         cv::circle(image, cv::Point(centers_[i][0], centers_[i][1]), 2, color, -1);
     }
 
@@ -1143,7 +1149,6 @@ void SuperpixelDepthSegmenter::colorClusters(const cv::Mat & color_depth_image)
         for (int r = 0; r < color_depth_image.rows; r++)
         {
             // if (isPixelValid(depth_image, label_image, normal_image, current)) 
-
 
             int cluster_id = clusters_.at<int>(r, c);
             if (cluster_id != -1)
