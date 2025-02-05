@@ -916,9 +916,9 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     // int rough_center_count = 0;
     centers_.clear();
     center_counts_.clear();
-    for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
+    for (int c = params_.step_; c <= depth_image.cols - params_.step_; c += params_.step_)
     {
-        for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
+        for (int r = params_.step_; r <= depth_image.rows - params_.step_; r += params_.step_)
         {
             // ROS_INFO_STREAM("       (r, c): (" << r << ", " << c << ")");
 
@@ -974,8 +974,8 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
-    int deltaX = params_.step_; // 5;
-    int deltaY = params_.step_; // 5;
+    int deltaX = params_.step_ / 2; // 5;
+    int deltaY = params_.step_ / 2; // 5;
 
     for (int c = og_center.x - deltaX; c <= og_center.x + deltaX; c++)
     {
@@ -983,12 +983,10 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
         {
             cv::Point current(c, r);
 
-            if (!isPixelInBounds(depth_image, current))
-            {
-                continue;
-            }
-
-            float depth = depth_image.at<float>(current.y, current.x);
+            // if (!isPixelInBounds(depth_image, current))
+            // {
+            //     continue;
+            // }
 
             // double grad = sqrt(pow(color.val[0] - center_color.val[0], 2) +
             //                    pow(color.val[1] - center_color.val[1], 2) +
@@ -999,6 +997,8 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
                 continue;
             } else
             {
+                float depth = depth_image.at<float>(current.y, current.x);
+
                 if (isPixelInBounds(depth_image, loc_min)) // have found a valid pixel in the region, can compare now
                 {
                     if (depth < depth_image.at<float>(loc_min.y, loc_min.x))
