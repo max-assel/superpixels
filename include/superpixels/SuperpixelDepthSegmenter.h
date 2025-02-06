@@ -154,6 +154,9 @@ class SuperpixelDepthSegmenter
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr raw_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr raw_normal_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr prop_depth_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr prop_label_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr prop_normal_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
@@ -172,6 +175,8 @@ class SuperpixelDepthSegmenter
 
         // Flags
         bool initialized_ = false;
+
+        cv::Mat visited_; // Visited pixels
 
         // Superpixel matrices and vector
         cv::Mat clusters_; // per-pixel cluster assignments
@@ -208,6 +213,7 @@ class SuperpixelDepthSegmenter
         float DELTA = std::numeric_limits<float>::epsilon();
 
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
+        std::chrono::steady_clock::time_point fillBegin, fillEnd;
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
 
