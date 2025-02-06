@@ -72,7 +72,18 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     colors_.resize(params_.num_superpixels_);
     for (int i = 0; i < (int) colors_.size(); i++)
     {
-        colors_[i] = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
+        cv::Scalar color(rand() % 255, rand() % 255, rand() % 255);
+
+        for (int j = 0; j < i; j++)
+        {
+            if (cv::norm(color - colors_[j]) < 50)
+            {
+                color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
+                j = -1;
+            }
+        }
+
+        colors_[i] = color;
     }
 
     prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -80,6 +91,8 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     prop_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     visited_ = cv::Mat(params_.k_c_, params_.k_c_, CV_8UC1, cv::Scalar(0));
+
+    colored_point_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
 }
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
@@ -812,7 +825,7 @@ void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
 {
     worldPt[0] = (pixel.x - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
     worldPt[1] = depth;
-    worldPt[2] = (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
+    worldPt[2] = - (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
 }
 
 double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
@@ -889,6 +902,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     {
         ROS_WARN_STREAM("       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
     }
+
+    // double d_compact = cv::norm(centerWorldPt - worldPt);
+    // double max_compact_dist = 
+    // double weighted_d_compact = params_.w_compact_ * d_compact;
 
     // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
     return weighted_d_normal + weighted_d_posn + weighted_d_compact;
@@ -1095,6 +1112,8 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
 
     colorClusters(color_depth_image);
 
+    colorClusterPointCloud(depth_image);
+
     return;
 }
 
@@ -1107,7 +1126,7 @@ void SuperpixelDepthSegmenter::overlayCenters(const cv::Mat & color_depth_image)
     displayCenterGrid(overlaid_image, color);
 
     center_grid_img_ptr_->header = fin_depth_img_ptr_->header;
-    center_grid_img_ptr_->header.stamp = ros::Time::now();
+    // center_grid_img_ptr_->header.stamp = ros::Time::now();
     center_grid_img_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
 
     center_grid_img_ptr_->image = overlaid_image;
@@ -1190,12 +1209,71 @@ void SuperpixelDepthSegmenter::colorClusters(const cv::Mat & color_depth_image)
     }
     
     colored_cluster_img_ptr_->header = fin_depth_img_ptr_->header;
-    colored_cluster_img_ptr_->header.stamp = ros::Time::now();
+    // colored_cluster_img_ptr_->header.stamp = ros::Time::now();
     colored_cluster_img_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
 
     colored_cluster_img_ptr_->image = color_cluster_image;
     colored_cluster_img_pub_.publish(colored_cluster_img_ptr_->toImageMsg());
 
+}
+
+void SuperpixelDepthSegmenter::colorClusterPointCloud(const cv::Mat & depth_image)
+{
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::colorClusterPointCloud]");
+
+    // std::lock_guard<std::mutex> lock(cloud_mutex_);
+
+    // ROS_INFO_STREAM("       Coloring cluster point cloud ...");
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    // colored_cloud->header = fin_depth_img_ptr_->header;
+    // colored_cloud->header.stamp = ros::Time::now();
+    colored_cloud->width = depth_image.cols;
+    colored_cloud->height = depth_image.rows;
+    // colored_cloud->is_dense = cloud_ptr_->is_dense;
+    colored_cloud->points.resize(colored_cloud->width * colored_cloud->height);
+
+    // iterate through valid pixels and color
+    for (int r = 0; r < depth_image.rows; r++)
+    {
+        for (int c = 0; c < depth_image.cols; c++)
+        {    
+            pcl::PointXYZRGBA point;
+            
+            cv::Point pixel(c, r);
+            cv::Vec3f worldPt;
+            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(r, c));
+
+            point.x = worldPt[0];
+            point.y = worldPt[1];
+            point.z = worldPt[2];
+
+            int cluster_id = clusters_.at<int>(r, c);
+            if (cluster_id != -1)
+            {
+                cv::Scalar color = colors_[cluster_id];
+                point.r = color[2];
+                point.g = color[1];
+                point.b = color[0];
+                point.a = 255;
+            } else
+            {
+                point.a = 0;
+            }
+
+            int i = r * colored_cloud->width + c;
+            colored_cloud->points[i] = point;
+        }
+    }
+
+    sensor_msgs::PointCloud2 colored_cloud_msg;
+    pcl::toROSMsg(*colored_cloud, colored_cloud_msg);
+    colored_cloud_msg.header = fin_depth_img_ptr_->header;
+
+    colored_point_cloud_pub_.publish(colored_cloud_msg);
+
+    return;
 }
 
 // void SuperpixelDepthSegmenter::checkSparsity()

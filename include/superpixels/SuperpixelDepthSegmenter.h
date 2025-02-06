@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+
 #include <image_transport/subscriber_filter.h>
 #include <tf2_ros/message_filter.h>
 
@@ -122,6 +125,8 @@ class SuperpixelDepthSegmenter
 
         void colorClusters(const cv::Mat & color_depth_image);
 
+        void colorClusterPointCloud(const cv::Mat & depth_image);
+
         ///////////////
         // VISUALIZE //
         ///////////////
@@ -144,6 +149,8 @@ class SuperpixelDepthSegmenter
         image_transport::Publisher fin_normal_img_pub_;
         image_transport::Publisher center_grid_img_pub_;
         image_transport::Publisher colored_cluster_img_pub_;
+
+        ros::Publisher colored_point_cloud_pub_;
 
         // Image message pointers
         sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;

@@ -34,5 +34,6 @@
   <depend>image_transport</depend>
   <depend>yaml-cpp</depend>
   <depend>dynamic_reconfigure</depend>
+  <depend>pcl_ros</depend>
 
 </package>

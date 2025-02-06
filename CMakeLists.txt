@@ -7,6 +7,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
     cv_bridge
     image_transport
     dynamic_reconfigure
+    pcl_ros
     )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -14,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         )
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-
+find_package(PCL    REQUIRED)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
