@@ -83,6 +83,12 @@ class SuperpixelDepthSegmenter
                                     const cv::Mat & label_image,
                                     const cv::Mat & normal_image);
 
+        bool checkConstraints(const int & center_idx, 
+                                const float & depth,
+                                const uint8_t & label,
+                                const cv::Vec3f & normal,
+                                const cv::Point & pixel);
+
         double computeDistance(const int & center_idx, 
                                 const float & depth,
                                 const uint8_t & label,

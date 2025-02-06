@@ -744,13 +744,19 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                         uint8_t label = label_image.at<uint8_t>(r, c);
                         cv::Vec3f normal = normal_image.at<cv::Vec3f>(r, c);
 
+                        bool check = checkConstraints(j, 
+                                                        depth,
+                                                        label,
+                                                        normal,
+                                                        current);
+
                         double d = computeDistance(j, 
                                                     depth,
                                                     label,
                                                     normal,
                                                     current);
 
-                        if (d < distances_.at<double>(r, c)) 
+                        if (check && d < distances_.at<double>(r, c)) 
                         {
                             distances_.at<double>(r, c) = d;
                             clusters_.at<int>(r, c) = j;
@@ -826,6 +832,30 @@ void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
     worldPt[0] = (pixel.x - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
     worldPt[1] = depth;
     worldPt[2] = - (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
+}
+
+bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx, 
+                                                const float & depth,
+                                                const uint8_t & label,
+                                                const cv::Vec3f & normal,
+                                                const cv::Point & pixel)
+{
+    cv::Point center_pixel = cv::Point(centers_[center_idx][0], centers_[center_idx][1]);
+    float center_depth = centers_[center_idx][2];
+    uint8_t center_label = centers_[center_idx][3];
+    cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
+
+    cv::Vec3f worldPt;
+    floorPixelToWorld(worldPt, pixel, depth);
+
+    cv::Vec3f centerWorldPt;
+    floorPixelToWorld(centerWorldPt, center_pixel, center_depth);
+
+    bool normal_check = normal.dot(center_normal) > 0.50;
+
+    bool plane_distance_check = std::fabs( (centerWorldPt - worldPt).dot(center_normal) < 0.01);
+
+    return normal_check && plane_distance_check;
 }
 
 double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
