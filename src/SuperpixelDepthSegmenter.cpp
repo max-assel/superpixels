@@ -334,9 +334,9 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
 
     int delta = params_.step_ / 2;
 
-    for (int c = delta; c < filled_depth_img.cols; c += delta)
+    for (int r = delta; r < filled_depth_img.rows; r += delta)
     {
-        for (int r = delta; r < filled_depth_img.rows; r += delta)
+        for (int c = delta; c < filled_depth_img.cols; c += delta)
         {
             // ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
 
@@ -720,10 +720,10 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         for (int j = 0; j < (int) centers_.size(); j++) 
         {
             /* Only compare to pixels in a 2 x step by 2 x step region. */
-            for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
+            for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
             {
-                for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
-                {
+                for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
+                {                
                     cv::Point current(c, r);
                     if (isPixelValid(depth_image, label_image, normal_image, current)) 
                     {
@@ -761,10 +761,10 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
 
         /* Compute the new cluster centers. */
-        for (int c = 0; c < depth_image.cols; c++) 
+        for (int r = 0; r < depth_image.rows; r++) 
         {
-            for (int r = 0; r < depth_image.rows; r++) 
-            {
+            for (int c = 0; c < depth_image.cols; c++) 
+            {            
                 int cluster_id = clusters_.at<int>(r, c);
                 
                 if (cluster_id != -1) 
@@ -943,10 +943,10 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     // int rough_center_count = 0;
     centers_.clear();
     center_counts_.clear();
-    for (int c = params_.step_; c <= depth_image.cols; c += params_.step_)
+    for (int r = params_.step_; r <= depth_image.rows; r += params_.step_)
     {
-        for (int r = params_.step_; r <= depth_image.rows; r += params_.step_)
-        {
+        for (int c = params_.step_; c <= depth_image.cols; c += params_.step_)
+        {        
             // ROS_INFO_STREAM("       (r, c): (" << r << ", " << c << ")");
 
             // float depth = depth_image.at<float>(r, c);
@@ -1009,9 +1009,9 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     int deltaX = params_.step_; // 5;
     int deltaY = params_.step_; // 5;
 
-    for (int c = og_center.x - deltaX; c <= og_center.x + deltaX; c++)
+    for (int r = og_center.y - deltaY; r <= og_center.y + deltaY; r++)
     {
-        for (int r = og_center.y - deltaY; r <= og_center.y + deltaY; r++)
+        for (int c = og_center.x - deltaX; c <= og_center.x + deltaX; c++)
         {
             cv::Point current(c, r);
 
@@ -1171,10 +1171,10 @@ void SuperpixelDepthSegmenter::colorClusters(const cv::Mat & color_depth_image)
     // }
 
     // iterate through valid pixels and color
-    for (int c = 0; c < color_depth_image.cols; c++)
+    for (int r = 0; r < color_depth_image.rows; r++)
     {
-        for (int r = 0; r < color_depth_image.rows; r++)
-        {
+        for (int c = 0; c < color_depth_image.cols; c++)
+        {    
             // if (isPixelValid(depth_image, label_image, normal_image, current)) 
 
             int cluster_id = clusters_.at<int>(r, c);
