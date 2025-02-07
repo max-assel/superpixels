@@ -137,7 +137,8 @@ class SuperpixelDepthSegmenter
 
         void colorClusterPointCloud(const cv::Mat & depth_image);
 
-        cv::Point findClosestPixel(const cv::Point & center, 
+        cv::Point findClosestPixel(const int & center_idx,
+                                    const cv::Point & center, 
                                     const cv::Mat & depth_image,
                                     const cv::Mat & label_image,
                                     const cv::Mat & normal_image);
