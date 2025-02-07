@@ -203,9 +203,17 @@ bool SuperpixelDepthSegmenter::isPixelValid(const cv::Mat & depth_image,
 
     cv::Vec3f normal = normal_image.at<cv::Vec3f>(pixel.y, pixel.x);
 
-    if (cv::norm(normal) < DELTA)
+    if (std::isnan(normal[0]) || std::isnan(normal[1]) || std::isnan(normal[2]) ||
+        cv::norm(normal) < DELTA)
     {
-        ROS_WARN_STREAM("Passing depth check but failing normal check.");
+        // ROS_WARN_STREAM("Passing depth check but failing normal check.");
+        return false;
+    }
+
+    cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
+    if ( std::abs( normal.dot(ideal_normal) ) < 0.75 )
+    {
+        // ROS_WARN_STREAM("Passing depth check but failing normal check.");
         return false;
     }
 
@@ -425,25 +433,29 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
     {
         for (int c = 0; c < cleaned_depth_img.cols; c++)
         {
-            float depth = raw_depth_img.at<float>(r, c);
-
-            bool valid_depth = (!std::isnan(depth) && std::abs(depth) > 1e-6 && depth > 0);
-
-            uint8_t label = raw_label_img.at<uint8_t>(r, c);
-
-            bool valid_label = (!std::isnan(label) && label >= 0);
-
-            cv::Vec3f normal = raw_normal_img.at<cv::Vec3f>(r, c);
-
-            bool valid_normal = (!std::isnan(normal.val[0]) && !std::isnan(normal.val[1]) && !std::isnan(normal.val[2]) && 
-                                    cv::norm(normal) > DELTA);
-
-            if (valid_depth && valid_label && valid_normal)
+            if (isPixelValid(raw_depth_img, raw_label_img, raw_normal_img, cv::Point(c, r)))
             {
+
+                float depth = raw_depth_img.at<float>(r, c);
+
+                // bool valid_depth = (!std::isnan(depth) && std::abs(depth) > 1e-6 && depth > 0);
+
+                uint8_t label = raw_label_img.at<uint8_t>(r, c);
+
+                // bool valid_label = (!std::isnan(label) && label >= 0);
+
+                cv::Vec3f normal = raw_normal_img.at<cv::Vec3f>(r, c);
+
+                // bool valid_normal = (!std::isnan(normal.val[0]) && !std::isnan(normal.val[1]) && !std::isnan(normal.val[2]) && 
+                                        // cv::norm(normal) > DELTA);
+
+                // if (valid_depth && valid_label && valid_normal)
+                // {
                 cleaned_depth_img.at<float>(r, c) = depth;
                 cleaned_label_img.at<uint8_t>(r, c) = label;
                 cleaned_normal_img.at<cv::Vec3f>(r, c) = normal;
                 visited_.at<uint8_t>(r, c) = 1;
+                // } 
             } else
             {
                 cleaned_depth_img.at<float>(r, c) = 0;
@@ -916,7 +928,7 @@ cv::Vec3f SuperpixelDepthSegmenter::ransac(const std::vector<cv::Point> & pixels
     // ROS_INFO_STREAM("       number of points: " << pixels.size());
 
     int K = 3; // number of points to sample
-    int N = 50; // number of iterations
+    int N = 25; // number of iterations
     double T = 0.01; // threshold
 
     cv::Vec3f normal = og_normal;
