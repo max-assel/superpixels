@@ -93,6 +93,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     visited_ = cv::Mat(params_.k_c_, params_.k_c_, CV_8UC1, cv::Scalar(0));
 
     colored_point_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
+    colored_centroids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/superpixels/colored_centroids", 1);
 }
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
@@ -258,6 +259,8 @@ void SuperpixelDepthSegmenter::run()
     cleanImages(raw_depth_img, raw_label_img, raw_normal_img, 
                 cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
 
+    // ROS_INFO_STREAM(" after cleaning, (480, 480) is: " << cleaned_depth_img.at<float>(480, 480));
+
     cleanEnd = std::chrono::steady_clock::now();
     int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
     double clean_total_time_sec = clean_total_time / 1.0e6; 
@@ -267,6 +270,8 @@ void SuperpixelDepthSegmenter::run()
     cv::Mat filled_depth_img, filled_label_img, filled_normal_img;
     fillInImage(cleaned_depth_img, cleaned_label_img, cleaned_normal_img,
                 filled_depth_img, filled_label_img, filled_normal_img);
+
+    // ROS_INFO_STREAM(" after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
 
     fillEnd = std::chrono::steady_clock::now();
     int64_t fill_total_time = std::chrono::duration_cast<std::chrono::microseconds>(fillEnd - fillBegin).count();
@@ -281,6 +286,8 @@ void SuperpixelDepthSegmenter::run()
     cv::Mat preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img;
     preprocessImages(filled_depth_img, filled_label_img, filled_normal_img,
                         preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
+
+    // ROS_INFO_STREAM(" after preprocessing, (480, 480) is: " << preprocessed_depth_img.at<float>(480, 480));
 
     preprocessEnd = std::chrono::steady_clock::now();
     int64_t preprocess_total_time = std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
@@ -347,9 +354,9 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
 
     int delta = params_.step_ / 2;
 
-    for (int r = delta; r < filled_depth_img.rows; r += delta)
+    for (int r = delta; r < cleaned_depth_img.rows; r += delta)
     {
-        for (int c = delta; c < filled_depth_img.cols; c += delta)
+        for (int c = delta; c < cleaned_depth_img.cols; c += delta)
         {
             // ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
 
@@ -361,7 +368,7 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
                 {
                     cv::Point pixel(c + j, r + i);
 
-                    if (isPixelInBounds(filled_depth_img, pixel) && visited_.at<uint8_t>(pixel.y, pixel.x) == 1)
+                    if (isPixelInBounds(cleaned_depth_img, pixel) && visited_.at<uint8_t>(pixel.y, pixel.x) == 1)
                     {
                         found_visited_pixel = true;
                         break;
@@ -376,7 +383,7 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
 
             if (!found_visited_pixel)
             {
-                // ROS_INFO_STREAM("       valid");
+                // ROS_INFO_STREAM("       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
 
                 filled_depth_img.at<float>(r, c) = 0.385;
                 filled_label_img.at<uint8_t>(r, c) = 3;
@@ -727,7 +734,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     {
         /* Reset distance and cluster values. */
         distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
-        // clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+        clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
         /* Update distances and clusters */
         for (int j = 0; j < (int) centers_.size(); j++) 
@@ -744,11 +751,11 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                         uint8_t label = label_image.at<uint8_t>(r, c);
                         cv::Vec3f normal = normal_image.at<cv::Vec3f>(r, c);
 
-                        bool check = checkConstraints(j, 
-                                                        depth,
-                                                        label,
-                                                        normal,
-                                                        current);
+                        // bool check = checkConstraints(j, 
+                        //                                 depth,
+                        //                                 label,
+                        //                                 normal,
+                        //                                 current);
 
                         double d = computeDistance(j, 
                                                     depth,
@@ -756,7 +763,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                     normal,
                                                     current);
 
-                        if (check && d < distances_.at<double>(r, c)) 
+                        if (d < distances_.at<double>(r, c)) 
                         {
                             distances_.at<double>(r, c) = d;
                             clusters_.at<int>(r, c) = j;
@@ -808,6 +815,11 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         /* Normalize the clusters. */
         for (int j = 0; j < (int) centers_.size(); j++) 
         {
+            if (center_counts_[j] == 0) 
+            {
+                continue;
+            }
+
             centers_[j][0] /= center_counts_[j];
             centers_[j][1] /= center_counts_[j];
             centers_[j][2] /= center_counts_[j];
@@ -816,13 +828,64 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             centers_[j][5] /= center_counts_[j];
             centers_[j][6] /= center_counts_[j];
         }
+
+        /* Snap clusters to nearest pixel */
+        for (int j = 0; j < (int) centers_.size(); j++) 
+        {
+            cv::Point center = cv::Point(centers_[j][0], centers_[j][1]);
+            cv::Point new_center = findClosestPixel(center, depth_image, label_image, normal_image);
+            centers_[j][0] = new_center.x;
+            centers_[j][1] = new_center.y;
+            centers_[j][2] = depth_image.at<float>(new_center.y, new_center.x);
+            centers_[j][3] = label_image.at<uint8_t>(new_center.y, new_center.x);
+            cv::Vec3f normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
+            centers_[j][4] = normal.val[0];
+            centers_[j][5] = normal.val[1];
+            centers_[j][6] = normal.val[2];
+        }
+
     }
 
-    // ROS_INFO_STREAM("       center_counts:");
+    // ROS_INFO_STREAM("       centers:");
     // for (int i = 0; i < (int) center_counts_.size(); i++)
     // {
-    //     ROS_INFO_STREAM("           center_counts_[" << i << "]: " << center_counts_[i]);
+    //     ROS_INFO_STREAM("           [" << i << "]: ");
+    //     ROS_INFO_STREAM("               pixel: " << centers_[i][0] << ", " << centers_[i][1]);
+    //     ROS_INFO_STREAM("               depth: " << centers_[i][2]);
+    //     ROS_INFO_STREAM("               label: " << centers_[i][3]);
+    //     ROS_INFO_STREAM("               normal: " << centers_[i][4] << ", " << centers_[i][5] << ", " << centers_[i][6]);
+    //     ROS_INFO_STREAM("               counts: " << center_counts_[i]);
     // }
+}
+
+cv::Point SuperpixelDepthSegmenter::findClosestPixel(const cv::Point & center, 
+                                                        const cv::Mat & depth_image,
+                                                        const cv::Mat & label_image,
+                                                        const cv::Mat & normal_image)
+{
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::findClosestPixel]");
+
+    cv::Point new_center = center;
+
+    // inefficient
+    for (int delta = 1; delta < params_.step_; delta++)
+    {
+        for (int i = -delta; i <= delta; i++)
+        {
+            for (int j = -delta; j <= delta; j++)
+            {
+                cv::Point current(center.x + j, center.y + i);
+
+                if (isPixelValid(depth_image, label_image, normal_image, current))
+                {
+                    new_center = current;
+                    return new_center;
+                }
+            }
+        }
+    }
+
+    return new_center;
 }
 
 void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
@@ -1012,8 +1075,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
             cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
-            // if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
-            // {
+            if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
+            {
             //     ROS_INFO_STREAM("       Invalid local minimum found");
             //     ROS_INFO_STREAM("           setting (" << r << ", " << c << ") to default ground floor value ...");
             //     // augment center to be default ground floor value
@@ -1021,7 +1084,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             //     depth = 0.385;
             //     label = 3;
             //     normal = cv::Vec3f(0.0, -1.0, 0.0);                
-            // }
+                continue;
+            }
 
 
             /* Generate the center vector. */
@@ -1143,6 +1207,8 @@ void SuperpixelDepthSegmenter::visualize(const cv::Mat & depth_image,
     colorClusters(color_depth_image);
 
     colorClusterPointCloud(depth_image);
+
+    colorCentroids();
 
     return;
 }
@@ -1304,6 +1370,67 @@ void SuperpixelDepthSegmenter::colorClusterPointCloud(const cv::Mat & depth_imag
     colored_point_cloud_pub_.publish(colored_cloud_msg);
 
     return;
+}
+
+void SuperpixelDepthSegmenter::colorCentroids()
+{
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::colorCentroids]");
+
+    visualization_msgs::MarkerArray marker_array;
+
+    for (int i = 0; i < centers_.size(); i++)
+    {
+        visualization_msgs::Marker marker;
+        marker.header = fin_depth_img_ptr_->header;
+        marker.ns = "superpixel_centroids";
+        marker.id = i;
+        marker.type = visualization_msgs::Marker::ARROW;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.pose.position.x = 0.0;
+        marker.pose.position.y = 0.0;
+        marker.pose.position.z = 0.0;
+        marker.pose.orientation.x = 0.0;
+        marker.pose.orientation.y = 0.0;
+        marker.pose.orientation.z = 0.0;
+        marker.pose.orientation.w = 1.0;
+
+        cv::Point center_pixel = cv::Point(centers_[i][0], centers_[i][1]);
+        float center_depth = centers_[i][2];
+        cv::Vec3f center_normal = cv::Vec3f(centers_[i][4], centers_[i][5], centers_[i][6]);
+
+        cv::Vec3f centerWorldPt;
+        floorPixelToWorld(centerWorldPt, center_pixel, center_depth);
+
+        marker.points.resize(2);
+        double scale = 0.1;
+        geometry_msgs::Point p1, p2;
+        p1.x = centerWorldPt[0];
+        p1.y = centerWorldPt[1];
+        p1.z = centerWorldPt[2];
+        p2.x = p1.x + scale * center_normal[0];
+        p2.y = p1.y + scale * center_normal[1];
+        p2.z = p1.z + scale * center_normal[2];
+
+        // ROS_INFO_STREAM("       Centroid " << i << ": (" << p1.x << ", " << p1.y << ", " << p1.z << ")");
+        // ROS_INFO_STREAM("       Normal " << i << ": (" << centers_[i][4] << ", " << centers_[i][5] << ", " << centers_[i][6] << ")");
+
+        marker.points[0] = p1;
+        marker.points[1] = p2;
+
+        marker.scale.x = 0.01;
+        marker.scale.y = 0.02;
+        marker.scale.z = 0.0;
+
+        marker.color.a = 1.0;
+        cv::Scalar color = colors_[i];
+        marker.color.r = color[2] / 255.0;
+        marker.color.g = color[1] / 255.0;
+        marker.color.b = color[0] / 255.0;
+
+        marker_array.markers.push_back(marker);
+    }
+
+    colored_centroids_pub_.publish(marker_array);
 }
 
 // void SuperpixelDepthSegmenter::checkSparsity()

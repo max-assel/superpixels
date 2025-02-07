@@ -5,6 +5,8 @@
 
 #include <image_transport/subscriber_filter.h>
 #include <tf2_ros/message_filter.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -63,6 +65,8 @@ class SuperpixelDepthSegmenter
                                 cv::Mat & preprocessed_depth_img,
                                 cv::Mat & preprocessed_label_img,
                                 cv::Mat & preprocessed_normal_img);
+
+        void colorCentroids();
 
         // void calculateStep(const cv::Mat & depth_image);
 
@@ -133,6 +137,11 @@ class SuperpixelDepthSegmenter
 
         void colorClusterPointCloud(const cv::Mat & depth_image);
 
+        cv::Point findClosestPixel(const cv::Point & center, 
+                                    const cv::Mat & depth_image,
+                                    const cv::Mat & label_image,
+                                    const cv::Mat & normal_image);
+
         ///////////////
         // VISUALIZE //
         ///////////////
@@ -157,6 +166,7 @@ class SuperpixelDepthSegmenter
         image_transport::Publisher colored_cluster_img_pub_;
 
         ros::Publisher colored_point_cloud_pub_;
+        ros::Publisher colored_centroids_pub_;
 
         // Image message pointers
         sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
