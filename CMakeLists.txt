@@ -8,6 +8,9 @@ set(CATKIN_PACKAGE_DEPENDENCIES
     image_transport
     dynamic_reconfigure
     pcl_ros
+    convex_plane_decomposition
+    convex_plane_decomposition_ros
+    convex_plane_decomposition_msgs
     )
 
 find_package(catkin REQUIRED COMPONENTS

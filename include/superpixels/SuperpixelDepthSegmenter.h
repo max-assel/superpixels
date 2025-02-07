@@ -7,6 +7,7 @@
 #include <tf2_ros/message_filter.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -24,6 +25,19 @@
 #include <dynamic_reconfigure/server.h>
 #include <superpixels/ParametersConfig.h>
 
+#include <convex_plane_decomposition_msgs/PlanarTerrain.h>
+#include <convex_plane_decomposition/PlanarRegion.h>
+#include <convex_plane_decomposition_ros/MessageConversion.h>
+
+// Include transforms
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+#include <grid_map_ros/GridMapRosConverter.hpp>
+
+// #include <tf/tf.h>
 
 class SuperpixelDepthSegmenter 
 {
@@ -68,6 +82,8 @@ class SuperpixelDepthSegmenter
 
         void colorCentroids();
 
+        void publishPlanarRegions();
+
         // void calculateStep(const cv::Mat & depth_image);
 
         void reset_data(const cv::Mat & depth_image,
@@ -107,6 +123,8 @@ class SuperpixelDepthSegmenter
                             cv::Mat & filled_normal_img);
 
         cv::Vec3f ransac(const std::vector<cv::Point> & pixels, const cv::Mat & depth_image, const cv::Vec3f & og_normal);
+
+        void publishPlanarRegions(const cv::Mat & depth_img);   
 
         // void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
 
@@ -170,6 +188,7 @@ class SuperpixelDepthSegmenter
 
         ros::Publisher colored_point_cloud_pub_;
         ros::Publisher colored_centroids_pub_;
+        ros::Publisher terrainPub_;
 
         // Image message pointers
         sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
@@ -244,6 +263,9 @@ class SuperpixelDepthSegmenter
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
 
+        tf2_ros::TransformListener * tfListener_; /**< transform listener */
+
+        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?
 
 
 };

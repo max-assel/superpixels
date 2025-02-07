@@ -4,6 +4,8 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 {
     nh_ = nh;
 
+    tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
+
     // Load configs
     YAML::Node configYamlNode = YAML::LoadFile(config_path);
 
@@ -94,6 +96,11 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 
     colored_point_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
     colored_centroids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/superpixels/colored_centroids", 1);
+
+    // set up terrain publisher
+    terrainPub_ = nh_.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
+                                    ("/convex_plane_decomposition_ros/planar_terrain", 1);
+
 }
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
@@ -340,7 +347,237 @@ void SuperpixelDepthSegmenter::run()
                 preprocessed_label_img, 
                 preprocessed_normal_img);
 
+    // Publish planar regions
+    publishPlanarRegions(preprocessed_depth_img);
+
     return;
+}
+
+Eigen::Vector3d calculateOrientationFromUnitNorms(const Eigen::Vector3d & e0, const Eigen::Vector3d & e1)
+{
+    // Option 1: from estimateEulerAnglesFromContacts originally
+    // Eigen::Matrix3d rotMat;
+
+    // // std::cout << "      XUnitNorm: " << XUnitNorm.transpose() << std::endl;
+    // // std::cout << "      YUnitNorm: " << YUnitNorm.transpose() << std::endl;
+    // // std::cout << "      normal: " << normal.transpose() << std::endl;
+
+    // rotMat << XUnitNorm[0], YUnitNorm[0], normal[0], 
+    //           XUnitNorm[1], YUnitNorm[1], normal[1],
+    //           XUnitNorm[2], YUnitNorm[2], normal[2];
+
+    // https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
+    // double theta_x = std::atan2(rotMat(2, 1), rotMat(2, 2));
+    // double theta_y = std::atan2(-rotMat(2, 0), std::sqrt(std::pow(rotMat(2, 1), 2) + std::pow(rotMat(2, 2), 2)));
+    // double theta_z = std::atan2(rotMat(1, 0), rotMat(0, 0));
+
+    // Option 2: from PolygonPublisher originally
+    double yaw = std::asin(e0[1] / std::sqrt(1 - e0[2]*e0[2]));
+    double pitch = std::asin(-e0[2]);
+    double roll = std::asin(e1[2] / std::sqrt(1 - e0[2]*e0[2]));
+
+    return Eigen::Vector3d(roll, pitch, yaw);    
+}
+
+/**
+ * Compute the quaternion corresponding to euler angles zyx
+ *
+ * @param [in] eulerAnglesZyx
+ * @return The corresponding quaternion
+ */
+Eigen::Quaterniond getQuaternionFromEulerAnglesZyx(const Eigen::Matrix<double, 3, 1>& eulerAnglesZyx) 
+{
+  // clang-format off
+  return Eigen::AngleAxis<double>(eulerAnglesZyx(0), Eigen::Matrix<double, 3, 1>::UnitZ()) *
+         Eigen::AngleAxis<double>(eulerAnglesZyx(1), Eigen::Matrix<double, 3, 1>::UnitY()) *
+         Eigen::AngleAxis<double>(eulerAnglesZyx(2), Eigen::Matrix<double, 3, 1>::UnitX());
+  // clang-format on
+}
+
+/**
+* @brief Transform a 6D pose from world frame to base frame, 
+* performs rotation + translation, stores full pose
+* 
+* @param source The 6D pose in world frame
+* @param worldToBaseTransform The transform from world to base frame
+* @return Eigen::VectorXd : The 6D pose in base frame
+*/
+Eigen::VectorXd transformHelperPoseStamped(const Eigen::VectorXd & source, 
+                                            const geometry_msgs::TransformStamped & worldToBaseTransform)
+{
+    assert(source.size() == 6); // for a 6D pose (position, orientation)
+
+    // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
+
+    // std::cout << "  worldFrameToBaseFrameTransform: " << worldToBaseTransform << std::endl;
+
+    geometry_msgs::PoseStamped sourceVector, destVector;
+
+    Eigen::VectorXd torsoPosition = source.head(3);
+    Eigen::VectorXd torsoOrientation = source.tail(3);
+
+    sourceVector.header.stamp = worldToBaseTransform.header.stamp;
+    sourceVector.header.frame_id = "world";
+    sourceVector.pose.position.x = torsoPosition[0];
+    sourceVector.pose.position.y = torsoPosition[1];
+    sourceVector.pose.position.z = torsoPosition[2];
+
+    // euler to quat
+    Eigen::Quaterniond q_source = getQuaternionFromEulerAnglesZyx(torsoOrientation);
+
+    sourceVector.pose.orientation.x = q_source.x();
+    sourceVector.pose.orientation.y = q_source.y();
+    sourceVector.pose.orientation.z = q_source.z();
+    sourceVector.pose.orientation.w = q_source.w();
+    // std::cout << "  sourceVector: " << sourceVector << std::endl;
+
+    tf2::doTransform(sourceVector, destVector, worldToBaseTransform);
+
+    // std::cout << "  destVector: " << destVector << std::endl;
+
+    tf2::Quaternion q(destVector.pose.orientation.x,
+                        destVector.pose.orientation.y,
+                        destVector.pose.orientation.z,
+                        destVector.pose.orientation.w);
+
+    double roll, pitch, yaw;
+    tf2::Matrix3x3(q).getEulerYPR(yaw, pitch, roll);
+
+    Eigen::VectorXd dest = Eigen::VectorXd::Zero(source.size());
+
+    dest[0] = destVector.pose.position.x;
+    dest[1] = destVector.pose.position.y;
+    dest[2] = destVector.pose.position.z;
+    dest[3] = yaw; // eulers_dest[0]; // yaw
+    dest[4] = pitch; // eulers_dest[1]; // pitch
+    dest[5] = roll; // eulers_dest[2]; // roll
+
+    return dest;
+}
+
+/**
+* @brief Calculate the rotation matrix from roll, pitch, and yaw
+*
+* @param roll The roll angle
+* @param pitch The pitch angle
+* @param yaw The yaw angle
+* @return Eigen::Matrix3d : The rotation matrix
+*/
+Eigen::Matrix3d calculateRotationMatrix(const double & roll, 
+                                        const double & pitch, 
+                                        const double & yaw)
+{
+    Eigen::Matrix3d rotMat;
+
+    double R11 = std::cos(yaw)*std::cos(pitch);
+    double R12 = std::cos(yaw)*std::sin(pitch)*std::sin(roll)-std::sin(yaw)*std::cos(roll);
+    double R13 = std::cos(yaw)*std::sin(pitch)*std::cos(roll)+std::sin(yaw)*std::sin(roll);
+    double R21 = std::sin(yaw)*std::cos(pitch);
+    double R22 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)+std::cos(yaw)*std::cos(roll);
+    double R23 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)-std::cos(yaw)*std::sin(roll);
+    double R31 = -std::sin(pitch);
+    double R32 = std::cos(pitch)*std::sin(roll);
+    double R33 = std::cos(pitch)*std::cos(roll);
+
+    rotMat << R11, R12, R13,
+              R21, R22, R23,
+              R31, R32, R33;
+
+    return rotMat;    
+}
+
+
+void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
+{
+    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::publishPlanarRegions]");
+
+    ros::Time lookupTime = fin_depth_img_ptr_->header.stamp;
+    std::string camera_frame = fin_depth_img_ptr_->header.frame_id;
+
+    geometry_msgs::TransformStamped cameraFrameToWorldFrameTransform = 
+        tfBuffer_.lookupTransform("world", camera_frame, lookupTime);
+
+    convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
+
+    for (int i = 0; i < centers_.size(); i++)
+    {
+        convex_plane_decomposition::PlanarRegion region;
+
+        cv::Point pixel = cv::Point(centers_[i][0], centers_[i][1]);
+        cv::Vec3f worldPt;
+        floorPixelToWorld(worldPt, pixel, depth_img.at<float>(pixel.y, pixel.x));
+
+        Eigen::Vector3d center(worldPt.val[0], worldPt.val[1], worldPt.val[2]);
+        Eigen::Vector3d normal(centers_[i][4], centers_[i][5], centers_[i][6]);
+
+        Eigen::Vector3d arbitraryVec(1, 0, 0);
+
+        // check here to make sure arbitraryVec is not parallel to normal
+        if (std::abs(arbitraryVec.dot(normal)) > 0.99)
+        {
+            arbitraryVec = Eigen::Vector3d(0, 1, 0);
+        }
+
+        Eigen::Vector3d e0 = normal.cross(arbitraryVec);
+        e0.normalize();
+        Eigen::Vector3d e1 = normal.cross(e0);
+        e1.normalize();
+
+        Eigen::Vector3d orientation = calculateOrientationFromUnitNorms(e0, e1);
+
+        Eigen::VectorXd pose_camera_frame(6);
+        pose_camera_frame << center, orientation;
+
+        Eigen::VectorXd pose_world_frame = transformHelperPoseStamped(pose_camera_frame, cameraFrameToWorldFrameTransform);
+
+        // get rotation matrix
+        Eigen::Matrix3d rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
+
+        region.transformPlaneToWorld.linear() = rotMat;      
+
+        convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
+
+        convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
+        convex_plane_decomposition::CgalPolygon2d polygon;
+        double foot_radius = 0.02;
+        polygon.container().emplace_back(-foot_radius, -foot_radius); // bottom left
+        polygon.container().emplace_back(foot_radius, -foot_radius); // bottom right
+        polygon.container().emplace_back(foot_radius, foot_radius); // top right
+        polygon.container().emplace_back(-foot_radius, foot_radius); // top left
+
+        polygonWithHoles.outer_boundary() = polygon;
+
+        boundaryWithInset.boundary = polygonWithHoles;
+        boundaryWithInset.insets = {};
+
+        region.boundaryWithInset = boundaryWithInset;
+        region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
+
+        convex_plane_decomposition_msgs::PlanarRegion region_msg = convex_plane_decomposition::toMessage(region);
+
+        terrain_msg.planarRegions.push_back(region_msg);
+
+        // ROS_INFO_STREAM("   e0: " << e0.transpose());
+        // ROS_INFO_STREAM("   e1: " << e1.transpose());
+        // ROS_INFO_STREAM("   normal: " << normal.transpose());
+    }    
+
+    // placeholder gridMap
+    grid_map::GridMap grid_map;
+    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    double grid_map_resolution = 0.1; // resolution [m]
+    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    grid_map.setGeometry(grid_map_dimensions, 
+                            grid_map_resolution, 
+                            grid_map_origin);
+    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    grid_map.setFrameId("odom");
+
+    grid_map_msgs::GridMap grid_map_msg;
+    grid_map::GridMapRosConverter::toMessage(grid_map, grid_map_msg);
+    terrain_msg.gridmap = grid_map_msg; 
+
+    terrainPub_.publish(terrain_msg);
 }
 
 void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
