@@ -324,7 +324,8 @@ void SuperpixelDepthSegmenter::run()
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
                                 "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
-                                "   Total: " << clean_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec << " seconds");
+                                "   Number of superpixels: " << centers_.size() << "\n" <<
+                                "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec << " seconds");
 
     // Visualize
     visualize(preprocessed_depth_img, 
@@ -354,9 +355,9 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
 
     int delta = params_.step_ / 2;
 
-    for (int r = delta; r < cleaned_depth_img.rows; r += delta)
+    for (int r = delta; r < (cleaned_depth_img.rows - delta); r += delta)
     {
-        for (int c = delta; c < cleaned_depth_img.cols; c += delta)
+        for (int c = delta; c < (cleaned_depth_img.cols - delta); c += delta)
         {
             // ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
 
@@ -846,16 +847,16 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
     }
 
-    // ROS_INFO_STREAM("       centers:");
-    // for (int i = 0; i < (int) center_counts_.size(); i++)
-    // {
-    //     ROS_INFO_STREAM("           [" << i << "]: ");
-    //     ROS_INFO_STREAM("               pixel: " << centers_[i][0] << ", " << centers_[i][1]);
-    //     ROS_INFO_STREAM("               depth: " << centers_[i][2]);
-    //     ROS_INFO_STREAM("               label: " << centers_[i][3]);
-    //     ROS_INFO_STREAM("               normal: " << centers_[i][4] << ", " << centers_[i][5] << ", " << centers_[i][6]);
-    //     ROS_INFO_STREAM("               counts: " << center_counts_[i]);
-    // }
+    ROS_INFO_STREAM("       centers:");
+    for (int i = 0; i < (int) center_counts_.size(); i++)
+    {
+        ROS_INFO_STREAM("           [" << i << "]: ");
+        ROS_INFO_STREAM("               pixel: " << centers_[i][0] << ", " << centers_[i][1]);
+        ROS_INFO_STREAM("               depth: " << centers_[i][2]);
+        ROS_INFO_STREAM("               label: " << centers_[i][3]);
+        ROS_INFO_STREAM("               normal: " << centers_[i][4] << ", " << centers_[i][5] << ", " << centers_[i][6]);
+        ROS_INFO_STREAM("               counts: " << center_counts_[i]);
+    }
 }
 
 cv::Point SuperpixelDepthSegmenter::findClosestPixel(const cv::Point & center, 
@@ -1053,9 +1054,9 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     // int rough_center_count = 0;
     centers_.clear();
     center_counts_.clear();
-    for (int r = params_.step_; r <= depth_image.rows; r += params_.step_)
+    for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
     {
-        for (int c = params_.step_; c <= depth_image.cols; c += params_.step_)
+        for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
         {        
             // ROS_INFO_STREAM("       (r, c): (" << r << ", " << c << ")");
 
@@ -1117,8 +1118,8 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
-    int deltaX = params_.step_; // 5;
-    int deltaY = params_.step_; // 5;
+    int deltaX = 3; // params_.step_; // 5;
+    int deltaY = 3; // params_.step_; // 5;
 
     for (int r = og_center.y - deltaY; r <= og_center.y + deltaY; r++)
     {
@@ -1375,6 +1376,15 @@ void SuperpixelDepthSegmenter::colorClusterPointCloud(const cv::Mat & depth_imag
 void SuperpixelDepthSegmenter::colorCentroids()
 {
     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::colorCentroids]");
+
+    // clear prior markers
+    visualization_msgs::MarkerArray clear_marker_array;
+    visualization_msgs::Marker clearMarker;
+    clearMarker.id = 0;
+    clearMarker.ns =  "clear";
+    clearMarker.action = visualization_msgs::Marker::DELETEALL;
+    clear_marker_array.markers.push_back(clearMarker);    
+    colored_centroids_pub_.publish(clear_marker_array);
 
     visualization_msgs::MarkerArray marker_array;
 
