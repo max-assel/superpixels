@@ -172,7 +172,7 @@ Visualization Manager:
           Unreliable: false
           Value: true
         - Class: rviz/Image
-          Enabled: false
+          Enabled: true
           Image Topic: /superpixels/center_grid
           Max Value: 1
           Median window: 5
@@ -182,9 +182,9 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: false
+          Value: true
         - Class: rviz/Image
-          Enabled: true
+          Enabled: false
           Image Topic: /superpixels/colored_clusters
           Max Value: 1
           Median window: 5
@@ -194,7 +194,7 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: true
+          Value: false
       Enabled: true
       Name: Floor
     - Alpha: 1
@@ -286,12 +286,6 @@ Visualization Manager:
           Value: false
         camera_right_ir_optical_frame:
           Value: false
-        egocan:
-          Value: false
-        egocan_camera:
-          Value: false
-        egocan_stabilized:
-          Value: false
         imu_link:
           Value: false
         odom:
@@ -324,10 +318,6 @@ Visualization Manager:
                     camera_right_ir_frame:
                       camera_right_ir_optical_frame:
                         {}
-              egocan_stabilized:
-                egocan:
-                  egocan_camera:
-                    {}
               trunk:
                 FL_hip:
                   FL_thigh:
@@ -352,6 +342,14 @@ Visualization Manager:
                 imu_link:
                   {}
       Update Interval: 0
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /polygon_visualization
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
@@ -389,17 +387,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.4841158390045166
-        Y: 0.578321099281311
-        Z: -0.5542623400688171
+        X: 0.27563413977622986
+        Y: 0.8272175788879395
+        Z: -0.553110659122467
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7997972965240479
+      Pitch: 0.3147971034049988
       Target Frame: <Fixed Frame>
-      Yaw: 5.7817864418029785
+      Yaw: 6.146785259246826
     Saved: ~
 Window Geometry:
   Displays:

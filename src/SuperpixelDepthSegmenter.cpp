@@ -831,7 +831,7 @@ void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
 {
     worldPt[0] = (pixel.x - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
     worldPt[1] = depth;
-    worldPt[2] = - (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
+    worldPt[2] = (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
 }
 
 bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx, 
