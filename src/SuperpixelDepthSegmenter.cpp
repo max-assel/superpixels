@@ -353,7 +353,7 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
     // Normals
     filled_normal_img = cleaned_normal_img.clone();
 
-    int delta = params_.step_ / 2;
+    int delta = params_.step_ / 4;
 
     for (int r = delta; r < (cleaned_depth_img.rows - delta); r += delta)
     {
@@ -361,37 +361,41 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
         {
             // ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
 
-            bool found_visited_pixel = false;
-
-            for (int i = -delta; i <= delta; i++)
+            cv::Point curr_pixel(c, r);
+            if (isPixelInBounds(cleaned_depth_img, curr_pixel) )
             {
-                for (int j = -delta; j <= delta; j++)
-                {
-                    cv::Point pixel(c + j, r + i);
+                bool found_visited_pixel = false;
 
-                    if (isPixelInBounds(cleaned_depth_img, pixel) && visited_.at<uint8_t>(pixel.y, pixel.x) == 1)
+                for (int i = -delta; i <= delta; i++)
+                {
+                    for (int j = -delta; j <= delta; j++)
                     {
-                        found_visited_pixel = true;
+                        cv::Point pixel(c + j, r + i);
+
+                        if (isPixelInBounds(cleaned_depth_img, pixel) && visited_.at<uint8_t>(pixel.y, pixel.x) == 1)
+                        {
+                            found_visited_pixel = true;
+                            break;
+                        }
+                    }
+
+                    if (found_visited_pixel)
+                    {
                         break;
                     }
                 }
 
-                if (found_visited_pixel)
+                if (!found_visited_pixel)
                 {
-                    break;
+                    // ROS_INFO_STREAM("       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
+
+                    filled_depth_img.at<float>(r, c) = 0.385;
+                    filled_label_img.at<uint8_t>(r, c) = 3;
+                    filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
+                } else
+                {
+                    // ROS_INFO_STREAM("       invalid");
                 }
-            }
-
-            if (!found_visited_pixel)
-            {
-                // ROS_INFO_STREAM("       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
-
-                filled_depth_img.at<float>(r, c) = 0.385;
-                filled_label_img.at<uint8_t>(r, c) = 3;
-                filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
-            } else
-            {
-                // ROS_INFO_STREAM("       invalid");
             }
         }
     }
