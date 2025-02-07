@@ -106,6 +106,8 @@ class SuperpixelDepthSegmenter
                             cv::Mat & filled_label_img,
                             cv::Mat & filled_normal_img);
 
+        cv::Vec3f ransac(const std::vector<cv::Point> & pixels, const cv::Mat & depth_image, const cv::Vec3f & og_normal);
+
         // void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
 
         // void checkSparsity();
@@ -207,6 +209,7 @@ class SuperpixelDepthSegmenter
         cv::Mat distances_; // per-pixel distances to cluster center
         std::vector<std::vector<double>> centers_; // LAB/xy cluster centers
         std::vector<int> center_counts_; // Number of occurrences of each center
+        std::vector<std::vector<cv::Point>> superpixels_; // Superpixel pixel locations
 
         // cv::Mat color_depth_image_;
 

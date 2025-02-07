@@ -813,6 +813,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             center_counts_[j] = 0;
         }
 
+        superpixels_ = std::vector<std::vector<cv::Point>>(centers_.size());
         /* Compute the new cluster centers. */
         for (int r = 0; r < depth_image.rows; r++) 
         {
@@ -837,6 +838,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                     // centers_[cluster_id][6] += normal.val[2];
                     
                     center_counts_[cluster_id] += 1; 
+
+                    superpixels_[cluster_id].push_back(current);
                 }
             }
         }     
@@ -861,6 +864,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         /* Snap clusters to nearest pixel */
         for (int j = 0; j < (int) centers_.size(); j++) 
         {
+            // ROS_INFO_STREAM("       [" << j << "]: ");
+
             cv::Point center = cv::Point(centers_[j][0], centers_[j][1]);
             cv::Point new_center = findClosestPixel(j, center, depth_image, label_image, normal_image);
             float depth = depth_image.at<float>(new_center.y, new_center.x);
@@ -873,6 +878,21 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             centers_[j][4] = normal.val[0];
             centers_[j][5] = normal.val[1];
             centers_[j][6] = normal.val[2];
+
+            // refine normal via RANSAC
+            // ROS_INFO_STREAM("           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+            // ROS_INFO_STREAM("           depth: " << centers_[j][2]);
+            // ROS_INFO_STREAM("           label: " << centers_[j][3]);
+            // ROS_INFO_STREAM("           normal: " << centers_[j][4] << ", " << centers_[j][5] << ", " << centers_[j][6]);
+            // ROS_INFO_STREAM("           counts: " << center_counts_[j]);
+            
+            cv::Vec3f candidate_normal = ransac(superpixels_[j], depth_image, normal);
+
+            centers_[j][4] = candidate_normal.val[0];
+            centers_[j][5] = candidate_normal.val[1];
+            centers_[j][6] = candidate_normal.val[2];
+
+            // ROS_INFO_STREAM("           candidate normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
         }
 
     }
@@ -887,6 +907,110 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     //     ROS_INFO_STREAM("               normal: " << centers_[i][4] << ", " << centers_[i][5] << ", " << centers_[i][6]);
     //     ROS_INFO_STREAM("               counts: " << center_counts_[i]);
     // }
+}
+
+cv::Vec3f SuperpixelDepthSegmenter::ransac(const std::vector<cv::Point> & pixels, const cv::Mat & depth_image, const cv::Vec3f & og_normal)
+{
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::ransac]");
+
+    // ROS_INFO_STREAM("       number of points: " << pixels.size());
+
+    int K = 3; // number of points to sample
+    int N = 50; // number of iterations
+    double T = 0.01; // threshold
+
+    cv::Vec3f normal = og_normal;
+
+    if (pixels.size() < K)
+        return normal;
+
+    int max_inliers = 0;    
+    for (int n = 0; n < N; n++)
+    {
+        // ROS_INFO_STREAM("       iteration: " << n);
+
+        // ROS_INFO_STREAM("           sampling ...");
+        // sample
+        std::vector<cv::Point> sample;
+        std::vector<int> indices;
+        for (int i = 0; i < K; i++)
+        {
+            int idx = -1;
+            while (idx == -1 || std::find(indices.begin(), indices.end(), idx) != indices.end())
+                idx = rand() % pixels.size();
+
+            sample.push_back(pixels[idx]);
+            indices.push_back(idx);
+        }
+
+        // ROS_INFO_STREAM("           fitting ...");
+        // fit
+        Eigen::MatrixXd A(K, 3);
+        Eigen::VectorXd b(K);
+
+        for (int i = 0; i < K; i++)
+        {
+            cv::Point pixel = sample[i];
+            cv::Vec3f worldPt;
+            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x));
+
+            A(i, 0) = worldPt.val[0];
+            A(i, 1) = 1.0;
+            A(i, 2) = worldPt.val[2];
+            b(i) = worldPt.val[1];
+        }
+
+        Eigen::VectorXd x = A.colPivHouseholderQr().solve(b);
+
+        // ROS_INFO_STREAM("           computing inliers ...");
+        // compute inliers
+        std::vector<cv::Point> inliers;
+        for (int i = 0; i < pixels.size(); i++)
+        {
+            cv::Point pixel = pixels[i];
+            cv::Vec3f worldPt;
+            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x));
+
+            double error = std::abs(worldPt.val[1] - (x(0) * worldPt.val[0] + x(1) + x(2) * worldPt.val[2]));
+            if (error < T)
+                inliers.push_back(pixel);
+        }
+
+        // ROS_INFO_STREAM("           number of inliers: " << inliers.size());
+
+        // ROS_INFO_STREAM("           updating ...");
+        // update
+        if (inliers.size() > max_inliers)
+        {
+            max_inliers = inliers.size();
+
+            // update normal
+
+            Eigen::MatrixXd A_best(max_inliers, 3);
+            Eigen::VectorXd b_best(max_inliers);
+
+            for (int i = 0; i < max_inliers; i++)
+            {
+                cv::Point pixel = inliers[i];
+                cv::Vec3f worldPt;
+                floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x));
+
+                A_best(i, 0) = worldPt.val[0];
+                A_best(i, 1) = 1.0;
+                A_best(i, 2) = worldPt.val[2];
+                b_best(i) = worldPt.val[1];
+            }
+
+            Eigen::VectorXd x_best = A_best.colPivHouseholderQr().solve(b_best);
+
+            cv::Vec3f new_normal(x_best(0), -1.0, x_best(2));
+
+            normal = new_normal / cv::norm(new_normal);
+        }
+
+    }
+
+    return normal;
 }
 
 cv::Point SuperpixelDepthSegmenter::findClosestPixel(const int & center_idx,
@@ -1004,7 +1128,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // Position term
 
-    double d_posn = std::abs( (centerWorldPt - worldPt).dot(center_normal) );
+    double d_posn = std::abs( (worldPt - centerWorldPt).dot(center_normal) );
     double max_d_posn = params_.v_fov_;
     double weighted_d_posn = params_.w_pos_ * (d_posn / max_d_posn);
 
