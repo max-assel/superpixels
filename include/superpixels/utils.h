@@ -1,14 +1,38 @@
 #pragma once
 
+#include <opencv2/opencv.hpp>
+
+#include <Eigen/Dense>
+
 // Include transforms
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-float DELTA = std::numeric_limits<float>::epsilon();
+const float DELTA = std::numeric_limits<float>::epsilon();
 
-bool isPixelInBounds(const int & k_c, const cv::Point & pixel)
+// Parameters
+struct SuperpixelParams
+{
+    int num_superpixels_ = 0; // Desired number of approximately equally-sized superpixels
+    int step_ = 0; // superpixel grid interval
+    double w_normal_ = 1.0; // Weighting parameter for normal similarity term
+    double w_pos_ = 10.0; // Weighting parameter for plane - position distance term
+    double w_compact_ = 1.0; // Weighting parameter for compactness term
+    int num_dilation_iterations_ = 0; // Number of dilation iterations
+    int num_iterations_ = 0; // Number of iterations
+    bool warm_start_ = false; // Warm start
+    int kernel_radius_ = 2; // Kernel size for dilation
+
+    int k_c_ = 512; // Floor width (pixels)
+    double v_fov_ = M_PI / 2; // Vertical field of view (radians)
+    double v_offset_ = 0.0;
+    double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
+    double egocan_radius_ = 1.0; // Radius of egocylinder (meters)
+};
+
+inline bool isPixelInBounds(const int & k_c, const cv::Point & pixel)
 {
     cv::Point center = cv::Point(k_c / 2, k_c / 2);
 
@@ -25,7 +49,7 @@ bool isPixelInBounds(const int & k_c, const cv::Point & pixel)
     return true;
 }
 
-bool isPixelValid(const cv::Mat & depth_image, 
+inline bool isPixelValid(const cv::Mat & depth_image, 
                     const cv::Mat & label_image,
                     const cv::Mat & normal_image,
                     const cv::Point & pixel,
@@ -79,7 +103,7 @@ bool isPixelValid(const cv::Mat & depth_image,
 * @param worldToBaseTransform The transform from world to base frame
 * @return Eigen::VectorXd : The 6D pose in base frame
 */
-Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
+inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
                                             const Eigen::Quaterniond & source_quat,
                                             const geometry_msgs::TransformStamped & worldToBaseTransform)
 {
@@ -139,7 +163,7 @@ Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
 * @param yaw The yaw angle
 * @return Eigen::Matrix3d : The rotation matrix
 */
-Eigen::Matrix3d calculateRotationMatrix(const double & roll, 
+inline Eigen::Matrix3d calculateRotationMatrix(const double & roll, 
                                         const double & pitch, 
                                         const double & yaw)
 {
@@ -162,7 +186,7 @@ Eigen::Matrix3d calculateRotationMatrix(const double & roll,
     return rotMat;    
 }
 
-void floorPixelToWorld(cv::Vec3f & worldPt,
+inline void floorPixelToWorld(cv::Vec3f & worldPt,
                         const cv::Point & pixel,
                         const float & depth,
                         const int & k_c,

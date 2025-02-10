@@ -1,6 +1,6 @@
 #include <superpixels/SuperpixelColorOpenCVSegmenter.h>
 
-SuperpixelColorOpenCVSegmenter::SuperpixelColorOpenCVSegmenter(ros::NodeHandle nh, const std::string & config_path) : SuperpixelSegmenter(nh, config_path), nh_(nh)
+SuperpixelColorOpenCVSegmenter::SuperpixelColorOpenCVSegmenter(ros::NodeHandle nh, const std::string & config_path)
 {
 
     image_transport::ImageTransport it(nh);

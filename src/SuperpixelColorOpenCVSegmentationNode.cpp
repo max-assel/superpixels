@@ -32,7 +32,7 @@ int main(int argc, char** argv)
     std::string config_path;
     ros_throw_param_load(nh, "/config_path", config_path);
 
-    SuperpixelSegmenter * superpixel_segmenter = new SuperpixelColorOpenCVSegmenter(nh, config_path);
+    SuperpixelColorOpenCVSegmenter * superpixel_segmenter = new SuperpixelColorOpenCVSegmenter(nh, config_path);
 
     while (ros::ok())
     {

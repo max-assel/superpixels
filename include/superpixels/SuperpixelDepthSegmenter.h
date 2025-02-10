@@ -25,7 +25,8 @@
 #include <dynamic_reconfigure/server.h>
 #include <superpixels/ParametersConfig.h>
 
-#include <superpixels/utils.h>
+// #include <superpixels/utils.h>
+#include <superpixels/ImagePreprocessor.h>
 
 #include <convex_plane_decomposition_msgs/PlanarTerrain.h>
 #include <convex_plane_decomposition/PlanarRegion.h>
@@ -39,6 +40,7 @@ class SuperpixelDepthSegmenter
 {
     public:
         SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path);
+        ~SuperpixelDepthSegmenter();
 
         /////////////
         // SEGMENT //
@@ -55,26 +57,6 @@ class SuperpixelDepthSegmenter
         void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
 
     private:
-        /////////////
-        // SEGMENT //
-        /////////////
-        void cleanImages(const cv::Mat & raw_depth_img,
-                            const cv::Mat & raw_label_img,
-                            const cv::Mat & raw_normal_img,
-                            cv::Mat & checked_depth_img,
-                            cv::Mat & checked_label_img,
-                            cv::Mat & checked_normal_img);
-
-        void healthCheck(const cv::Mat & depth_img,
-                            const cv::Mat & label_img,
-                            const cv::Mat & normal_img);
-
-        void preprocessImages(const cv::Mat & checked_depth_img,
-                                const cv::Mat & checked_label_img,
-                                const cv::Mat & checked_normal_img,
-                                cv::Mat & preprocessed_depth_img,
-                                cv::Mat & preprocessed_label_img,
-                                cv::Mat & preprocessed_normal_img);
 
         void colorCentroids();
 
@@ -110,13 +92,6 @@ class SuperpixelDepthSegmenter
                                 const uint8_t & label,
                                 const cv::Vec3f & normal,
                                 const cv::Point & pixel);
-
-        void fillInImage(const cv::Mat & cleaned_depth_img,
-                            const cv::Mat & cleaned_label_img,
-                            const cv::Mat & cleaned_normal_img,
-                            cv::Mat & filled_depth_img,
-                            cv::Mat & filled_label_img,
-                            cv::Mat & filled_normal_img);
 
         cv::Vec3f ransac(const std::vector<cv::Point> & pixels, const cv::Mat & depth_image, const cv::Vec3f & og_normal);
 
@@ -230,26 +205,6 @@ class SuperpixelDepthSegmenter
 
         std::vector<cv::Scalar> colors_;
 
-        // Parameters
-        struct SuperpixelParams
-        {
-            int num_superpixels_ = 0; // Desired number of approximately equally-sized superpixels
-            int step_ = 0; // superpixel grid interval
-            double w_normal_ = 1.0; // Weighting parameter for normal similarity term
-            double w_pos_ = 10.0; // Weighting parameter for plane - position distance term
-            double w_compact_ = 1.0; // Weighting parameter for compactness term
-            int num_dilation_iterations_ = 0; // Number of dilation iterations
-            int num_iterations_ = 0; // Number of iterations
-            bool warm_start_ = false; // Warm start
-            int kernel_radius_ = 2; // Kernel size for dilation
-
-            int k_c_ = 512; // Floor width (pixels)
-            double v_fov_ = M_PI / 2; // Vertical field of view (radians)
-            double v_offset_ = 0.0;
-            double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
-            double egocan_radius_ = 1.0; // Radius of egocylinder (meters)
-        };
-
         SuperpixelParams params_;
 
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
@@ -260,6 +215,8 @@ class SuperpixelDepthSegmenter
         tf2_ros::TransformListener * tfListener_; /**< transform listener */
 
         tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?
+
+        ImagePreprocessor * imagePreprocessor_;
 
 
 };

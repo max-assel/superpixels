@@ -1,8 +1,6 @@
 #include <ros/node_handle.h>
 #include <ros/package.h>
 
-#include <superpixels/SuperpixelSegmenter.h>
-
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
@@ -20,7 +18,7 @@
 /**
 * \brief Base class for superpixel segmenter
 */
-class SuperpixelColorOpenCVSegmenter : public SuperpixelSegmenter
+class SuperpixelColorOpenCVSegmenter
 {
     public:
         SuperpixelColorOpenCVSegmenter(ros::NodeHandle nh, const std::string & config_path);
