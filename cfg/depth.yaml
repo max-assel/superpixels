@@ -1,9 +1,9 @@
 superpixels:
-  num_superpixels: 50
-  num_iterations: 5
-  num_dilation_iterations: 3
+  num_superpixels: 100
+  num_iterations: 3
+  num_dilation_iterations: 0
   w_normal: 5.0
-  w_pos: 10.0
+  w_pos: 40.0
   w_compact: 1.0
-  kernel_radius: 3
+  kernel_radius: 0
   warm_start: False 
