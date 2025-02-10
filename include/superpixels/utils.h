@@ -32,7 +32,8 @@ struct SuperpixelParams
     double egocan_radius_ = 1.0; // Radius of egocylinder (meters)
 };
 
-inline bool isPixelInBounds(const int & k_c, const cv::Point & pixel)
+inline bool isPixelInBounds(const int & k_c, 
+                            const cv::Point & pixel)
 {
     cv::Point center = cv::Point(k_c / 2, k_c / 2);
 
@@ -50,10 +51,10 @@ inline bool isPixelInBounds(const int & k_c, const cv::Point & pixel)
 }
 
 inline bool isPixelValid(const cv::Mat & depth_image, 
-                    const cv::Mat & label_image,
-                    const cv::Mat & normal_image,
-                    const cv::Point & pixel,
-                    const int & k_c)
+                            const cv::Mat & label_image,
+                            const cv::Mat & normal_image,
+                            const cv::Point & pixel,
+                            const int & k_c)
 {
     if (!isPixelInBounds(k_c, pixel))
     {
@@ -84,6 +85,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
         return false;
     }
 
+    // only considering normals pointing upwards
     cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
     if ( std::abs( normal.dot(ideal_normal) ) < 0.75 )
     {
@@ -104,8 +106,8 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 * @return Eigen::VectorXd : The 6D pose in base frame
 */
 inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
-                                            const Eigen::Quaterniond & source_quat,
-                                            const geometry_msgs::TransformStamped & worldToBaseTransform)
+                                                    const Eigen::Quaterniond & source_quat,
+                                                    const geometry_msgs::TransformStamped & worldToBaseTransform)
 {
     // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
 
@@ -164,8 +166,8 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
 * @return Eigen::Matrix3d : The rotation matrix
 */
 inline Eigen::Matrix3d calculateRotationMatrix(const double & roll, 
-                                        const double & pitch, 
-                                        const double & yaw)
+                                                const double & pitch, 
+                                                const double & yaw)
 {
     Eigen::Matrix3d rotMat;
 
@@ -187,10 +189,10 @@ inline Eigen::Matrix3d calculateRotationMatrix(const double & roll,
 }
 
 inline void floorPixelToWorld(cv::Vec3f & worldPt,
-                        const cv::Point & pixel,
-                        const float & depth,
-                        const int & k_c,
-                        const double & h)
+                                const cv::Point & pixel,
+                                const float & depth,
+                                const int & k_c,
+                                const double & h)
 {
     worldPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
     worldPt[1] = depth;

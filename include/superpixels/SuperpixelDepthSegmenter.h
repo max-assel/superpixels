@@ -142,8 +142,6 @@ class SuperpixelDepthSegmenter
         std::vector<int> center_counts_; // Number of occurrences of each center
         std::vector<std::vector<cv::Point>> superpixels_; // Superpixel pixel locations
 
-        // cv::Mat color_depth_image_;
-
         SuperpixelParams params_;
 
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
