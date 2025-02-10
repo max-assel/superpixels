@@ -489,7 +489,7 @@ Eigen::Matrix3d calculateRotationMatrix(const double & roll,
 
 void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
 {
-    ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::publishPlanarRegions]");
+    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::publishPlanarRegions]");
 
     ros::Time lookupTime = fin_depth_img_ptr_->header.stamp;
     std::string camera_frame = fin_depth_img_ptr_->header.frame_id;
@@ -499,10 +499,10 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
 
     convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
-    ROS_INFO_STREAM("       regions:");
+    // ROS_INFO_STREAM("       regions:");
     for (int i = 0; i < centers_.size(); i++)
     {
-        ROS_INFO_STREAM("           i: " << i);
+        // ROS_INFO_STREAM("           i: " << i);
         convex_plane_decomposition::PlanarRegion region;
 
         cv::Point pixel = cv::Point(centers_[i][0], centers_[i][1]);
@@ -512,9 +512,8 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
         Eigen::Vector3d center(worldPt.val[0], worldPt.val[1], worldPt.val[2]);
         Eigen::Vector3d normal(centers_[i][4], centers_[i][5], centers_[i][6]);
 
-        ROS_INFO_STREAM("               center: " << center.transpose());
-        ROS_INFO_STREAM("               normal: " << normal.transpose());
-
+        // ROS_INFO_STREAM("               center: " << center.transpose());
+        // ROS_INFO_STREAM("               normal: " << normal.transpose());
 
         Eigen::Vector3d arbitraryVec(1, 0, 0);
 
@@ -529,8 +528,8 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
         Eigen::Vector3d e1 = normal.cross(e0);
         e1.normalize();
 
-        ROS_INFO_STREAM("               e0: " << e0.transpose());
-        ROS_INFO_STREAM("               e1: " << e1.transpose());
+        // ROS_INFO_STREAM("               e0: " << e0.transpose());
+        // ROS_INFO_STREAM("               e1: " << e1.transpose());
 
         Eigen::Matrix3d regionRotMat;
         regionRotMat << e0, e1, normal;
@@ -540,36 +539,52 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
         // Eigen::VectorXd pose_camera_frame(7);
         // pose_camera_frame << center, regionQuat;
 
-        ROS_INFO_STREAM("               center: " << center.transpose());
-        ROS_INFO_STREAM("               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
+        // ROS_INFO_STREAM("               center: " << center.transpose());
+        // ROS_INFO_STREAM("               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
 
         Eigen::VectorXd pose_world_frame = transformHelperPoseStamped(center, regionQuat, cameraFrameToWorldFrameTransform);
 
         // get rotation matrix
         Eigen::Matrix3d rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
 
-        region.transformPlaneToWorld.translation() = center;
+        region.transformPlaneToWorld.translation() = pose_world_frame.head(3);
         region.transformPlaneToWorld.linear() = rotMat;      
 
-        ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
-        ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
-        ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
-        ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
+        // ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
+        // ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
+        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
+        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
 
         convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
 
         convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
         convex_plane_decomposition::CgalPolygon2d polygon;
         double foot_radius = 0.02;
-        polygon.container().emplace_back(-foot_radius, -foot_radius); // bottom left
-        polygon.container().emplace_back(foot_radius, -foot_radius); // bottom right
-        polygon.container().emplace_back(foot_radius, foot_radius); // top right
-        polygon.container().emplace_back(-foot_radius, foot_radius); // top left
+        double inner_radius = foot_radius;
+        double outer_radius = 2*foot_radius;
+        polygon.container().emplace_back(-outer_radius, -outer_radius); // bottom left
+        polygon.container().emplace_back(outer_radius, -outer_radius); // bottom right
+        polygon.container().emplace_back(outer_radius, outer_radius); // top right
+        polygon.container().emplace_back(-outer_radius, outer_radius); // top left
 
         polygonWithHoles.outer_boundary() = polygon;
 
         boundaryWithInset.boundary = polygonWithHoles;
-        boundaryWithInset.insets = {};
+
+        std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets;
+
+        convex_plane_decomposition::CgalPolygon2d inflated_polygon;
+        inflated_polygon.container().emplace_back(-inner_radius, -inner_radius); // bottom left
+        inflated_polygon.container().emplace_back(inner_radius, -inner_radius); // bottom right
+        inflated_polygon.container().emplace_back(inner_radius, inner_radius); // top right
+        inflated_polygon.container().emplace_back(-inner_radius, inner_radius); // top left
+
+        convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
+        inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
+
+        insets.push_back(inflated_polygon_with_holes);
+
+        boundaryWithInset.insets = insets;
 
         region.boundaryWithInset = boundaryWithInset;
         region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
