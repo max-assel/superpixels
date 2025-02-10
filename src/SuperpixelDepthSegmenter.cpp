@@ -397,24 +397,24 @@ Eigen::Quaterniond getQuaternionFromEulerAnglesZyx(const Eigen::Matrix<double, 3
 /**
 * @brief Transform a 6D pose from world frame to base frame, 
 * performs rotation + translation, stores full pose
+* performs rotation + translation, stores full pose
 * 
 * @param source The 6D pose in world frame
 * @param worldToBaseTransform The transform from world to base frame
 * @return Eigen::VectorXd : The 6D pose in base frame
 */
-Eigen::VectorXd transformHelperPoseStamped(const Eigen::VectorXd & source, 
+Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
+                                            const Eigen::Quaterniond & source_quat,
                                             const geometry_msgs::TransformStamped & worldToBaseTransform)
 {
-    assert(source.size() == 6); // for a 6D pose (position, orientation)
-
     // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
 
     // std::cout << "  worldFrameToBaseFrameTransform: " << worldToBaseTransform << std::endl;
 
     geometry_msgs::PoseStamped sourceVector, destVector;
 
-    Eigen::VectorXd torsoPosition = source.head(3);
-    Eigen::VectorXd torsoOrientation = source.tail(3);
+    Eigen::VectorXd torsoPosition = source_pos;
+    // Eigen::VectorXd torsoOrientation = source.tail(3);
 
     sourceVector.header.stamp = worldToBaseTransform.header.stamp;
     sourceVector.header.frame_id = "world";
@@ -423,7 +423,7 @@ Eigen::VectorXd transformHelperPoseStamped(const Eigen::VectorXd & source,
     sourceVector.pose.position.z = torsoPosition[2];
 
     // euler to quat
-    Eigen::Quaterniond q_source = getQuaternionFromEulerAnglesZyx(torsoOrientation);
+    Eigen::Quaterniond q_source = source_quat;
 
     sourceVector.pose.orientation.x = q_source.x();
     sourceVector.pose.orientation.y = q_source.y();
@@ -443,7 +443,7 @@ Eigen::VectorXd transformHelperPoseStamped(const Eigen::VectorXd & source,
     double roll, pitch, yaw;
     tf2::Matrix3x3(q).getEulerYPR(yaw, pitch, roll);
 
-    Eigen::VectorXd dest = Eigen::VectorXd::Zero(source.size());
+    Eigen::VectorXd dest = Eigen::VectorXd::Zero(6); // source.size()
 
     dest[0] = destVector.pose.position.x;
     dest[1] = destVector.pose.position.y;
@@ -499,8 +499,10 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
 
     convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
+    ROS_INFO_STREAM("       regions:");
     for (int i = 0; i < centers_.size(); i++)
     {
+        ROS_INFO_STREAM("           i: " << i);
         convex_plane_decomposition::PlanarRegion region;
 
         cv::Point pixel = cv::Point(centers_[i][0], centers_[i][1]);
@@ -509,6 +511,10 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
 
         Eigen::Vector3d center(worldPt.val[0], worldPt.val[1], worldPt.val[2]);
         Eigen::Vector3d normal(centers_[i][4], centers_[i][5], centers_[i][6]);
+
+        ROS_INFO_STREAM("               center: " << center.transpose());
+        ROS_INFO_STREAM("               normal: " << normal.transpose());
+
 
         Eigen::Vector3d arbitraryVec(1, 0, 0);
 
@@ -523,17 +529,32 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
         Eigen::Vector3d e1 = normal.cross(e0);
         e1.normalize();
 
-        Eigen::Vector3d orientation = calculateOrientationFromUnitNorms(e0, e1);
+        ROS_INFO_STREAM("               e0: " << e0.transpose());
+        ROS_INFO_STREAM("               e1: " << e1.transpose());
 
-        Eigen::VectorXd pose_camera_frame(6);
-        pose_camera_frame << center, orientation;
+        Eigen::Matrix3d regionRotMat;
+        regionRotMat << e0, e1, normal;
 
-        Eigen::VectorXd pose_world_frame = transformHelperPoseStamped(pose_camera_frame, cameraFrameToWorldFrameTransform);
+        Eigen::Quaterniond regionQuat(regionRotMat);
+
+        // Eigen::VectorXd pose_camera_frame(7);
+        // pose_camera_frame << center, regionQuat;
+
+        ROS_INFO_STREAM("               center: " << center.transpose());
+        ROS_INFO_STREAM("               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
+
+        Eigen::VectorXd pose_world_frame = transformHelperPoseStamped(center, regionQuat, cameraFrameToWorldFrameTransform);
 
         // get rotation matrix
         Eigen::Matrix3d rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
 
+        region.transformPlaneToWorld.translation() = center;
         region.transformPlaneToWorld.linear() = rotMat;      
+
+        ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
+        ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
+        ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
+        ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
 
         convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
 

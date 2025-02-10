@@ -12,6 +12,7 @@ Panels:
         - /PointCloud21
         - /TF1
         - /TF1/Frames1
+        - /MarkerArray3
       Splitter Ratio: 0.5
     Tree Height: 524
   - Class: rviz/Selection
@@ -31,7 +32,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
   - Class: rviz/Views
     Expanded:
       - /Current View1
@@ -65,7 +66,7 @@ Visualization Manager:
     - Class: rviz/Group
       Displays:
         - Class: rviz/Image
-          Enabled: false
+          Enabled: true
           Image Topic: /camera/steppability/output
           Max Value: 1
           Median window: 5
@@ -75,9 +76,9 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: false
+          Value: true
         - Class: rviz/Image
-          Enabled: false
+          Enabled: true
           Image Topic: /camera/depth/image_raw
           Max Value: 1
           Median window: 5
@@ -87,7 +88,7 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: false
+          Value: true
         - Class: rviz/Image
           Enabled: false
           Image Topic: /camera/color_normals
@@ -101,7 +102,7 @@ Visualization Manager:
           Unreliable: false
           Value: false
         - Class: rviz/Image
-          Enabled: false
+          Enabled: true
           Image Topic: /camera/color/image_raw
           Max Value: 1
           Median window: 5
@@ -111,7 +112,7 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: false
+          Value: true
       Enabled: true
       Name: Camera
     - Class: rviz/Group
@@ -153,7 +154,7 @@ Visualization Manager:
           Unreliable: false
           Value: false
         - Class: rviz/Image
-          Enabled: true
+          Enabled: false
           Image Topic: /superpixels/process_depth
           Max Value: 1
           Median window: 5
@@ -163,9 +164,9 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: true
+          Value: false
         - Class: rviz/Image
-          Enabled: true
+          Enabled: false
           Image Topic: /superpixels/process_normals
           Max Value: 1
           Median window: 5
@@ -175,7 +176,7 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: true
+          Value: false
         - Class: rviz/Image
           Enabled: false
           Image Topic: /superpixels/center_grid
@@ -189,7 +190,7 @@ Visualization Manager:
           Unreliable: false
           Value: false
         - Class: rviz/Image
-          Enabled: true
+          Enabled: false
           Image Topic: /superpixels/colored_clusters
           Max Value: 1
           Median window: 5
@@ -199,7 +200,7 @@ Visualization Manager:
           Queue Size: 2
           Transport Hint: raw
           Unreliable: false
-          Value: true
+          Value: false
       Enabled: true
       Name: Floor
     - Alpha: 1
@@ -260,6 +261,14 @@ Visualization Manager:
       Marker Topic: /superpixels/colored_centroids
       Name: MarkerArray
       Namespaces:
+        superpixel_centroids: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /convex_plane_decomposition_ros/planar_regions
+      Name: MarkerArray
+      Namespaces:
         {}
       Queue Size: 100
       Value: true
@@ -291,7 +300,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 6.572605609893799
+      Distance: 2.6963467597961426
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -299,17 +308,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.03257427364587784
-        Y: -1.5867050886154175
-        Z: -1.3770971298217773
+        X: 1.4690874814987183
+        Y: -0.5457852482795715
+        Z: -0.806104302406311
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.469797283411026
+      Pitch: 0.8797970414161682
       Target Frame: <Fixed Frame>
-      Yaw: 2.4018237590789795
+      Yaw: 2.6018240451812744
     Saved: ~
 Window Geometry:
   Displays:
