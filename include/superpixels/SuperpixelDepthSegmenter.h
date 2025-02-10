@@ -25,15 +25,11 @@
 #include <dynamic_reconfigure/server.h>
 #include <superpixels/ParametersConfig.h>
 
+#include <superpixels/utils.h>
+
 #include <convex_plane_decomposition_msgs/PlanarTerrain.h>
 #include <convex_plane_decomposition/PlanarRegion.h>
 #include <convex_plane_decomposition_ros/MessageConversion.h>
-
-// Include transforms
-#include <tf2_ros/transform_listener.h>
-#include <tf2_ros/transform_broadcaster.h>
-
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
 
@@ -138,20 +134,20 @@ class SuperpixelDepthSegmenter
 
         bool notReceivedNormalImage();
 
-        bool isPixelInBounds(const cv::Mat & image, const cv::Point & pixel);
+        // bool isPixelInBounds(const cv::Mat & image, const cv::Point & pixel);
 
-        bool isPixelValid(const cv::Mat & depth_image, 
-                            const cv::Mat & label_image,
-                            const cv::Mat & normal_image,
-                            const cv::Point & pixel);
+        // bool isPixelValid(const cv::Mat & depth_image, 
+        //                     const cv::Mat & label_image,
+        //                     const cv::Mat & normal_image,
+        //                     const cv::Point & pixel);
 
         void allImageCallback(const sensor_msgs::ImageConstPtr& depth_image, 
                                 const sensor_msgs::ImageConstPtr& label_image, 
                                 const sensor_msgs::ImageConstPtr& normal_image);
 
-        void floorPixelToWorld(cv::Vec3f & worldPt,
-                                const cv::Point & pixel,
-                                const float & depth);
+        // void floorPixelToWorld(cv::Vec3f & worldPt,
+        //                         const cv::Point & pixel,
+        //                         const float & depth);
 
         void colorClusters(const cv::Mat & color_depth_image);
 
@@ -255,8 +251,6 @@ class SuperpixelDepthSegmenter
         };
 
         SuperpixelParams params_;
-
-        float DELTA = std::numeric_limits<float>::epsilon();
 
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
         std::chrono::steady_clock::time_point fillBegin, fillEnd;

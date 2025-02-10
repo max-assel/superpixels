@@ -166,67 +166,6 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
     return (notReceivedDepth || notReceivedLabel || notReceivedNormal);
 }
 
-bool SuperpixelDepthSegmenter::isPixelInBounds(const cv::Mat & image, const cv::Point & pixel)
-{
-    cv::Point center = cv::Point(image.cols / 2, image.rows / 2);
-
-    if (cv::norm(center - pixel) > params_.k_c_ / 2)
-    {
-        return false;
-    }
-
-    if (pixel.x < 0 || pixel.x >= image.cols || pixel.y < 0 || pixel.y >= image.rows)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool SuperpixelDepthSegmenter::isPixelValid(const cv::Mat & depth_image, 
-                                            const cv::Mat & label_image,
-                                            const cv::Mat & normal_image,
-                                            const cv::Point & pixel)
-{
-    if (!isPixelInBounds(depth_image, pixel))
-    {
-        return false;
-    }
-
-    float depth = depth_image.at<float>(pixel.y, pixel.x);
-
-    if (std::isnan(depth) || std::abs(depth) < 1e-6 || depth < 0)
-    {
-        return false;
-    }
-
-    // uint8_t label = label_image.at<uint8_t>(pixel.y, pixel.x);
-
-    // if (std::isnan(label) || label < 0)
-    // {
-    //     ROS_WARN_STREAM("Passing depth check but failing label check.");
-    //     return false;
-    // }
-
-    cv::Vec3f normal = normal_image.at<cv::Vec3f>(pixel.y, pixel.x);
-
-    if (std::isnan(normal[0]) || std::isnan(normal[1]) || std::isnan(normal[2]) ||
-        cv::norm(normal) < DELTA)
-    {
-        // ROS_WARN_STREAM("Passing depth check but failing normal check.");
-        return false;
-    }
-
-    cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
-    if ( std::abs( normal.dot(ideal_normal) ) < 0.75 )
-    {
-        // ROS_WARN_STREAM("Passing depth check but failing normal check.");
-        return false;
-    }
-
-    return true;
-}
-
 void SuperpixelDepthSegmenter::run()
 {
     std::lock_guard<std::mutex> lock(img_mutex_);
@@ -353,99 +292,6 @@ void SuperpixelDepthSegmenter::run()
     return;
 }
 
-/**
-* @brief Transform a 6D pose from world frame to base frame, 
-* performs rotation + translation, stores full pose
-* performs rotation + translation, stores full pose
-* 
-* @param source The 6D pose in world frame
-* @param worldToBaseTransform The transform from world to base frame
-* @return Eigen::VectorXd : The 6D pose in base frame
-*/
-Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
-                                            const Eigen::Quaterniond & source_quat,
-                                            const geometry_msgs::TransformStamped & worldToBaseTransform)
-{
-    // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
-
-    // std::cout << "  worldFrameToBaseFrameTransform: " << worldToBaseTransform << std::endl;
-
-    geometry_msgs::PoseStamped sourceVector, destVector;
-
-    Eigen::VectorXd torsoPosition = source_pos;
-    // Eigen::VectorXd torsoOrientation = source.tail(3);
-
-    sourceVector.header.stamp = worldToBaseTransform.header.stamp;
-    sourceVector.header.frame_id = "world";
-    sourceVector.pose.position.x = torsoPosition[0];
-    sourceVector.pose.position.y = torsoPosition[1];
-    sourceVector.pose.position.z = torsoPosition[2];
-
-    // euler to quat
-    Eigen::Quaterniond q_source = source_quat;
-
-    sourceVector.pose.orientation.x = q_source.x();
-    sourceVector.pose.orientation.y = q_source.y();
-    sourceVector.pose.orientation.z = q_source.z();
-    sourceVector.pose.orientation.w = q_source.w();
-    // std::cout << "  sourceVector: " << sourceVector << std::endl;
-
-    tf2::doTransform(sourceVector, destVector, worldToBaseTransform);
-
-    // std::cout << "  destVector: " << destVector << std::endl;
-
-    tf2::Quaternion q(destVector.pose.orientation.x,
-                        destVector.pose.orientation.y,
-                        destVector.pose.orientation.z,
-                        destVector.pose.orientation.w);
-
-    double roll, pitch, yaw;
-    tf2::Matrix3x3(q).getEulerYPR(yaw, pitch, roll);
-
-    Eigen::VectorXd dest = Eigen::VectorXd::Zero(6); // source.size()
-
-    dest[0] = destVector.pose.position.x;
-    dest[1] = destVector.pose.position.y;
-    dest[2] = destVector.pose.position.z;
-    dest[3] = yaw; // eulers_dest[0]; // yaw
-    dest[4] = pitch; // eulers_dest[1]; // pitch
-    dest[5] = roll; // eulers_dest[2]; // roll
-
-    return dest;
-}
-
-/**
-* @brief Calculate the rotation matrix from roll, pitch, and yaw
-*
-* @param roll The roll angle
-* @param pitch The pitch angle
-* @param yaw The yaw angle
-* @return Eigen::Matrix3d : The rotation matrix
-*/
-Eigen::Matrix3d calculateRotationMatrix(const double & roll, 
-                                        const double & pitch, 
-                                        const double & yaw)
-{
-    Eigen::Matrix3d rotMat;
-
-    double R11 = std::cos(yaw)*std::cos(pitch);
-    double R12 = std::cos(yaw)*std::sin(pitch)*std::sin(roll)-std::sin(yaw)*std::cos(roll);
-    double R13 = std::cos(yaw)*std::sin(pitch)*std::cos(roll)+std::sin(yaw)*std::sin(roll);
-    double R21 = std::sin(yaw)*std::cos(pitch);
-    double R22 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)+std::cos(yaw)*std::cos(roll);
-    double R23 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)-std::cos(yaw)*std::sin(roll);
-    double R31 = -std::sin(pitch);
-    double R32 = std::cos(pitch)*std::sin(roll);
-    double R33 = std::cos(pitch)*std::cos(roll);
-
-    rotMat << R11, R12, R13,
-              R21, R22, R23,
-              R31, R32, R33;
-
-    return rotMat;    
-}
-
-
 void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
 {
     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::publishPlanarRegions]");
@@ -466,7 +312,7 @@ void SuperpixelDepthSegmenter::publishPlanarRegions(const cv::Mat & depth_img)
 
         cv::Point pixel = cv::Point(centers_[i][0], centers_[i][1]);
         cv::Vec3f worldPt;
-        floorPixelToWorld(worldPt, pixel, depth_img.at<float>(pixel.y, pixel.x));
+        floorPixelToWorld(worldPt, pixel, depth_img.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
         Eigen::Vector3d center(worldPt.val[0], worldPt.val[1], worldPt.val[2]);
         Eigen::Vector3d normal(centers_[i][4], centers_[i][5], centers_[i][6]);
@@ -602,7 +448,7 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
             // ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
 
             cv::Point curr_pixel(c, r);
-            if (isPixelInBounds(cleaned_depth_img, curr_pixel) )
+            if (isPixelInBounds(params_.k_c_, curr_pixel) )
             {
                 bool found_visited_pixel = false;
 
@@ -612,7 +458,7 @@ void SuperpixelDepthSegmenter::fillInImage(const cv::Mat & cleaned_depth_img,
                     {
                         cv::Point pixel(c + j, r + i);
 
-                        if (isPixelInBounds(cleaned_depth_img, pixel) && visited_.at<uint8_t>(pixel.y, pixel.x) == 1)
+                        if (isPixelInBounds(params_.k_c_, pixel) && visited_.at<uint8_t>(pixel.y, pixel.x) == 1)
                         {
                             found_visited_pixel = true;
                             break;
@@ -665,7 +511,7 @@ void SuperpixelDepthSegmenter::cleanImages(const cv::Mat & raw_depth_img,
     {
         for (int c = 0; c < cleaned_depth_img.cols; c++)
         {
-            if (isPixelValid(raw_depth_img, raw_label_img, raw_normal_img, cv::Point(c, r)))
+            if (isPixelValid(raw_depth_img, raw_label_img, raw_normal_img, cv::Point(c, r), params_.k_c_))
             {
 
                 float depth = raw_depth_img.at<float>(r, c);
@@ -916,7 +762,7 @@ void SuperpixelDepthSegmenter::preprocessImages(const cv::Mat & cleaned_depth_im
                         new_r = r + i;
                         new_c = c + j;
 
-                        if (!isPixelInBounds(dilated_depth_img, cv::Point(new_c, new_r)))
+                        if (!isPixelInBounds(params_.k_c_, cv::Point(new_c, new_r)))
                         {
                             continue;
                         }
@@ -1016,7 +862,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
                 {                
                     cv::Point current(c, r);
-                    if (isPixelValid(depth_image, label_image, normal_image, current)) 
+                    if (isPixelValid(depth_image, label_image, normal_image, current, params_.k_c_)) 
                     {
                         float depth = depth_image.at<float>(r, c);
                         uint8_t label = label_image.at<uint8_t>(r, c);
@@ -1196,7 +1042,7 @@ cv::Vec3f SuperpixelDepthSegmenter::ransac(const std::vector<cv::Point> & pixels
         {
             cv::Point pixel = sample[i];
             cv::Vec3f worldPt;
-            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x));
+            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
             A(i, 0) = worldPt.val[0];
             A(i, 1) = 1.0;
@@ -1213,7 +1059,7 @@ cv::Vec3f SuperpixelDepthSegmenter::ransac(const std::vector<cv::Point> & pixels
         {
             cv::Point pixel = pixels[i];
             cv::Vec3f worldPt;
-            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x));
+            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
             double error = std::abs(worldPt.val[1] - (x(0) * worldPt.val[0] + x(1) + x(2) * worldPt.val[2]));
             if (error < T)
@@ -1237,7 +1083,7 @@ cv::Vec3f SuperpixelDepthSegmenter::ransac(const std::vector<cv::Point> & pixels
             {
                 cv::Point pixel = inliers[i];
                 cv::Vec3f worldPt;
-                floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x));
+                floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
                 A_best(i, 0) = worldPt.val[0];
                 A_best(i, 1) = 1.0;
@@ -1276,7 +1122,7 @@ cv::Point SuperpixelDepthSegmenter::findClosestPixel(const int & center_idx,
             {
                 cv::Point current(center.x + j, center.y + i);
 
-                if (isPixelValid(depth_image, label_image, normal_image, current) && 
+                if (isPixelValid(depth_image, label_image, normal_image, current, params_.k_c_) && 
                     clusters_.at<int>(current.y, current.x) == center_idx)
                 {
                     new_center = current;
@@ -1287,15 +1133,6 @@ cv::Point SuperpixelDepthSegmenter::findClosestPixel(const int & center_idx,
     }
 
     return new_center;
-}
-
-void SuperpixelDepthSegmenter::floorPixelToWorld(cv::Vec3f & worldPt,
-                                                    const cv::Point & pixel,
-                                                    const float & depth)
-{
-    worldPt[0] = (pixel.x - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
-    worldPt[1] = depth;
-    worldPt[2] = (pixel.y - (params_.k_c_ / 2)) * (depth * 2 / (params_.h_ * params_.k_c_));
 }
 
 bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx, 
@@ -1310,10 +1147,10 @@ bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx,
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
     cv::Vec3f worldPt;
-    floorPixelToWorld(worldPt, pixel, depth);
+    floorPixelToWorld(worldPt, pixel, depth, params_.k_c_, params_.h_);
 
     cv::Vec3f centerWorldPt;
-    floorPixelToWorld(centerWorldPt, center_pixel, center_depth);
+    floorPixelToWorld(centerWorldPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
     bool normal_check = normal.dot(center_normal) > 0.75;
 
@@ -1336,10 +1173,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
     cv::Vec3f worldPt;
-    floorPixelToWorld(worldPt, pixel, depth);
+    floorPixelToWorld(worldPt, pixel, depth, params_.k_c_, params_.h_);
 
     cv::Vec3f centerWorldPt;
-    floorPixelToWorld(centerWorldPt, center_pixel, center_depth);
+    floorPixelToWorld(centerWorldPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
     // ROS_INFO_STREAM("           center_idx: " << center_idx);
     // ROS_INFO_STREAM("           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
@@ -1476,7 +1313,7 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
             cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
-            if (!isPixelValid(depth_image, label_image, normal_image, localMinimum))
+            if (!isPixelValid(depth_image, label_image, normal_image, localMinimum, params_.k_c_))
             {
             //     ROS_INFO_STREAM("       Invalid local minimum found");
             //     ROS_INFO_STREAM("           setting (" << r << ", " << c << ") to default ground floor value ...");
@@ -1536,14 +1373,14 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
             //                    pow(color.val[1] - center_color.val[1], 2) +
             //                    pow(color.val[2] - center_color.val[2], 2));
 
-            if (!isPixelValid(depth_image, label_image, normal_image, current))
+            if (!isPixelValid(depth_image, label_image, normal_image, current, params_.k_c_))
             {
                 continue;
             } else
             {
                 float depth = depth_image.at<float>(current.y, current.x);
 
-                if (isPixelInBounds(depth_image, loc_min)) // have found a valid pixel in the region, can compare now
+                if (isPixelInBounds(params_.k_c_, loc_min)) // have found a valid pixel in the region, can compare now
                 {
                     if (depth < depth_image.at<float>(loc_min.y, loc_min.x))
                     {
@@ -1740,7 +1577,7 @@ void SuperpixelDepthSegmenter::colorClusterPointCloud(const cv::Mat & depth_imag
             
             cv::Point pixel(c, r);
             cv::Vec3f worldPt;
-            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(r, c));
+            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
 
             point.x = worldPt[0];
             point.y = worldPt[1];
@@ -1809,7 +1646,7 @@ void SuperpixelDepthSegmenter::colorCentroids()
         cv::Vec3f center_normal = cv::Vec3f(centers_[i][4], centers_[i][5], centers_[i][6]);
 
         cv::Vec3f centerWorldPt;
-        floorPixelToWorld(centerWorldPt, center_pixel, center_depth);
+        floorPixelToWorld(centerWorldPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
         marker.points.resize(2);
         double scale = 0.1;
