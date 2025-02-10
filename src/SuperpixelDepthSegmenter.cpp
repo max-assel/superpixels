@@ -353,47 +353,6 @@ void SuperpixelDepthSegmenter::run()
     return;
 }
 
-Eigen::Vector3d calculateOrientationFromUnitNorms(const Eigen::Vector3d & e0, const Eigen::Vector3d & e1)
-{
-    // Option 1: from estimateEulerAnglesFromContacts originally
-    // Eigen::Matrix3d rotMat;
-
-    // // std::cout << "      XUnitNorm: " << XUnitNorm.transpose() << std::endl;
-    // // std::cout << "      YUnitNorm: " << YUnitNorm.transpose() << std::endl;
-    // // std::cout << "      normal: " << normal.transpose() << std::endl;
-
-    // rotMat << XUnitNorm[0], YUnitNorm[0], normal[0], 
-    //           XUnitNorm[1], YUnitNorm[1], normal[1],
-    //           XUnitNorm[2], YUnitNorm[2], normal[2];
-
-    // https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
-    // double theta_x = std::atan2(rotMat(2, 1), rotMat(2, 2));
-    // double theta_y = std::atan2(-rotMat(2, 0), std::sqrt(std::pow(rotMat(2, 1), 2) + std::pow(rotMat(2, 2), 2)));
-    // double theta_z = std::atan2(rotMat(1, 0), rotMat(0, 0));
-
-    // Option 2: from PolygonPublisher originally
-    double yaw = std::asin(e0[1] / std::sqrt(1 - e0[2]*e0[2]));
-    double pitch = std::asin(-e0[2]);
-    double roll = std::asin(e1[2] / std::sqrt(1 - e0[2]*e0[2]));
-
-    return Eigen::Vector3d(roll, pitch, yaw);    
-}
-
-/**
- * Compute the quaternion corresponding to euler angles zyx
- *
- * @param [in] eulerAnglesZyx
- * @return The corresponding quaternion
- */
-Eigen::Quaterniond getQuaternionFromEulerAnglesZyx(const Eigen::Matrix<double, 3, 1>& eulerAnglesZyx) 
-{
-  // clang-format off
-  return Eigen::AngleAxis<double>(eulerAnglesZyx(0), Eigen::Matrix<double, 3, 1>::UnitZ()) *
-         Eigen::AngleAxis<double>(eulerAnglesZyx(1), Eigen::Matrix<double, 3, 1>::UnitY()) *
-         Eigen::AngleAxis<double>(eulerAnglesZyx(2), Eigen::Matrix<double, 3, 1>::UnitX());
-  // clang-format on
-}
-
 /**
 * @brief Transform a 6D pose from world frame to base frame, 
 * performs rotation + translation, stores full pose
