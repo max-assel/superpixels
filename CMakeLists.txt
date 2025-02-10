@@ -54,10 +54,11 @@ include_directories(
 
 # Main library
 add_library(${PROJECT_NAME}
-    src/ImagePreprocessor.cpp
-    src/SuperpixelColorOpenCVSegmenter.cpp
-    src/SuperpixelColorSegmenter.cpp
-    src/SuperpixelDepthSegmenter.cpp
+        src/ImagePreprocessor.cpp
+        src/SuperpixelColorOpenCVSegmenter.cpp
+        src/SuperpixelColorSegmenter.cpp
+        src/SuperpixelDepthSegmenter.cpp
+        src/Visualizer.cpp
 )
 
 add_dependencies(${PROJECT_NAME} 

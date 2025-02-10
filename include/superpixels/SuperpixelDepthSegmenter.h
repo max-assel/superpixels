@@ -1,12 +1,8 @@
 #pragma once
 
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl_conversions/pcl_conversions.h>
-
 #include <image_transport/subscriber_filter.h>
 #include <tf2_ros/message_filter.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <visualization_msgs/Marker.h>
+
 #include <geometry_msgs/PoseStamped.h>
 
 #include <message_filters/subscriber.h>
@@ -27,14 +23,7 @@
 
 // #include <superpixels/utils.h>
 #include <superpixels/ImagePreprocessor.h>
-
-#include <convex_plane_decomposition_msgs/PlanarTerrain.h>
-#include <convex_plane_decomposition/PlanarRegion.h>
-#include <convex_plane_decomposition_ros/MessageConversion.h>
-
-#include <grid_map_ros/GridMapRosConverter.hpp>
-
-// #include <tf/tf.h>
+#include <superpixels/Visualizer.h>
 
 class SuperpixelDepthSegmenter 
 {
@@ -47,23 +36,9 @@ class SuperpixelDepthSegmenter
         /////////////
         void run();
 
-        ///////////////
-        // VISUALIZE //
-        ///////////////
-        void visualize(const cv::Mat & depth_image,
-                        const cv::Mat & label_image,
-                        const cv::Mat & normal_image);
-
         void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
 
     private:
-
-        void colorCentroids();
-
-        void publishPlanarRegions();
-
-        // void calculateStep(const cv::Mat & depth_image);
-
         void reset_data(const cv::Mat & depth_image,
                         const cv::Mat & label_image,
                         const cv::Mat & normal_image);
@@ -95,8 +70,6 @@ class SuperpixelDepthSegmenter
 
         cv::Vec3f ransac(const std::vector<cv::Point> & pixels, const cv::Mat & depth_image, const cv::Vec3f & og_normal);
 
-        void publishPlanarRegions(const cv::Mat & depth_img);   
-
         // void dilate_img(const cv::Mat & image, cv::Mat & dilated_image);
 
         // void checkSparsity();
@@ -124,24 +97,11 @@ class SuperpixelDepthSegmenter
         //                         const cv::Point & pixel,
         //                         const float & depth);
 
-        void colorClusters(const cv::Mat & color_depth_image);
-
-        void colorClusterPointCloud(const cv::Mat & depth_image);
-
         cv::Point findClosestPixel(const int & center_idx,
                                     const cv::Point & center, 
                                     const cv::Mat & depth_image,
                                     const cv::Mat & label_image,
                                     const cv::Mat & normal_image);
-
-        ///////////////
-        // VISUALIZE //
-        ///////////////
-        void displayCenterGrid(cv::Mat & image, const cv::Vec3b & color);
-
-        void convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image);
-
-        void overlayCenters(const cv::Mat & color_depth_image);
 
         ros::NodeHandle nh_;
         
@@ -149,17 +109,6 @@ class SuperpixelDepthSegmenter
         image_transport::SubscriberFilter raw_depth_img_sub_;
         image_transport::SubscriberFilter raw_label_img_sub_;
         image_transport::SubscriberFilter raw_normal_img_sub_;
-
-        // Publishers
-        image_transport::Publisher fin_depth_img_pub_;
-        image_transport::Publisher fin_label_img_pub_;
-        image_transport::Publisher fin_normal_img_pub_;
-        image_transport::Publisher center_grid_img_pub_;
-        image_transport::Publisher colored_cluster_img_pub_;
-
-        ros::Publisher colored_point_cloud_pub_;
-        ros::Publisher colored_centroids_pub_;
-        ros::Publisher terrainPub_;
 
         // Image message pointers
         sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
@@ -173,14 +122,6 @@ class SuperpixelDepthSegmenter
         cv_bridge::CvImagePtr prop_depth_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr prop_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr prop_normal_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
-
-        // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr colored_cluster_img_ptr_ = nullptr;
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image>; //  
@@ -203,8 +144,6 @@ class SuperpixelDepthSegmenter
 
         // cv::Mat color_depth_image_;
 
-        std::vector<cv::Scalar> colors_;
-
         SuperpixelParams params_;
 
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
@@ -212,11 +151,6 @@ class SuperpixelDepthSegmenter
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
 
-        tf2_ros::TransformListener * tfListener_; /**< transform listener */
-
-        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?
-
         ImagePreprocessor * imagePreprocessor_;
-
-
+        Visualizer * visualizer_;
 };
