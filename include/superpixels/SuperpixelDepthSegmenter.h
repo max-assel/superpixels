@@ -22,6 +22,7 @@
 #include <superpixels/ParametersConfig.h>
 
 // #include <superpixels/utils.h>
+#include <superpixels/ConvexHullifier.h>
 #include <superpixels/ImagePreprocessor.h>
 #include <superpixels/Visualizer.h>
 #include <superpixels/Ransac.h>
@@ -153,4 +154,5 @@ class SuperpixelDepthSegmenter
         ImagePreprocessor * imagePreprocessor_;
         Visualizer * visualizer_;
         Ransac * ransac_;
+        ConvexHullifier * convexHullifier_;
 };

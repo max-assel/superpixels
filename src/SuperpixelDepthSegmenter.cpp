@@ -62,6 +62,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
     imagePreprocessor_ = new ImagePreprocessor(params_);
     visualizer_ = new Visualizer(params_, nh);
     ransac_ = new Ransac(params_);
+    convexHullifier_ = new ConvexHullifier(params_);
 }
 
 SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
@@ -70,6 +71,7 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
     delete imagePreprocessor_;
     delete visualizer_;
     delete ransac_;
+    delete convexHullifier_;
 }
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
@@ -85,6 +87,7 @@ void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig
     int num_pixels = params_.k_c_ * params_.k_c_;
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
 
+    convexHullifier_->setParams(params_);
     imagePreprocessor_->setParams(params_);
     visualizer_->setParams(params_);
     ransac_->setParams(params_);
@@ -223,21 +226,10 @@ void SuperpixelDepthSegmenter::run()
     // Health check
     // healthCheck(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
 
-    // checkSparsity();
-
-    // if (!initialized_)
-    // {
-
     superpixelBegin = std::chrono::steady_clock::now();
 
     // Clear data
     reset_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
-
-    // Initialize data
-    // init_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
-
-    //     initialized_ = true;
-    // }
 
     // Generate superpixels
     generateSuperpixels(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
@@ -253,6 +245,8 @@ void SuperpixelDepthSegmenter::run()
                                 "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
                                 "   Number of superpixels: " << centers_.size() << "\n" <<
                                 "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec << " seconds");
+
+    // Calculate convex hulls
 
     // Visualize
     visualizer_->visualize(preprocessed_depth_img, 
@@ -574,7 +568,6 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     //     ROS_INFO_STREAM("               counts: " << center_counts_[i]);
     // }
 }
-
 
 bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx, 
                                                 const float & depth,

@@ -54,6 +54,7 @@ include_directories(
 
 # Main library
 add_library(${PROJECT_NAME}
+        src/ConvexHullifier.cpp
         src/ImagePreprocessor.cpp
         src/Ransac.cpp
         src/SuperpixelColorOpenCVSegmenter.cpp
