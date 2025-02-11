@@ -68,6 +68,8 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 {
     // delete tfListener_;
     delete imagePreprocessor_;
+    delete visualizer_;
+    delete ransac_;
 }
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
