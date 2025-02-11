@@ -112,7 +112,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     colorCentroids(centers);
 
-    publishPlanarRegions(depth_image, centers);
+    // publishPlanarRegions(depth_image, centers);
 
     return;
 }

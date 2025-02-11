@@ -24,6 +24,7 @@
 // #include <superpixels/utils.h>
 #include <superpixels/ImagePreprocessor.h>
 #include <superpixels/Visualizer.h>
+#include <superpixels/Ransac.h>
 
 class SuperpixelDepthSegmenter 
 {
@@ -151,4 +152,5 @@ class SuperpixelDepthSegmenter
 
         ImagePreprocessor * imagePreprocessor_;
         Visualizer * visualizer_;
+        Ransac * ransac_;
 };

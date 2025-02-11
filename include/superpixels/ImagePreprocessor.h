@@ -38,7 +38,6 @@ class ImagePreprocessor
                             cv::Mat & filled_label_img,
                             cv::Mat & filled_normal_img);
 
-
     private:
         SuperpixelParams params_;
 };

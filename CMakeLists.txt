@@ -55,6 +55,7 @@ include_directories(
 # Main library
 add_library(${PROJECT_NAME}
         src/ImagePreprocessor.cpp
+        src/Ransac.cpp
         src/SuperpixelColorOpenCVSegmenter.cpp
         src/SuperpixelColorSegmenter.cpp
         src/SuperpixelDepthSegmenter.cpp
