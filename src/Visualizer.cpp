@@ -4,8 +4,6 @@ Visualizer::Visualizer(const SuperpixelParams & params, ros::NodeHandle nh)
 {
     params_ = params;
 
-    tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
-
     // Set up subscribers and publishers
     image_transport::ImageTransport it(nh);
 
@@ -123,129 +121,80 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 {
     // ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
 
-    ros::Time lookupTime = fin_depth_img_ptr_->header.stamp;
-    std::string camera_frame = fin_depth_img_ptr_->header.frame_id;
+    // convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
-    geometry_msgs::TransformStamped cameraFrameToWorldFrameTransform = 
-        tfBuffer_.lookupTransform("world", camera_frame, lookupTime);
+    // // ROS_INFO_STREAM("       regions:");
+    // for (int i = 0; i < centers.size(); i++)
+    // {
+    //     // ROS_INFO_STREAM("           i: " << i);
+    //     convex_plane_decomposition::PlanarRegion region;
 
-    convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
-    // ROS_INFO_STREAM("       regions:");
-    for (int i = 0; i < centers.size(); i++)
-    {
-        // ROS_INFO_STREAM("           i: " << i);
-        convex_plane_decomposition::PlanarRegion region;
 
-        cv::Point pixel = cv::Point(centers[i][0], centers[i][1]);
-        cv::Vec3f worldPt;
-        floorPixelToWorld(worldPt, pixel, depth_img.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+    //     // ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
+    //     // ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
+    //     // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
+    //     // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
 
-        Eigen::Vector3d center(worldPt.val[0], worldPt.val[1], worldPt.val[2]);
-        Eigen::Vector3d normal(centers[i][4], centers[i][5], centers[i][6]);
+    //     convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
 
-        // ROS_INFO_STREAM("               center: " << center.transpose());
-        // ROS_INFO_STREAM("               normal: " << normal.transpose());
+    //     convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
+    //     convex_plane_decomposition::CgalPolygon2d polygon;
+    //     double foot_radius = 0.02;
+    //     double inner_radius = foot_radius;
+    //     double outer_radius = 2*foot_radius;
+    //     polygon.container().emplace_back(-outer_radius, -outer_radius); // bottom left
+    //     polygon.container().emplace_back(outer_radius, -outer_radius); // bottom right
+    //     polygon.container().emplace_back(outer_radius, outer_radius); // top right
+    //     polygon.container().emplace_back(-outer_radius, outer_radius); // top left
 
-        Eigen::Vector3d arbitraryVec(1, 0, 0);
+    //     polygonWithHoles.outer_boundary() = polygon;
 
-        // check here to make sure arbitraryVec is not parallel to normal
-        if (std::abs(arbitraryVec.dot(normal)) > 0.99)
-        {
-            arbitraryVec = Eigen::Vector3d(0, 1, 0);
-        }
+    //     boundaryWithInset.boundary = polygonWithHoles;
 
-        Eigen::Vector3d e0 = normal.cross(arbitraryVec);
-        e0.normalize();
-        Eigen::Vector3d e1 = normal.cross(e0);
-        e1.normalize();
+    //     std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets;
 
-        // ROS_INFO_STREAM("               e0: " << e0.transpose());
-        // ROS_INFO_STREAM("               e1: " << e1.transpose());
+    //     convex_plane_decomposition::CgalPolygon2d inflated_polygon;
+    //     inflated_polygon.container().emplace_back(-inner_radius, -inner_radius); // bottom left
+    //     inflated_polygon.container().emplace_back(inner_radius, -inner_radius); // bottom right
+    //     inflated_polygon.container().emplace_back(inner_radius, inner_radius); // top right
+    //     inflated_polygon.container().emplace_back(-inner_radius, inner_radius); // top left
 
-        Eigen::Matrix3d regionRotMat;
-        regionRotMat << e0, e1, normal;
+    //     convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
+    //     inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
 
-        Eigen::Quaterniond regionQuat(regionRotMat);
+    //     insets.push_back(inflated_polygon_with_holes);
 
-        // Eigen::VectorXd pose_camera_frame(7);
-        // pose_camera_frame << center, regionQuat;
+    //     boundaryWithInset.insets = insets;
 
-        // ROS_INFO_STREAM("               center: " << center.transpose());
-        // ROS_INFO_STREAM("               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
+    //     region.boundaryWithInset = boundaryWithInset;
+    //     region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
-        Eigen::VectorXd pose_world_frame = transformHelperPoseStamped(center, regionQuat, cameraFrameToWorldFrameTransform);
+    //     convex_plane_decomposition_msgs::PlanarRegion region_msg = convex_plane_decomposition::toMessage(region);
 
-        // get rotation matrix
-        Eigen::Matrix3d rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
+    //     terrain_msg.planarRegions.push_back(region_msg);
 
-        region.transformPlaneToWorld.translation() = pose_world_frame.head(3);
-        region.transformPlaneToWorld.linear() = rotMat;      
+    //     // ROS_INFO_STREAM("   e0: " << e0.transpose());
+    //     // ROS_INFO_STREAM("   e1: " << e1.transpose());
+    //     // ROS_INFO_STREAM("   normal: " << normal.transpose());
+    // }    
 
-        // ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
-        // ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
-        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
-        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
+    // // placeholder gridMap
+    // grid_map::GridMap grid_map;
+    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    // double grid_map_resolution = 0.1; // resolution [m]
+    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    // grid_map.setGeometry(grid_map_dimensions, 
+    //                         grid_map_resolution, 
+    //                         grid_map_origin);
+    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    // grid_map.setFrameId("odom");
 
-        convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
+    // grid_map_msgs::GridMap grid_map_msg;
+    // grid_map::GridMapRosConverter::toMessage(grid_map, grid_map_msg);
+    // terrain_msg.gridmap = grid_map_msg; 
 
-        convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
-        convex_plane_decomposition::CgalPolygon2d polygon;
-        double foot_radius = 0.02;
-        double inner_radius = foot_radius;
-        double outer_radius = 2*foot_radius;
-        polygon.container().emplace_back(-outer_radius, -outer_radius); // bottom left
-        polygon.container().emplace_back(outer_radius, -outer_radius); // bottom right
-        polygon.container().emplace_back(outer_radius, outer_radius); // top right
-        polygon.container().emplace_back(-outer_radius, outer_radius); // top left
-
-        polygonWithHoles.outer_boundary() = polygon;
-
-        boundaryWithInset.boundary = polygonWithHoles;
-
-        std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets;
-
-        convex_plane_decomposition::CgalPolygon2d inflated_polygon;
-        inflated_polygon.container().emplace_back(-inner_radius, -inner_radius); // bottom left
-        inflated_polygon.container().emplace_back(inner_radius, -inner_radius); // bottom right
-        inflated_polygon.container().emplace_back(inner_radius, inner_radius); // top right
-        inflated_polygon.container().emplace_back(-inner_radius, inner_radius); // top left
-
-        convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
-        inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
-
-        insets.push_back(inflated_polygon_with_holes);
-
-        boundaryWithInset.insets = insets;
-
-        region.boundaryWithInset = boundaryWithInset;
-        region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
-
-        convex_plane_decomposition_msgs::PlanarRegion region_msg = convex_plane_decomposition::toMessage(region);
-
-        terrain_msg.planarRegions.push_back(region_msg);
-
-        // ROS_INFO_STREAM("   e0: " << e0.transpose());
-        // ROS_INFO_STREAM("   e1: " << e1.transpose());
-        // ROS_INFO_STREAM("   normal: " << normal.transpose());
-    }    
-
-    // placeholder gridMap
-    grid_map::GridMap grid_map;
-    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    double grid_map_resolution = 0.1; // resolution [m]
-    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    grid_map.setGeometry(grid_map_dimensions, 
-                            grid_map_resolution, 
-                            grid_map_origin);
-    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    grid_map.setFrameId("odom");
-
-    grid_map_msgs::GridMap grid_map_msg;
-    grid_map::GridMapRosConverter::toMessage(grid_map, grid_map_msg);
-    terrain_msg.gridmap = grid_map_msg; 
-
-    terrainPub_.publish(terrain_msg);
+    // terrainPub_.publish(terrain_msg);
 }
 
 
@@ -375,12 +324,12 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
             pcl::PointXYZRGBA point;
             
             cv::Point pixel(c, r);
-            cv::Vec3f worldPt;
-            floorPixelToWorld(worldPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
+            cv::Vec3f egocanPt;
+            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
 
-            point.x = worldPt[0];
-            point.y = worldPt[1];
-            point.z = worldPt[2];
+            point.x = egocanPt[0];
+            point.y = egocanPt[1];
+            point.z = egocanPt[2];
 
             int cluster_id = clusters.at<int>(r, c);
             if (cluster_id != -1)
@@ -444,15 +393,15 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
         float center_depth = centers[i][2];
         cv::Vec3f center_normal = cv::Vec3f(centers[i][4], centers[i][5], centers[i][6]);
 
-        cv::Vec3f centerWorldPt;
-        floorPixelToWorld(centerWorldPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        cv::Vec3f centerEgocanPt;
+        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
         marker.points.resize(2);
         double scale = 0.1;
         geometry_msgs::Point p1, p2;
-        p1.x = centerWorldPt[0];
-        p1.y = centerWorldPt[1];
-        p1.z = centerWorldPt[2];
+        p1.x = centerEgocanPt[0];
+        p1.y = centerEgocanPt[1];
+        p1.z = centerEgocanPt[2];
         p2.x = p1.x + scale * center_normal[0];
         p2.y = p1.y + scale * center_normal[1];
         p2.z = p1.z + scale * center_normal[2];

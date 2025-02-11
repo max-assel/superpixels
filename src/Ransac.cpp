@@ -53,25 +53,7 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
             max_inliers = inliers.size();
 
             // update normal
-
             fit(inliers, depth_image, max_inliers, x_best);
-
-            // Eigen::MatrixXd A_best(max_inliers, 3);
-            // Eigen::VectorXd b_best(max_inliers);
-
-            // for (int i = 0; i < max_inliers; i++)
-            // {
-            //     cv::Point pixel = inliers[i];
-            //     cv::Vec3f worldPt;
-            //     floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
-
-            //     A_best(i, 0) = worldPt.val[0];
-            //     A_best(i, 1) = 1.0;
-            //     A_best(i, 2) = worldPt.val[2];
-            //     b_best(i) = worldPt.val[1];
-            // }
-
-            // Eigen::VectorXd x_best = A_best.colPivHouseholderQr().solve(b_best);
 
             normal_best = cv::Vec3f(x_best(0), -1.0, x_best(2));
 
@@ -108,13 +90,13 @@ void Ransac::fit(const std::vector<cv::Point> & samples,
     for (int i = 0; i < num_samples; i++)
     {
         cv::Point pixel = samples[i];
-        cv::Vec3f worldPt;
-        floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+        cv::Vec3f egocanPt;
+        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
-        A(i, 0) = worldPt.val[0];
+        A(i, 0) = egocanPt.val[0];
         A(i, 1) = 1.0;
-        A(i, 2) = worldPt.val[2];
-        b(i) = worldPt.val[1];
+        A(i, 2) = egocanPt.val[2];
+        b(i) = egocanPt.val[1];
     }
 
     x = A.colPivHouseholderQr().solve(b);
@@ -128,11 +110,11 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
     for (int i = 0; i < pixels.size(); i++)
     {
         cv::Point pixel = pixels[i];
-        cv::Vec3f worldPt;
-        floorPixelToWorld(worldPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+        cv::Vec3f egocanPt;
+        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
-        double y_hat = x(0) * worldPt.val[0] + x(1) + x(2) * worldPt.val[2];
-        double error = std::abs(worldPt.val[1] - y_hat);
+        double y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
+        double error = std::abs(egocanPt.val[1] - y_hat);
         if (error < T)
             inliers.push_back(pixel);
     }    

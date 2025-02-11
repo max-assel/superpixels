@@ -188,13 +188,13 @@ inline Eigen::Matrix3d calculateRotationMatrix(const double & roll,
     return rotMat;    
 }
 
-inline void floorPixelToWorld(cv::Vec3f & worldPt,
+inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
                                 const cv::Point & pixel,
                                 const float & depth,
                                 const int & k_c,
                                 const double & h)
 {
-    worldPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
-    worldPt[1] = depth;
-    worldPt[2] = (pixel.y - (k_c / 2)) * (depth * 2 / (h * k_c));
+    egocanPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
+    egocanPt[1] = depth;
+    egocanPt[2] = (pixel.y - (k_c / 2)) * (depth * 2 / (h * k_c));
 }

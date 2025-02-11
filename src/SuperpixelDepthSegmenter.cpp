@@ -247,6 +247,7 @@ void SuperpixelDepthSegmenter::run()
                                 "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec << " seconds");
 
     // Calculate convex hulls
+    convexHullifier_->run(centers_, superpixels_, preprocessed_depth_img, raw_depth_img_ptr_);
 
     // Visualize
     visualizer_->visualize(preprocessed_depth_img, 
@@ -580,15 +581,15 @@ bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx,
     uint8_t center_label = centers_[center_idx][3];
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
-    cv::Vec3f worldPt;
-    floorPixelToWorld(worldPt, pixel, depth, params_.k_c_, params_.h_);
+    cv::Vec3f egocanPt;
+    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
-    cv::Vec3f centerWorldPt;
-    floorPixelToWorld(centerWorldPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+    cv::Vec3f centerEgocanPt;
+    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
     bool normal_check = normal.dot(center_normal) > 0.75;
 
-    bool plane_distance_check = std::abs( (centerWorldPt - worldPt).dot(center_normal))  < 0.01;
+    bool plane_distance_check = std::abs( (centerEgocanPt - egocanPt).dot(center_normal))  < 0.01;
 
     return normal_check && plane_distance_check;
 }
@@ -606,21 +607,21 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     uint8_t center_label = centers_[center_idx][3];
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
-    cv::Vec3f worldPt;
-    floorPixelToWorld(worldPt, pixel, depth, params_.k_c_, params_.h_);
+    cv::Vec3f egocanPt;
+    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
-    cv::Vec3f centerWorldPt;
-    floorPixelToWorld(centerWorldPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+    cv::Vec3f centerEgocanPt;
+    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
     // ROS_INFO_STREAM("           center_idx: " << center_idx);
     // ROS_INFO_STREAM("           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
-    // ROS_INFO_STREAM("           center_world_pt: " << centerWorldPt);
+    // ROS_INFO_STREAM("           center_world_pt: " << centerEgocanPt);
     // ROS_INFO_STREAM("           center_depth: " << center_depth);
     // ROS_INFO_STREAM("           center_label: " << center_label);
     // ROS_INFO_STREAM("           center_normal: " << center_normal);
 
     // ROS_INFO_STREAM("           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
-    // ROS_INFO_STREAM("           world_pt: " << worldPt);
+    // ROS_INFO_STREAM("           world_pt: " << egocanPt);
     // ROS_INFO_STREAM("           depth: " << depth);
     // ROS_INFO_STREAM("           label: " << label);
     // ROS_INFO_STREAM("           normal: " << normal);
@@ -643,7 +644,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // Position term
 
-    double d_posn = std::abs( (worldPt - centerWorldPt).dot(center_normal) );
+    double d_posn = std::abs( (egocanPt - centerEgocanPt).dot(center_normal) );
     double max_d_posn = params_.v_fov_;
     double weighted_d_posn = params_.w_pos_ * (d_posn / max_d_posn);
 
@@ -668,7 +669,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
         ROS_WARN_STREAM("       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
     }
 
-    // double d_compact = cv::norm(centerWorldPt - worldPt);
+    // double d_compact = cv::norm(centerEgocanPt - egocanPt);
     // double max_compact_dist = 
     // double weighted_d_compact = params_.w_compact_ * d_compact;
 

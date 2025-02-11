@@ -84,8 +84,4 @@ class Visualizer
         cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
 
         std::vector<cv::Scalar> colors_;
-
-        tf2_ros::TransformListener * tfListener_; /**< transform listener */
-
-        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?
 };
