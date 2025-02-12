@@ -51,7 +51,7 @@ inline bool isPixelInBounds(const int & k_c,
 }
 
 inline bool isPixelValid(const cv::Mat & depth_image, 
-                            const cv::Mat & label_image,
+                            // const cv::Mat & label_image,
                             const cv::Mat & normal_image,
                             const cv::Point & pixel,
                             const int & k_c)

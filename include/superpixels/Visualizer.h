@@ -29,10 +29,10 @@ class Visualizer
         // VISUALIZE //
         ///////////////
         void visualize(const cv::Mat & depth_image,
-                        const cv::Mat & label_image,
+                        // const cv::Mat & label_image,
                         const cv::Mat & normal_image,
                         const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-                        const cv_bridge::CvImagePtr & raw_label_img_ptr,
+                        // const cv_bridge::CvImagePtr & raw_label_img_ptr,
                         const cv_bridge::CvImagePtr & raw_normal_img_ptr,
                         const std::vector<std::vector<double>> & centers,
                         const cv::Mat & clusters);
@@ -67,7 +67,7 @@ class Visualizer
 
         // Publishers
         image_transport::Publisher fin_depth_img_pub_;
-        image_transport::Publisher fin_label_img_pub_;
+        // image_transport::Publisher fin_label_img_pub_;
         image_transport::Publisher fin_normal_img_pub_;
         image_transport::Publisher center_grid_img_pub_;
         image_transport::Publisher colored_cluster_img_pub_;        
@@ -81,7 +81,7 @@ class Visualizer
         cv_bridge::CvImagePtr colored_cluster_img_ptr_ = nullptr;
 
         cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
 

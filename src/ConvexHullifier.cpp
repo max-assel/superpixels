@@ -45,7 +45,7 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         pixelToEgocanFrame(egocanPt, center_pixel, depth_img.at<float>(center_pixel.y, center_pixel.x), params_.k_c_, params_.h_);
 
         Eigen::Vector3d center(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2]);
-        Eigen::Vector3d normal(centers[i][4], centers[i][5], centers[i][6]);
+        Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
 
         // ROS_INFO_STREAM("       center (egocan frame): " << center.transpose());
         // ROS_INFO_STREAM("       normal (egocan frame): " << normal.transpose());

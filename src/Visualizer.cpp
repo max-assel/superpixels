@@ -12,8 +12,8 @@ Visualizer::Visualizer(const SuperpixelParams & params, ros::NodeHandle nh)
     fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
     fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
-    fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
+    // fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
     fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -56,10 +56,10 @@ void Visualizer::setParams(const SuperpixelParams & params)
 }
 
 void Visualizer::visualize(const cv::Mat & depth_image,
-                            const cv::Mat & label_image,
+                            // const cv::Mat & label_image,
                             const cv::Mat & normal_image,
                             const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-                            const cv_bridge::CvImagePtr & raw_label_img_ptr,
+                            // const cv_bridge::CvImagePtr & raw_label_img_ptr,
                             const cv_bridge::CvImagePtr & raw_normal_img_ptr,
                             const std::vector<std::vector<double>> & centers,
                             const cv::Mat & clusters)
@@ -81,10 +81,10 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // ROS_INFO_STREAM("       Preparing final label image");
-    fin_label_img_ptr_->header = raw_label_img_ptr->header;
-    fin_label_img_ptr_->encoding = raw_label_img_ptr->encoding;
-    fin_label_img_ptr_->image = label_image;
-    fin_label_img_pub_.publish(fin_label_img_ptr_->toImageMsg());
+    // fin_label_img_ptr_->header = raw_label_img_ptr->header;
+    // fin_label_img_ptr_->encoding = raw_label_img_ptr->encoding;
+    // fin_label_img_ptr_->image = label_image;
+    // fin_label_img_pub_.publish(fin_label_img_ptr_->toImageMsg());
 
     // ROS_INFO_STREAM("       Preparing final normal image");
     fin_normal_img_ptr_->header = raw_normal_img_ptr->header;
@@ -122,7 +122,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                         const std::vector<Eigen::Matrix3d> & superpixel_rotations)
 {
-    ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
+    // ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
 
     convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
@@ -132,10 +132,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
         tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);
 
-    ROS_INFO_STREAM("       regions:");
+    // ROS_INFO_STREAM("       regions:");
     for (int i = 0; i < centers.size(); i++)
     {
-        ROS_INFO_STREAM("           i: " << i);
+        // ROS_INFO_STREAM("           i: " << i);
         convex_plane_decomposition::PlanarRegion region;
 
         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
@@ -157,10 +157,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
         region.transformPlaneToWorld.translation() = pose_world_frame.head(3);
         region.transformPlaneToWorld.linear() = rotMat;
 
-        ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
-        ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
-        ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
-        ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
+        // ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
+        // ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
+        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
+        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
 
         convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
 
@@ -170,14 +170,14 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
         double foot_radius = 0.02;
 
-        ROS_INFO_STREAM("               convex hull:");
+        // ROS_INFO_STREAM("               convex hull:");
         for (int j = 0; j < superpixel_convex_hulls[i].size(); j++)
         {
             Eigen::Vector2d point = superpixel_convex_hulls[i][j];
 
             // normal polygon
             polygon.container().emplace_back(point[0], point[1]);
-            ROS_INFO_STREAM("           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
+            // ROS_INFO_STREAM("           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
 
             // inflated polygon
             Eigen::Vector2d dir = point / point.norm();
@@ -187,12 +187,12 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
             {
                 Eigen::Vector2d foot = point - foot_radius * dir;
                 inflated_polygon.container().emplace_back(foot[0], foot[1]);
-                ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+                // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             } else
             {
                 Eigen::Vector2d foot = 0.5 * point;
                 inflated_polygon.container().emplace_back(foot[0], foot[1]);
-                ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+                // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             }
 
         }
@@ -432,7 +432,7 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
 
         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
         float center_depth = centers[i][2];
-        cv::Vec3f center_normal = cv::Vec3f(centers[i][4], centers[i][5], centers[i][6]);
+        cv::Vec3f center_normal = cv::Vec3f(centers[i][3], centers[i][4], centers[i][5]);
 
         cv::Vec3f centerEgocanPt;
         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
