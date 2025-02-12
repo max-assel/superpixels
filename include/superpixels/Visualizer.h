@@ -37,13 +37,15 @@ class Visualizer
                         const std::vector<std::vector<double>> & centers,
                         const cv::Mat & clusters);
 
+        void publishPlanarRegions(const cv::Mat & depth_img, 
+                                    const std::vector<std::vector<double>> & centers,
+                                    const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
+                                    const std::vector<Eigen::Matrix3d> & superpixel_rotations);  
+
         void setParams(const SuperpixelParams & params);
 
     private:
         void colorCentroids(const std::vector<std::vector<double>> & centers);
-
-        void publishPlanarRegions(const cv::Mat & depth_img, 
-                                    const std::vector<std::vector<double>> & centers);  
 
         void colorClusters(const cv::Mat & color_depth_image,
                             const cv::Mat & clusters);

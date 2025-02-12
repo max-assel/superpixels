@@ -240,7 +240,7 @@ void SuperpixelDepthSegmenter::run()
 
     // Calculate convex hulls
     convexHullBegin = std::chrono::steady_clock::now();
-    convexHullifier_->run(centers_, superpixels_, preprocessed_depth_img, raw_depth_img_ptr_);
+    convexHullifier_->run(centers_, superpixels_, superpixel_convex_hulls_, superpixel_rotations_, preprocessed_depth_img, raw_depth_img_ptr_);
     convexHullEnd = std::chrono::steady_clock::now();
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
@@ -265,7 +265,7 @@ void SuperpixelDepthSegmenter::run()
                             clusters_);
 
     // Publish planar regions
-    // visualizer_->publishPlanarRegions(preprocessed_depth_img, centers_);
+    visualizer_->publishPlanarRegions(preprocessed_depth_img, centers_, superpixel_convex_hulls_, superpixel_rotations_);
 
     return;
 }

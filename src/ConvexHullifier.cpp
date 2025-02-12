@@ -25,6 +25,8 @@ Eigen::Vector3d ConvexHullifier::projectPointOntoPlane(const Eigen::Vector3d & r
 
 void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
                             const std::vector<std::vector<cv::Point>> & superpixels,
+                            std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
+                            std::vector<Eigen::Matrix3d> & superpixel_rotations,
                             const cv::Mat & depth_img,
                             const cv_bridge::CvImagePtr & raw_depth_img_ptr)
 {
@@ -37,7 +39,8 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);
 
     std::vector<std::vector<Eigen::Vector2d>> superpixel_projections(centers.size());
-    std::vector<std::vector<Eigen::Vector2d>> superpixel_convex_hulls(centers.size());
+    superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
+    superpixel_rotations = std::vector<Eigen::Matrix3d>(centers.size());
 
     // Build convex hulls for each superpixel
     for (int i = 0; i < (int) centers.size(); i++)
@@ -76,6 +79,8 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         regionRotMat.row(0) = e0;
         regionRotMat.row(1) = e1;
         regionRotMat.row(2) = normal;
+
+        superpixel_rotations[i] = regionRotMat;
 
         // ROS_INFO_STREAM("       regionRotMat: ");
         // ROS_INFO_STREAM("           " << regionRotMat.row(0));
@@ -214,6 +219,13 @@ void ConvexHullifier::grahamScan(const std::vector<Eigen::Vector2d> & superpixel
 {
     // ROS_INFO_STREAM("           [ConvexHullifier::grahamScan]");
 
+    if (superpixel_projections.size() < 3)
+    {
+        // ROS_INFO_STREAM("               not enough points for convex hull.");
+        convex_hull = superpixel_projections;
+        return;
+    }
+
     // ROS_INFO_STREAM("               finding lowest y-coordinate ... ");
     // Find the point with the lowest y-coordinate
     Eigen::Vector2d lowest = superpixel_projections[0];
@@ -260,7 +272,6 @@ void ConvexHullifier::grahamScan(const std::vector<Eigen::Vector2d> & superpixel
 
     for (int i = 2; i < (int) sorted.size(); i++)
     {
-
         while (hull.size() >= 2 && !ccw(hull[hull.size() - 2], hull[hull.size() - 1], sorted[i]))
         {
             hull.pop_back();
