@@ -17,6 +17,14 @@ class ConvexHullifier
 
     private:
 
+        void convexHull(const std::vector<Eigen::Vector2d> & superpixel, std::vector<Eigen::Vector2d> & convex_hull);
+
+        bool polarSort(const Eigen::Vector2d & a, const Eigen::Vector2d & b, const Eigen::Vector2d & lowest);
+
+        bool ccw(const Eigen::Vector2d & a, const Eigen::Vector2d & b, const Eigen::Vector2d & c);
+
+        void grahamScan(const std::vector<Eigen::Vector2d> & superpixel, std::vector<Eigen::Vector2d> & convex_hull);
+
         Eigen::Vector3d projectPointOntoPlane(const Eigen::Vector3d & regionPt);
 
         SuperpixelParams params_;

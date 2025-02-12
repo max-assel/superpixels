@@ -238,16 +238,21 @@ void SuperpixelDepthSegmenter::run()
     int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
     double superpixel_total_time_sec = superpixel_total_time / 1.0e6; 
 
+    // Calculate convex hulls
+    convexHullBegin = std::chrono::steady_clock::now();
+    convexHullifier_->run(centers_, superpixels_, preprocessed_depth_img, raw_depth_img_ptr_);
+    convexHullEnd = std::chrono::steady_clock::now();
+    int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
+    double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
+
     ROS_INFO_STREAM_THROTTLE(3, "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
                                 "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
+                                "   Convex hulls took " << convex_hull_total_time_sec << " seconds, \n" <<
                                 "   Number of superpixels: " << centers_.size() << "\n" <<
-                                "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec << " seconds");
-
-    // Calculate convex hulls
-    convexHullifier_->run(centers_, superpixels_, preprocessed_depth_img, raw_depth_img_ptr_);
+                                "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
 
     // Visualize
     visualizer_->visualize(preprocessed_depth_img, 

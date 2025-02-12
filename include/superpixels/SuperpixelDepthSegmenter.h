@@ -139,6 +139,8 @@ class SuperpixelDepthSegmenter
         std::chrono::steady_clock::time_point fillBegin, fillEnd;
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
+        std::chrono::steady_clock::time_point convexHullBegin, convexHullEnd;
+
 
         ImagePreprocessor * imagePreprocessor_;
         Visualizer * visualizer_;
