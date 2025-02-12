@@ -14,8 +14,7 @@ class ConvexHullifier
                     const std::vector<std::vector<cv::Point>> & superpixels,
                     std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                     std::vector<Eigen::Matrix3d> & superpixel_rotations,
-                    const cv::Mat & depth_image,
-                    const cv_bridge::CvImagePtr & raw_depth_img_ptr);
+                    const cv::Mat & depth_image);
 
     private:
 
@@ -29,9 +28,5 @@ class ConvexHullifier
 
         Eigen::Vector3d projectPointOntoPlane(const Eigen::Vector3d & regionPt);
 
-        SuperpixelParams params_;
-
-        tf2_ros::TransformListener * tfListener_; /**< transform listener */
-
-        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?        
+        SuperpixelParams params_;    
 };

@@ -267,13 +267,13 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /convex_plane_decomposition_ros/planar_regions
       Name: MarkerArray
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -330,7 +330,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.95866060256958
+      Distance: 4.124566078186035
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -338,17 +338,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.9700927734375
-        Y: -0.06834179908037186
-        Z: -0.5764747262001038
+        X: 0.258792906999588
+        Y: -1.297186017036438
+        Z: -0.8121085166931152
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2097967863082886
+      Pitch: 0.42479753494262695
       Target Frame: <Fixed Frame>
-      Yaw: 3.12682843208313
+      Yaw: 2.286818742752075
     Saved: ~
 Window Geometry:
   Displays:

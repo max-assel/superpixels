@@ -3,8 +3,6 @@
 ConvexHullifier::ConvexHullifier(const SuperpixelParams & params)
 {
     params_ = params;
-
-    tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
 }
 
 void ConvexHullifier::setParams(const SuperpixelParams & params)
@@ -27,16 +25,9 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
                             const std::vector<std::vector<cv::Point>> & superpixels,
                             std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                             std::vector<Eigen::Matrix3d> & superpixel_rotations,
-                            const cv::Mat & depth_img,
-                            const cv_bridge::CvImagePtr & raw_depth_img_ptr)
+                            const cv::Mat & depth_img)
 {
     // ROS_INFO_STREAM("   [ConvexHullifier::run]");
-
-    ros::Time lookupTime = raw_depth_img_ptr->header.stamp;
-    std::string egocan_frame = raw_depth_img_ptr->header.frame_id;
-
-    geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
-        tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);
 
     std::vector<std::vector<Eigen::Vector2d>> superpixel_projections(centers.size());
     superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
