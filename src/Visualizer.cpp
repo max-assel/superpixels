@@ -25,6 +25,25 @@ Visualizer::Visualizer(const SuperpixelParams & params, ros::NodeHandle nh)
     colored_cluster_img_pub_ = it.advertise("/superpixels/colored_clusters", 1);
     colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
+    colored_point_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
+    colored_centroids_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/superpixels/colored_centroids", 1);
+
+    setColors();
+
+    // set up terrain publisher
+    terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
+                                    ("/convex_plane_decomposition_ros/planar_terrain", 1);
+}
+
+void Visualizer::setParams(const SuperpixelParams & params)
+{
+    params_ = params;
+    setColors();
+}
+
+void Visualizer::setColors()
+{
+    colors_.clear();
     colors_.resize(params_.num_superpixels_);
     for (int i = 0; i < (int) colors_.size(); i++)
     {
@@ -41,18 +60,6 @@ Visualizer::Visualizer(const SuperpixelParams & params, ros::NodeHandle nh)
 
         colors_[i] = color;
     }
-
-    colored_point_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
-    colored_centroids_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/superpixels/colored_centroids", 1);
-
-    // set up terrain publisher
-    terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
-                                    ("/convex_plane_decomposition_ros/planar_terrain", 1);
-}
-
-void Visualizer::setParams(const SuperpixelParams & params)
-{
-    params_ = params;
 }
 
 void Visualizer::visualize(const cv::Mat & depth_image,
@@ -132,27 +139,50 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
         tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);
 
+    double foot_radius = 0.02;
+
+    convex_plane_decomposition::PlanarRegion region;
+    convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
+    convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
+    convex_plane_decomposition::CgalPolygon2d polygon;
+    convex_plane_decomposition::CgalPolygon2d inflated_polygon;
+    convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
+    convex_plane_decomposition_msgs::PlanarRegion region_msg;
+
+    std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets(1);
+
+    cv::Point center_pixel;
+    float depth;
+    cv::Vec3f centerEgocanCvPt;
+    Eigen::Matrix3d regionToEgocanRotMat;
+    Eigen::Quaterniond regionToEgocanQuat;
+    Eigen::Matrix3d rotMat;
+
+    Eigen::VectorXd pose_world_frame;
+
+    Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
+
     // ROS_INFO_STREAM("       regions:");
     for (int i = 0; i < centers.size(); i++)
-    {
+    {        
         // ROS_INFO_STREAM("           i: " << i);
-        convex_plane_decomposition::PlanarRegion region;
 
-        cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
-        float depth = depth_img.at<float>(center_pixel.y, center_pixel.x);
-        cv::Vec3f centerEgocanPt;
-        pixelToEgocanFrame(centerEgocanPt, center_pixel, depth, params_.k_c_, params_.h_);
 
-        region.transformPlaneToWorld.translation() = Eigen::Vector3d(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
+        center_pixel = cv::Point(centers[i][0], centers[i][1]);
+        depth = depth_img.at<float>(center_pixel.y, center_pixel.x);
+        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, depth, params_.k_c_, params_.h_);
 
-        Eigen::Matrix3d regionRotMat = superpixel_rotations[i].transpose();
-        Eigen::Quaterniond regionQuat(regionRotMat);
+        Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
 
-        Eigen::Vector3d center(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
-        Eigen::VectorXd pose_world_frame = transformHelperPoseStamped(center, regionQuat, egocanFrameToWorldFrame);
+        region.transformPlaneToWorld.translation() = centerEgocanPt;
+
+        regionToEgocanRotMat = superpixel_rotations[i].transpose();
+        regionToEgocanQuat = Eigen::Quaterniond(regionToEgocanRotMat);
+
+        pose_world_frame = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToWorldFrame);
 
         // get rotation matrix
-        Eigen::Matrix3d rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
+        rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
 
         region.transformPlaneToWorld.translation() = pose_world_frame.head(3);
         region.transformPlaneToWorld.linear() = rotMat;
@@ -162,56 +192,47 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
         // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
         // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
 
-        convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
-
-        convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
-        convex_plane_decomposition::CgalPolygon2d polygon;
-        convex_plane_decomposition::CgalPolygon2d inflated_polygon;
-
-        double foot_radius = 0.02;
-
         // ROS_INFO_STREAM("               convex hull:");
+        polygon.container().clear();
+        inflated_polygon.container().clear();
         for (int j = 0; j < superpixel_convex_hulls[i].size(); j++)
         {
-            Eigen::Vector2d point = superpixel_convex_hulls[i][j];
+            convexHullPt = superpixel_convex_hulls[i][j];
 
             // normal polygon
-            polygon.container().emplace_back(point[0], point[1]);
+            polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
             // ROS_INFO_STREAM("           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
 
             // inflated polygon
-            Eigen::Vector2d dir = point / point.norm();
-            double norm = point.norm();
+            double norm = convexHullPt.norm();
+            convexHullDir = convexHullPt / norm;
 
             if (norm > foot_radius)
             {
-                Eigen::Vector2d foot = point - foot_radius * dir;
-                inflated_polygon.container().emplace_back(foot[0], foot[1]);
+                inflatedConvexHullPt = convexHullPt - foot_radius * convexHullDir;
                 // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             } else
             {
-                Eigen::Vector2d foot = 0.5 * point;
-                inflated_polygon.container().emplace_back(foot[0], foot[1]);
+                inflatedConvexHullPt = 0.5 * convexHullPt;
                 // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             }
+            inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
 
         }
 
         polygonWithHoles.outer_boundary() = polygon;
         boundaryWithInset.boundary = polygonWithHoles;
 
-        convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
         inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
 
-        std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets;
-        insets.push_back(inflated_polygon_with_holes);
+        insets[0] = inflated_polygon_with_holes;
 
         boundaryWithInset.insets = insets;
 
         region.boundaryWithInset = boundaryWithInset;
         region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
-        convex_plane_decomposition_msgs::PlanarRegion region_msg = convex_plane_decomposition::toMessage(region);
+        region_msg = convex_plane_decomposition::toMessage(region);
 
         terrain_msg.planarRegions.push_back(region_msg);
 

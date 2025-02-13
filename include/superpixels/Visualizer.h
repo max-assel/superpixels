@@ -44,6 +44,8 @@ class Visualizer
 
         void setParams(const SuperpixelParams & params);
 
+        void setColors();
+
     private:
         void colorCentroids(const std::vector<std::vector<double>> & centers);
 

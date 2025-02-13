@@ -311,9 +311,6 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
     /* Initialize the centers and counters. */
-    // int rough_center_count = 0;
-    centers_.clear();
-    center_counts_.clear();
     for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
     {
         for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
@@ -378,42 +375,49 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
-    int deltaX = 3; // params_.step_; // 5;
-    int deltaY = 3; // params_.step_; // 5;
+    int delta = params_.step_ / 2; // 5;
 
-    for (int r = og_center.y - deltaY; r <= og_center.y + deltaY; r++)
+    for (int d = 0; d < delta; d++)
     {
-        for (int c = og_center.x - deltaX; c <= og_center.x + deltaX; c++)
+        for (int r = og_center.y - delta; r <= og_center.y + delta; r++)
         {
-            cv::Point current(c, r);
-
-            // if (!isPixelInBounds(depth_image, current))
-            // {
-            //     continue;
-            // }
-
-            // double grad = sqrt(pow(color.val[0] - center_color.val[0], 2) +
-            //                    pow(color.val[1] - center_color.val[1], 2) +
-            //                    pow(color.val[2] - center_color.val[2], 2));
-
-            if (!isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image, 
+            for (int c = og_center.x - delta; c <= og_center.x + delta; c++)
             {
-                continue;
-            } else
-            {
-                float depth = depth_image.at<float>(current.y, current.x);
+                cv::Point current(c, r);
 
-                if (isPixelInBounds(params_.k_c_, loc_min)) // have found a valid pixel in the region, can compare now
+                // if (!isPixelInBounds(depth_image, current))
+                // {
+                //     continue;
+                // }
+
+                // double grad = sqrt(pow(color.val[0] - center_color.val[0], 2) +
+                //                    pow(color.val[1] - center_color.val[1], 2) +
+                //                    pow(color.val[2] - center_color.val[2], 2));
+
+                if (!isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image, 
                 {
-                    if (depth < depth_image.at<float>(loc_min.y, loc_min.x))
+                    continue;
+                } else
+                {
+                    float depth = depth_image.at<float>(current.y, current.x);
+
+                    if (isPixelInBounds(params_.k_c_, loc_min)) // have found a valid pixel in the region, can compare now
+                    {
+                        if (depth < depth_image.at<float>(loc_min.y, loc_min.x))
+                        {
+                            loc_min = cv::Point(c, r);
+                        }
+                    } else // have not found a valid pixel in the region yet
                     {
                         loc_min = cv::Point(c, r);
                     }
-                } else // have not found a valid pixel in the region yet
-                {
-                    loc_min = cv::Point(c, r);
                 }
             }
+        }
+
+        if (isPixelInBounds(params_.k_c_, loc_min))
+        {
+            break;
         }
     }
 
