@@ -395,7 +395,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     // Normals
     filled_normal_img = cleaned_normal_img.clone();
 
-    int delta = params_.step_ / 8;
+    int delta = params_.step_ / 8; // bit heuristic, close to actual image sparsity
 
     for (int r = delta; r < (cleaned_depth_img.rows - delta); r += delta)
     {
