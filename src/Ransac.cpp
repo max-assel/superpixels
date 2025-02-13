@@ -72,8 +72,11 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
     {
         int idx = -1;
         while (idx == -1 || std::find(indices.begin(), indices.end(), idx) != indices.end())
-            idx = rand() % pixels.size();
-
+        {
+            int rand_idx = rand();
+            idx = rand_idx % pixels.size();
+            // ROS_INFO_STREAM("           rand_idx: " << rand_idx << ", idx: " << idx);
+        }
         samples.push_back(pixels[idx]);
         indices.push_back(idx);
     }

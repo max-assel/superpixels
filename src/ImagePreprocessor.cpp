@@ -3,6 +3,8 @@
 ImagePreprocessor::ImagePreprocessor(const SuperpixelParams & params)
 {
     params_ = params;
+
+    tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
 }
 
 void ImagePreprocessor::setParams(const SuperpixelParams & params)
@@ -365,9 +367,20 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                                     const cv::Mat & visited,
                                     cv::Mat & filled_depth_img,
                                     // cv::Mat & filled_label_img,
-                                    cv::Mat & filled_normal_img)
+                                    cv::Mat & filled_normal_img,
+                                    const cv_bridge::CvImagePtr & raw_depth_img_ptr)
 {
     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::fillInImage]");
+
+    ros::Time lookupTime = raw_depth_img_ptr->header.stamp;
+    std::string egocan_frame = raw_depth_img_ptr->header.frame_id;
+
+    geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
+        tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
+
+    double default_height = egocanFrameToWorldFrame.transform.translation.z;
+
+    // ROS_INFO_STREAM("       egocanFrameToWorldFrame: " << egocanFrameToWorldFrame);
 
     // Depth
     filled_depth_img = cleaned_depth_img.clone();
@@ -414,7 +427,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                 {
                     // ROS_INFO_STREAM("       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
 
-                    filled_depth_img.at<float>(r, c) = 0.385;
+                    filled_depth_img.at<float>(r, c) = default_height;
                     // filled_label_img.at<uint8_t>(r, c) = 3;
                     filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
                 } else

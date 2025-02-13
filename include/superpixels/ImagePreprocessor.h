@@ -3,6 +3,7 @@
 #include <superpixels/utils.h>
 
 #include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.h>
 
 class ImagePreprocessor
 {
@@ -36,8 +37,13 @@ class ImagePreprocessor
                             const cv::Mat & visited,
                             cv::Mat & filled_depth_img,
                             // cv::Mat & filled_label_img,
-                            cv::Mat & filled_normal_img);
+                            cv::Mat & filled_normal_img,
+                            const cv_bridge::CvImagePtr & raw_depth_img_ptr);
 
     private:
         SuperpixelParams params_;
+
+        tf2_ros::TransformListener * tfListener_; /**< transform listener */
+
+        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?              
 };
