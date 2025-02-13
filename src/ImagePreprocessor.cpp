@@ -22,7 +22,6 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
 {
     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::cleanImages]");
 
-
     // Depth
     cleaned_depth_img = cv::Mat(raw_depth_img.size(), CV_32F, cv::Scalar(0));
 
@@ -380,6 +379,11 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
 
     double default_height = egocanFrameToWorldFrame.transform.translation.z;
 
+    generator.seed(123456789);
+    std::normal_distribution<double> distribution(0.0, 0.00001);
+
+  // generator.seed(std::hash<std::string>{}(regionID));
+
     // ROS_INFO_STREAM("       egocanFrameToWorldFrame: " << egocanFrameToWorldFrame);
 
     // Depth
@@ -391,7 +395,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     // Normals
     filled_normal_img = cleaned_normal_img.clone();
 
-    int delta = params_.step_ / 4;
+    int delta = params_.step_ / 8;
 
     for (int r = delta; r < (cleaned_depth_img.rows - delta); r += delta)
     {
@@ -427,7 +431,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                 {
                     // ROS_INFO_STREAM("       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
 
-                    filled_depth_img.at<float>(r, c) = default_height;
+                    filled_depth_img.at<float>(r, c) = default_height + distribution(generator);
                     // filled_label_img.at<uint8_t>(r, c) = 3;
                     filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
                 } else

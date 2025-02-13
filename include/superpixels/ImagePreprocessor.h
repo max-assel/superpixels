@@ -5,6 +5,8 @@
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 
+#include <random>
+
 class ImagePreprocessor
 {
     public:
@@ -45,5 +47,7 @@ class ImagePreprocessor
 
         tf2_ros::TransformListener * tfListener_; /**< transform listener */
 
-        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?              
+        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?      
+
+        std::default_random_engine generator;
 };

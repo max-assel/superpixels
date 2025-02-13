@@ -167,6 +167,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     {        
         // ROS_INFO_STREAM("           i: " << i);
 
+        // if (superpixel_convex_hulls[i].size() <= 3)
+        // {
+        //     ROS_WARN_STREAM("           Region " << i << " has less than or equal to 3 points.");
+        // }
 
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         depth = depth_img.at<float>(center_pixel.y, center_pixel.x);
@@ -217,7 +221,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
                 // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             }
             inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
-
+            // ROS_INFO_STREAM("           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
         }
 
         polygonWithHoles.outer_boundary() = polygon;
