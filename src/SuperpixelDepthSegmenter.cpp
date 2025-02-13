@@ -375,7 +375,7 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
-    int delta = params_.step_ / 2; // 5;
+    int delta = params_.step_ / 4; // 5;
 
     for (int d = 0; d < delta; d++)
     {
