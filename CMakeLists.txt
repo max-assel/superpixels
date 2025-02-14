@@ -11,6 +11,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
     convex_plane_decomposition
     convex_plane_decomposition_ros
     convex_plane_decomposition_msgs
+    segmented_planes_terrain_model
     )
 
 find_package(catkin REQUIRED COMPONENTS

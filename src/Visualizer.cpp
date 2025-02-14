@@ -49,14 +49,14 @@ void Visualizer::setColors()
     {
         cv::Scalar color(rand() % 255, rand() % 255, rand() % 255);
 
-        for (int j = 0; j < i; j++)
-        {
-            if (cv::norm(color - colors_[j]) < 50)
-            {
-                color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
-                j = -1;
-            }
-        }
+        // for (int j = 0; j < i; j++)
+        // {
+        //     if (cv::norm(color - colors_[j]) < 50)
+        //     {
+        //         color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
+        //         j = -1;
+        //     }
+        // }
 
         colors_[i] = color;
     }
@@ -69,7 +69,8 @@ void Visualizer::visualize(const cv::Mat & depth_image,
                             // const cv_bridge::CvImagePtr & raw_label_img_ptr,
                             const cv_bridge::CvImagePtr & raw_normal_img_ptr,
                             const std::vector<std::vector<double>> & centers,
-                            const cv::Mat & clusters)
+                            const cv::Mat & clusters,
+                            const std::vector<int> & center_counts)
 {
     // ROS_INFO_STREAM("   [Visualizer::visualize]");
 
@@ -116,7 +117,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     colorClusterPointCloud(depth_image, clusters);
 
-    colorCentroids(centers);
+    colorCentroids(centers, center_counts);
 
     // publishPlanarRegions(depth_image, centers);
 
@@ -126,6 +127,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
 void Visualizer::publishPlanarRegions(const cv::Mat & depth_img, 
                                         const std::vector<std::vector<double>> & centers,
+                                        const std::vector<int> & center_counts,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                         const std::vector<Eigen::Matrix3d> & superpixel_rotations)
 {
@@ -165,6 +167,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     // ROS_INFO_STREAM("       regions:");
     for (int i = 0; i < centers.size(); i++)
     {        
+        if (center_counts[i] == 0)
+        {
+            continue;
+        }
         // ROS_INFO_STREAM("           i: " << i);
 
         // if (superpixel_convex_hulls[i].size() <= 3)
@@ -177,8 +183,6 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
         pixelToEgocanFrame(centerEgocanCvPt, center_pixel, depth, params_.k_c_, params_.h_);
 
         Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
-
-        region.transformPlaneToWorld.translation() = centerEgocanPt;
 
         regionToEgocanRotMat = superpixel_rotations[i].transpose();
         regionToEgocanQuat = Eigen::Quaterniond(regionToEgocanRotMat);
@@ -424,7 +428,8 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
     return;
 }
 
-void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers)
+void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers,
+                                const std::vector<int> & center_counts)
 {
     // ROS_INFO_STREAM("   [Visualizer::colorCentroids]");
 
@@ -441,6 +446,11 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
 
     for (int i = 0; i < centers.size(); i++)
     {
+        if (center_counts[i] == 0)
+        {
+            continue;
+        }
+
         visualization_msgs::Marker marker;
         marker.header = fin_depth_img_ptr_->header;
         marker.ns = "superpixel_centroids";

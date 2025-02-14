@@ -29,6 +29,9 @@ struct SuperpixelParams
     double v_fov_ = M_PI / 3; // Vertical field of view (radians)
     double v_offset_ = 0.0;
     double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
+
+    bool constraint_ = false; // Use constraint
+    
     // double egocan_radius_ = 1.0; // Radius of egocylinder (meters)
 };
 

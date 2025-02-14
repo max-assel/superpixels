@@ -38,5 +38,6 @@
   <depend>convex_plane_decomposition</depend>
   <depend>convex_plane_decomposition_ros</depend>
   <depend>convex_plane_decomposition_msgs</depend>
+  <depend>segmented_planes_terrain_model</depend>
 
 </package>

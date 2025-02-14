@@ -16,7 +16,7 @@
 
 #include <math.h>
 
-#include <yaml-cpp/yaml.h>
+#include <ocs2_ros_interfaces/visualization/VisualizationHelpers.h>
 
 #include <dynamic_reconfigure/server.h>
 #include <superpixels/ParametersConfig.h>

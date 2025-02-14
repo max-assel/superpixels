@@ -35,10 +35,12 @@ class Visualizer
                         // const cv_bridge::CvImagePtr & raw_label_img_ptr,
                         const cv_bridge::CvImagePtr & raw_normal_img_ptr,
                         const std::vector<std::vector<double>> & centers,
-                        const cv::Mat & clusters);
+                        const cv::Mat & clusters,
+                        const std::vector<int> & center_counts);
 
         void publishPlanarRegions(const cv::Mat & depth_img, 
                                     const std::vector<std::vector<double>> & centers,
+                                    const std::vector<int> & center_counts,
                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                     const std::vector<Eigen::Matrix3d> & superpixel_rotations);  
 
@@ -47,7 +49,8 @@ class Visualizer
         void setColors();
 
     private:
-        void colorCentroids(const std::vector<std::vector<double>> & centers);
+        void colorCentroids(const std::vector<std::vector<double>> & centers,
+                            const std::vector<int> & center_counts);
 
         void colorClusters(const cv::Mat & color_depth_image,
                             const cv::Mat & clusters);

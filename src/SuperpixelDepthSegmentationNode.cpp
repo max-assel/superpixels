@@ -2,6 +2,7 @@
 #include <ros/node_handle.h>
 
 #include <superpixels/SuperpixelDepthSegmenter.h>
+#include <segmented_planes_terrain_model/SegmentedPlanesTerrainModelRos.h>
 
 void ros_throw_if(const bool & condition, const std::string & message)
 {
@@ -39,6 +40,9 @@ int main(int argc, char** argv)
 
     serverCallback = boost::bind(&SuperpixelDepthSegmenter::reconfigureCallback, superpixel_segmenter, _1, _2);
     server.setCallback(serverCallback);
+    
+    // to visualize regions 
+    switched_model::SegmentedPlanesTerrainModelRos * terrain_model = new switched_model::SegmentedPlanesTerrainModelRos(nh);
 
     while (ros::ok())
     {
