@@ -20,12 +20,12 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
 
     cv::Vec3f normal = og_normal;
 
-    if (pixels.size() < K)
+    if (pixels.size() < params_.ransac_K)
         return normal;
 
     int max_inliers = 0;    
 
-    for (int n = 0; n < N; n++)
+    for (int n = 0; n < params_.ransac_N; n++)
     {
         samples.clear();
         indices.clear();
@@ -38,7 +38,7 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
 
         // ROS_INFO_STREAM("           fitting ...");
         // fit
-        fit(samples, depth_image, K, x);
+        fit(samples, depth_image, params_.ransac_K, x);
 
         // ROS_INFO_STREAM("           computing inliers ...");
         // compute inliers
@@ -68,7 +68,7 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
                     std::vector<cv::Point> & samples,
                     std::vector<int> & indices)
 {
-    for (int i = 0; i < K; i++)
+    for (int i = 0; i < params_.ransac_K; i++)
     {
         int idx = -1;
         while (idx == -1 || std::find(indices.begin(), indices.end(), idx) != indices.end())
@@ -118,7 +118,7 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
 
         double y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
         double error = std::abs(egocanPt.val[1] - y_hat);
-        if (error < T)
+        if (error < params_.ransac_T)
             inliers.push_back(pixel);
     }    
 }

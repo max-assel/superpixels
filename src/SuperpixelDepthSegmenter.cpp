@@ -67,17 +67,26 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 
 void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
 {
-    params_.kernel_radius_ = config.kernel_radius;
-    params_.num_iterations_ = config.num_iterations;
+    // Dilation parameters
     params_.num_dilation_iterations_ = config.num_dilation_iterations;
+    params_.kernel_radius_ = config.kernel_radius;
+
+    // Superpixel algorithm parameters
+    params_.num_iterations_ = config.num_iterations;
     params_.num_superpixels_ = config.num_superpixels;
+    int num_pixels = params_.k_c_ * params_.k_c_;
+    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+    params_.constraint_ = config.constraint;
+
+    // Superpixel distance parameters
     params_.w_normal_ = config.w_normal;
     params_.w_pos_ = config.w_pos;
     params_.w_compact_ = config.w_compact;
-    params_.constraint_ = config.constraint;
 
-    int num_pixels = params_.k_c_ * params_.k_c_;
-    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+    // RANSAC parameters
+    params_.ransac_K = config.ransac_K;
+    params_.ransac_N = config.ransac_N;
+    params_.ransac_T = config.ransac_T;
 
     convexHullifier_->setParams(params_);
     imagePreprocessor_->setParams(params_);

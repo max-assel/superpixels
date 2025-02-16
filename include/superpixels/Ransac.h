@@ -28,11 +28,7 @@ class Ransac
                                 std::vector<cv::Point> & inliers,
                                 const Eigen::VectorXd & x);
 
-        SuperpixelParams params_;
-
-        int K = 3; // number of points to sample
-        int N = 25; // number of iterations
-        double T = 0.01; // threshold       
+        SuperpixelParams params_;   
 
         std::vector<cv::Point> samples;
         std::vector<int> indices;  
