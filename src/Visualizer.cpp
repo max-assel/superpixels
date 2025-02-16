@@ -63,14 +63,14 @@ void Visualizer::setColors()
 }
 
 void Visualizer::visualize(const cv::Mat & depth_image,
-                            // const cv::Mat & label_image,
                             const cv::Mat & normal_image,
                             const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-                            // const cv_bridge::CvImagePtr & raw_label_img_ptr,
                             const cv_bridge::CvImagePtr & raw_normal_img_ptr,
                             const std::vector<std::vector<double>> & centers,
                             const cv::Mat & clusters,
-                            const std::vector<int> & center_counts)
+                            const std::vector<int> & center_counts,
+                            const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
+                            const std::vector<Eigen::Matrix3d> & superpixel_rotations)
 {
     // ROS_INFO_STREAM("   [Visualizer::visualize]");
 
@@ -119,7 +119,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     colorCentroids(centers, center_counts);
 
-    // publishPlanarRegions(depth_image, centers);
+    publishPlanarRegions(depth_image, centers, center_counts, superpixel_convex_hulls, superpixel_rotations);
 
     return;
 }

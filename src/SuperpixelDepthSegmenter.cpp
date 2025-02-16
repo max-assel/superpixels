@@ -257,17 +257,14 @@ void SuperpixelDepthSegmenter::run()
 
     // Visualize
     visualizer_->visualize(preprocessed_depth_img, 
-                            // preprocessed_label_img, 
                             preprocessed_normal_img,
                             raw_depth_img_ptr_,
-                            // raw_label_img_ptr_,
                             raw_normal_img_ptr_,
                             centers_,
                             clusters_,
-                            center_counts_);
-
-    // Publish planar regions
-    visualizer_->publishPlanarRegions(preprocessed_depth_img, centers_, center_counts_, superpixel_convex_hulls_, superpixel_rotations_);
+                            center_counts_,
+                            superpixel_convex_hulls_,
+                            superpixel_rotations_);
 
     return;
 }
