@@ -131,7 +131,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                         const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
-    ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
+    // ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
 
     convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
@@ -171,13 +171,14 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
         if (center_counts[i] == 0)
         {
-            ROS_WARN_STREAM("           Region " << i << " has no points.");
+            // ROS_WARN_STREAM("           Region " << i << " has no points.");
             continue;
         }
 
         if (superpixel_convex_hulls[i].size() <= 3)
         {
-            ROS_WARN_STREAM("           Region " << i << " has less than or equal to 3 points.");
+            // ROS_WARN_STREAM("           Region " << i << " has less than or equal to 3 points.");
+            continue;
         }
 
         center_pixel = cv::Point(centers[i][0], centers[i][1]);

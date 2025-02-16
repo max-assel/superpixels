@@ -13,10 +13,8 @@ void ImagePreprocessor::setParams(const SuperpixelParams & params)
 }
 
 void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
-                                    // const cv::Mat & raw_label_img,
                                     const cv::Mat & raw_normal_img,
                                     cv::Mat & cleaned_depth_img,
-                                    // cv::Mat & cleaned_label_img,
                                     cv::Mat & cleaned_normal_img,
                                     cv::Mat & visited)
 {
@@ -24,9 +22,6 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
 
     // Depth
     cleaned_depth_img = cv::Mat(raw_depth_img.size(), CV_32F, cv::Scalar(0));
-
-    // Labels
-    // cleaned_label_img = cv::Mat(raw_label_img.size(), CV_8UC1, cv::Scalar(0));
 
     // Normals
     cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
@@ -42,10 +37,6 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
                 float depth = raw_depth_img.at<float>(r, c);
 
                 // bool valid_depth = (!std::isnan(depth) && std::abs(depth) > 1e-6 && depth > 0);
-
-                // uint8_t label = raw_label_img.at<uint8_t>(r, c);
-
-                // bool valid_label = (!std::isnan(label) && label >= 0);
 
                 cv::Vec3f normal = raw_normal_img.at<cv::Vec3f>(r, c);
 

@@ -31,6 +31,8 @@ struct SuperpixelParams
     int step_ = 0; // superpixel grid interval
     bool warm_start_ = false; // Warm start
     bool constraint_ = false; // Use constraint
+    bool ransac_ = false; // Refine normals via RANSAC
+    bool snapping_ = false; // Snap clusters to nearest actual pixel
 
     // Superpixel distance parameters
     double w_normal_ = 5.0; // Weighting parameter for normal similarity term

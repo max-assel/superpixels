@@ -77,6 +77,8 @@ void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig
     int num_pixels = params_.k_c_ * params_.k_c_;
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
     params_.constraint_ = config.constraint;
+    params_.ransac_ = config.ransac;
+    params_.snapping_ = config.snapping;
 
     // Superpixel distance parameters
     params_.w_normal_ = config.w_normal;
@@ -459,17 +461,15 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
                 {                
                     current = cv::Point(c, r);
-                    if (isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image,  
+                    if (isPixelValid(depth_image, normal_image, current, params_.k_c_)) 
                     {
                         depth = depth_image.at<float>(r, c);
-                        // uint8_t label = label_image.at<uint8_t>(r, c);
                         normal = normal_image.at<cv::Vec3f>(r, c);
 
                         check = params_.constraint_ ? checkConstraints(j, depth, normal, current) : true;
 
                         dist = computeDistance(j, 
                                                 depth,
-                                                // label,
                                                 normal,
                                                 current);
 
@@ -568,36 +568,37 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
             // ROS_INFO_STREAM("           superpixels size: " << superpixels_[j].size());
 
-            // center = cv::Point(centers_[j][0], centers_[j][1]);
-            // new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
-            // depth = depth_image.at<float>(new_center.y, new_center.x);
-            // // uint8_t label = label_image.at<uint8_t>(new_center.y, new_center.x);
-            // normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
-            // centers_[j][0] = new_center.x;
-            // centers_[j][1] = new_center.y;
-            // centers_[j][2] = depth;
-            // centers_[j][3] = normal.val[0];
-            // centers_[j][4] = normal.val[1];
-            // centers_[j][5] = normal.val[2];
+            if (params_.snapping_)
+            {
+                center = cv::Point(centers_[j][0], centers_[j][1]);
+                new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
+                depth = depth_image.at<float>(new_center.y, new_center.x);
+                normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
+                centers_[j][0] = new_center.x;
+                centers_[j][1] = new_center.y;
+                centers_[j][2] = depth;
+                centers_[j][3] = normal.val[0];
+                centers_[j][4] = normal.val[1];
+                centers_[j][5] = normal.val[2];
+            }
 
-            // refine normal via RANSAC
-            // ROS_INFO_STREAM("           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
-            // ROS_INFO_STREAM("           depth: " << centers_[j][2]);
-            // ROS_INFO_STREAM("           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
-            // ROS_INFO_STREAM("           counts: " << center_counts_[j]);
-            
-            // cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+            if (params_.ransac_)
+            {
+                // refine normal via RANSAC
+                // ROS_INFO_STREAM("           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+                // ROS_INFO_STREAM("           depth: " << centers_[j][2]);
+                // ROS_INFO_STREAM("           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
+                // ROS_INFO_STREAM("           counts: " << center_counts_[j]);
+                
+                cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+                candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+                // ROS_INFO_STREAM("           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
-            // // cv::Vec3f candidate_normal = ransac(superpixels_[j], depth_image, normal);
-            // candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
-            // // ROS_INFO_STREAM("           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
-
-            // centers_[j][3] = candidate_normal.val[0];
-            // centers_[j][4] = candidate_normal.val[1];
-            // centers_[j][5] = candidate_normal.val[2];
-
+                centers_[j][3] = candidate_normal.val[0];
+                centers_[j][4] = candidate_normal.val[1];
+                centers_[j][5] = candidate_normal.val[2];
+            }
         }
-
     }
 
     // ROS_INFO_STREAM("       centers:");

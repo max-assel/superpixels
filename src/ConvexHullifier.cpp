@@ -43,10 +43,10 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         //////////////////////////////////////////////////////////////
         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
         float center_depth = centers[i][2];
-        cv::Vec3f egocanPt;
-        pixelToEgocanFrame(egocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        cv::Vec3f centerEgocanPt;
+        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
-        Eigen::Vector3d center(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2]);
+        Eigen::Vector3d center(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
         Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
 
         // ROS_INFO_STREAM("       center (egocan frame): " << center.transpose());
@@ -137,6 +137,12 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
             cv::Vec3f egocanPt;
             pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
+            if (egocanPt == centerEgocanPt)
+            {
+                // skip center, don't want center to be on boundary
+                continue; 
+            }
+
             // ROS_INFO_STREAM("               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
 
             Eigen::Vector4d egocanPtHomog(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0);
@@ -160,8 +166,8 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         convexHull(superpixel_projections[i], superpixel_convex_hulls[i]);
 
         // ROS_INFO_STREAM("       hull:");
-        for (int j = 0; j < superpixel_convex_hulls[i].size(); j++) // iterate through hull points
-        {
+        // for (int j = 0; j < superpixel_convex_hulls[i].size(); j++) // iterate through hull points
+        // {
             // ROS_INFO_STREAM("                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
 
             // if (superpixel_convex_hulls[i][j] == Eigen::Vector2d(0.0, 0.0)) // if a hull point is too close to origin
@@ -201,7 +207,7 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
 
             //     break;
             // }
-        }
+        // }
     }
 
     return;
