@@ -42,8 +42,9 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         // 1. Build transfrom from egocan frame to superpixel frame //
         //////////////////////////////////////////////////////////////
         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
+        float center_depth = centers[i][2];
         cv::Vec3f egocanPt;
-        pixelToEgocanFrame(egocanPt, center_pixel, depth_img.at<float>(center_pixel.y, center_pixel.x), params_.k_c_, params_.h_);
+        pixelToEgocanFrame(egocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
         Eigen::Vector3d center(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2]);
         Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
@@ -159,43 +160,45 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         // ROS_INFO_STREAM("       hull:");
         for (int j = 0; j < superpixel_convex_hulls[i].size(); j++) // iterate through hull points
         {
-            if (superpixel_convex_hulls[i][j] == Eigen::Vector2d(0.0, 0.0)) // if a hull point is too close to origin
-            {
-                ROS_WARN_STREAM("   [ConvexHullifier::run]");
-                ROS_WARN_STREAM("       center " << i << ":");
-                ROS_WARN_STREAM("       center (egocan frame): " << center.transpose());
-                ROS_WARN_STREAM("       normal (egocan frame): " << normal.transpose());
-                ROS_WARN_STREAM("           superpixel point " << j << ":");
-                ROS_WARN_STREAM("                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
-                ROS_WARN_STREAM("           is too close to center");
+            // ROS_INFO_STREAM("                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
+
+            // if (superpixel_convex_hulls[i][j] == Eigen::Vector2d(0.0, 0.0)) // if a hull point is too close to origin
+            // {
+            //     ROS_WARN_STREAM("   [ConvexHullifier::run]");
+            //     ROS_WARN_STREAM("       center " << i << ":");
+            //     ROS_WARN_STREAM("       center (egocan frame): " << center.transpose());
+            //     ROS_WARN_STREAM("       normal (egocan frame): " << normal.transpose());
+            //     ROS_WARN_STREAM("           superpixel point " << j << ":");
+            //     ROS_WARN_STREAM("                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
+            //     ROS_WARN_STREAM("           is too close to center");
                 
-                for (int k = 0; k < superpixels[i].size(); k++) // print out whole superpixel
-                {
-                    ROS_WARN_STREAM("            superpixel point " << k << ":");
-                    // Transform superpixel points into region frame
-                    cv::Point pixel = superpixels[i][k];
-                    float depth = depth_img.at<float>(pixel.y, pixel.x);
+            //     for (int k = 0; k < superpixels[i].size(); k++) // print out whole superpixel
+            //     {
+            //         ROS_WARN_STREAM("            superpixel point " << k << ":");
+            //         // Transform superpixel points into region frame
+            //         cv::Point pixel = superpixels[i][k];
+            //         float depth = depth_img.at<float>(pixel.y, pixel.x);
 
-                    cv::Vec3f egocanPt;
-                    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+            //         cv::Vec3f egocanPt;
+            //         pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
-                    ROS_WARN_STREAM("               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
+            //         ROS_WARN_STREAM("               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
 
-                    Eigen::Vector4d egocanPtHomog(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0);
-                    Eigen::Vector4d regionPtHomog = egocanToRegionTransform * egocanPtHomog;
+            //         Eigen::Vector4d egocanPtHomog(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0);
+            //         Eigen::Vector4d regionPtHomog = egocanToRegionTransform * egocanPtHomog;
 
-                    Eigen::Vector3d regionPt = regionPtHomog.head(3);
+            //         Eigen::Vector3d regionPt = regionPtHomog.head(3);
 
-                    ROS_WARN_STREAM("               (region frame): " << regionPt.transpose());
+            //         ROS_WARN_STREAM("               (region frame): " << regionPt.transpose());
 
-                    // project points onto plane
-                    Eigen::Vector3d projPt = projectPointOntoPlane(regionPt);
+            //         // project points onto plane
+            //         Eigen::Vector3d projPt = projectPointOntoPlane(regionPt);
 
-                    ROS_WARN_STREAM("               projected (region frame): " << projPt.transpose());
-                }
+            //         ROS_WARN_STREAM("               projected (region frame): " << projPt.transpose());
+            //     }
 
-                break;
-            }
+            //     break;
+            // }
         }
     }
 

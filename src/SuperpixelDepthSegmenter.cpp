@@ -529,15 +529,28 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
             // ROS_INFO_STREAM("           Center " << j << ", count: " << center_counts_[j]);
 
+            // Average
             centers_[j][0] /= center_counts_[j];
             centers_[j][1] /= center_counts_[j];
             centers_[j][2] /= center_counts_[j];
             centers_[j][3] /= center_counts_[j];
             centers_[j][4] /= center_counts_[j];
             centers_[j][5] /= center_counts_[j];
+
+            // Round pixel
+            centers_[j][0] = int(round(centers_[j][0]));
+            centers_[j][1] = int(round(centers_[j][1]));
+
+            // Re-normalize
+            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+            cv::Vec3f re_normal = normal / cv::norm(normal);
+            centers_[j][3] = re_normal.val[0];
+            centers_[j][4] = re_normal.val[1];
+            centers_[j][5] = re_normal.val[2];
         }
 
         /* Snap clusters to nearest pixel */
+        // ROS_INFO_STREAM("       Refining via RANSAC ...");
         for (int j = 0; j < centers_.size(); j++) 
         {
             if (center_counts_[j] == 0) 
@@ -549,22 +562,21 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
             // ROS_INFO_STREAM("           superpixels size: " << superpixels_[j].size());
 
-            center = cv::Point(centers_[j][0], centers_[j][1]);
-            new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
-            depth = depth_image.at<float>(new_center.y, new_center.x);
-            // uint8_t label = label_image.at<uint8_t>(new_center.y, new_center.x);
-            normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
-            centers_[j][0] = new_center.x;
-            centers_[j][1] = new_center.y;
-            centers_[j][2] = depth;
-            centers_[j][3] = normal.val[0];
-            centers_[j][4] = normal.val[1];
-            centers_[j][5] = normal.val[2];
+            // center = cv::Point(centers_[j][0], centers_[j][1]);
+            // new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
+            // depth = depth_image.at<float>(new_center.y, new_center.x);
+            // // uint8_t label = label_image.at<uint8_t>(new_center.y, new_center.x);
+            // normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
+            // centers_[j][0] = new_center.x;
+            // centers_[j][1] = new_center.y;
+            // centers_[j][2] = depth;
+            // centers_[j][3] = normal.val[0];
+            // centers_[j][4] = normal.val[1];
+            // centers_[j][5] = normal.val[2];
 
             // refine normal via RANSAC
             // ROS_INFO_STREAM("           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
             // ROS_INFO_STREAM("           depth: " << centers_[j][2]);
-            // // ROS_INFO_STREAM("           label: " << centers_[j][3]);
             // ROS_INFO_STREAM("           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
             // ROS_INFO_STREAM("           counts: " << center_counts_[j]);
             
@@ -572,12 +584,12 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
             // cv::Vec3f candidate_normal = ransac(superpixels_[j], depth_image, normal);
             candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+            // ROS_INFO_STREAM("           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
             centers_[j][3] = candidate_normal.val[0];
             centers_[j][4] = candidate_normal.val[1];
             centers_[j][5] = candidate_normal.val[2];
 
-            // ROS_INFO_STREAM("           candidate normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
         }
 
     }

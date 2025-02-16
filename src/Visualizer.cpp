@@ -154,7 +154,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets(1);
 
     cv::Point center_pixel;
-    float depth;
+    float center_depth;
     cv::Vec3f centerEgocanCvPt;
     Eigen::Matrix3d regionToEgocanRotMat;
     Eigen::Quaterniond regionToEgocanQuat;
@@ -179,8 +179,9 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
         // }
 
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
-        depth = depth_img.at<float>(center_pixel.y, center_pixel.x);
-        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, depth, params_.k_c_, params_.h_);
+        center_depth = centers[i][2];
+
+        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
         Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
 
