@@ -24,14 +24,14 @@ Eigen::Vector3d ConvexHullifier::projectPointOntoPlane(const Eigen::Vector3d & r
 void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
                             const std::vector<std::vector<cv::Point>> & superpixels,
                             std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                            std::vector<Eigen::Matrix3d> & superpixel_rotations,
+                            std::vector<Eigen::Matrix3d> & egocan_to_region_rotations,
                             const cv::Mat & depth_img)
 {
     // ROS_INFO_STREAM("   [ConvexHullifier::run]");
 
     std::vector<std::vector<Eigen::Vector2d>> superpixel_projections(centers.size());
     superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
-    superpixel_rotations = std::vector<Eigen::Matrix3d>(centers.size());
+    egocan_to_region_rotations = std::vector<Eigen::Matrix3d>(centers.size());
 
     // Build convex hulls for each superpixel
     for (int i = 0; i < (int) centers.size(); i++)
@@ -68,19 +68,21 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         // ROS_INFO_STREAM("       e0: " << e0.transpose());
         // ROS_INFO_STREAM("       e1: " << e1.transpose());
 
-        Eigen::Matrix3d regionRotMat;
-        regionRotMat.row(0) = e0;
-        regionRotMat.row(1) = e1;
-        regionRotMat.row(2) = normal;
+        // Egocan to region rotation matrix
+        Eigen::Matrix3d egocanToRegionRotMat;
+        // almost positive this is correct
+        egocanToRegionRotMat.row(0) = e0;
+        egocanToRegionRotMat.row(1) = e1;
+        egocanToRegionRotMat.row(2) = normal;
 
-        superpixel_rotations[i] = regionRotMat;
+        egocan_to_region_rotations[i] = egocanToRegionRotMat;
 
-        // ROS_INFO_STREAM("       regionRotMat: ");
-        // ROS_INFO_STREAM("           " << regionRotMat.row(0));
-        // ROS_INFO_STREAM("           " << regionRotMat.row(1));
-        // ROS_INFO_STREAM("           " << regionRotMat.row(2));
+        // ROS_INFO_STREAM("       egocanToRegionRotMat: ");
+        // ROS_INFO_STREAM("           " << egocanToRegionRotMat.row(0));
+        // ROS_INFO_STREAM("           " << egocanToRegionRotMat.row(1));
+        // ROS_INFO_STREAM("           " << egocanToRegionRotMat.row(2));
 
-        // Eigen::Quaterniond regionQuat(regionRotMat);
+        // Eigen::Quaterniond regionQuat(egocanToRegionRotMat);
 
         // ROS_INFO_STREAM("               center: " << center.transpose());
         // ROS_INFO_STREAM("               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
@@ -110,7 +112,7 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         // Eigen::Matrix4d egocanToRegionTransform = egocanToWorldTransform * worldToRegionTransform;
 
         Eigen::Matrix4d egocanToRegionTransform;
-        egocanToRegionTransform << regionRotMat, -regionRotMat * center,
+        egocanToRegionTransform << egocanToRegionRotMat, -egocanToRegionRotMat * center,
                                     0, 0, 0, 1;
 
         // ROS_INFO_STREAM("       egocanToRegionTransform: ");

@@ -70,7 +70,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
                             const cv::Mat & clusters,
                             const std::vector<int> & center_counts,
                             const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                            const std::vector<Eigen::Matrix3d> & superpixel_rotations)
+                            const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
     // ROS_INFO_STREAM("   [Visualizer::visualize]");
 
@@ -119,7 +119,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     colorCentroids(centers, center_counts);
 
-    publishPlanarRegions(depth_image, centers, center_counts, superpixel_convex_hulls, superpixel_rotations);
+    publishPlanarRegions(depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
     return;
 }
@@ -129,9 +129,9 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
                                         const std::vector<std::vector<double>> & centers,
                                         const std::vector<int> & center_counts,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                                        const std::vector<Eigen::Matrix3d> & superpixel_rotations)
+                                        const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
-    // ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
+    ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
 
     convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
 
@@ -158,25 +158,27 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     cv::Vec3f centerEgocanCvPt;
     Eigen::Matrix3d regionToEgocanRotMat;
     Eigen::Quaterniond regionToEgocanQuat;
-    Eigen::Matrix3d rotMat;
+    Eigen::Matrix3d egocanToWorldRotMat;
 
-    Eigen::VectorXd pose_world_frame;
+    Eigen::VectorXd centerWorldPose;
 
     Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
 
-    // ROS_INFO_STREAM("       regions:");
+    // ROS_INFO_STREAM("       planar regions:");
     for (int i = 0; i < centers.size(); i++)
     {        
-        if (center_counts[i] == 0)
-        {
-            continue;
-        }
         // ROS_INFO_STREAM("           i: " << i);
 
-        // if (superpixel_convex_hulls[i].size() <= 3)
-        // {
-        //     ROS_WARN_STREAM("           Region " << i << " has less than or equal to 3 points.");
-        // }
+        if (center_counts[i] == 0)
+        {
+            ROS_WARN_STREAM("           Region " << i << " has no points.");
+            continue;
+        }
+
+        if (superpixel_convex_hulls[i].size() <= 3)
+        {
+            ROS_WARN_STREAM("           Region " << i << " has less than or equal to 3 points.");
+        }
 
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         center_depth = centers[i][2];
@@ -185,21 +187,27 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
         Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
 
-        regionToEgocanRotMat = superpixel_rotations[i].transpose();
+        // ROS_INFO_STREAM("               center (pixel): " << centers[i][0] << ", " << centers[i][1]);
+        // ROS_INFO_STREAM("               center (depth): " << centers[i][2]);
+        // ROS_INFO_STREAM("               center (egocan frame): " << centerEgocanPt.transpose());
+        // ROS_INFO_STREAM("               normal (egocan frame): " << centers[i][3] << ", " << centers[i][4] << ", " << centers[i][5]);
+
+        regionToEgocanRotMat = egocan_to_region_rotations[i].transpose();
         regionToEgocanQuat = Eigen::Quaterniond(regionToEgocanRotMat);
 
-        pose_world_frame = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToWorldFrame);
+        centerWorldPose = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToWorldFrame);
 
         // get rotation matrix
-        rotMat = calculateRotationMatrix(pose_world_frame[3], pose_world_frame[4], pose_world_frame[5]);
+        egocanToWorldRotMat = calculateRotationMatrix(centerWorldPose[3], centerWorldPose[4], centerWorldPose[5]);
 
-        region.transformPlaneToWorld.translation() = pose_world_frame.head(3);
-        region.transformPlaneToWorld.linear() = rotMat;
+        region.transformPlaneToWorld.translation() = centerWorldPose.head(3);
+        region.transformPlaneToWorld.linear() = egocanToWorldRotMat;
 
         // ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
         // ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
         // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
         // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
+
 
         // ROS_INFO_STREAM("               convex hull:");
         polygon.container().clear();
@@ -242,6 +250,13 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
         region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
         region_msg = convex_plane_decomposition::toMessage(region);
+        cv::Scalar color = colors_[i];
+        std_msgs::ColorRGBA region_color;
+        region_color.r = color[2] / 255.0;
+        region_color.g = color[1] / 255.0;
+        region_color.b = color[0] / 255.0;
+        region_color.a = 1.0;
+        region_msg.color = region_color;
 
         terrain_msg.planarRegions.push_back(region_msg);
 

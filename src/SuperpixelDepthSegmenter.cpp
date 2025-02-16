@@ -241,7 +241,7 @@ void SuperpixelDepthSegmenter::run()
 
     // Calculate convex hulls
     convexHullBegin = std::chrono::steady_clock::now();
-    convexHullifier_->run(centers_, superpixels_, superpixel_convex_hulls_, superpixel_rotations_, preprocessed_depth_img);
+    convexHullifier_->run(centers_, superpixels_, superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
     convexHullEnd = std::chrono::steady_clock::now();
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
@@ -264,7 +264,7 @@ void SuperpixelDepthSegmenter::run()
                             clusters_,
                             center_counts_,
                             superpixel_convex_hulls_,
-                            superpixel_rotations_);
+                            egocan_to_region_rotations_);
 
     return;
 }
@@ -290,7 +290,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
         center_counts_.clear();
         superpixels_.clear();
         superpixel_convex_hulls_.clear();
-        superpixel_rotations_.clear();
+        egocan_to_region_rotations_.clear();
 
         init_data(depth_image, normal_image); // label_image, 
 
@@ -586,15 +586,15 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             // ROS_INFO_STREAM("           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
             // ROS_INFO_STREAM("           counts: " << center_counts_[j]);
             
-            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+            // cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
 
-            // cv::Vec3f candidate_normal = ransac(superpixels_[j], depth_image, normal);
-            candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
-            // ROS_INFO_STREAM("           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
+            // // cv::Vec3f candidate_normal = ransac(superpixels_[j], depth_image, normal);
+            // candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+            // // ROS_INFO_STREAM("           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
-            centers_[j][3] = candidate_normal.val[0];
-            centers_[j][4] = candidate_normal.val[1];
-            centers_[j][5] = candidate_normal.val[2];
+            // centers_[j][3] = candidate_normal.val[0];
+            // centers_[j][4] = candidate_normal.val[1];
+            // centers_[j][5] = candidate_normal.val[2];
 
         }
 

@@ -118,7 +118,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 */
 inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
                                                     const Eigen::Quaterniond & source_quat,
-                                                    const geometry_msgs::TransformStamped & worldToBaseTransform)
+                                                    const geometry_msgs::TransformStamped & egocanFrameToWorldFrame)
 {
     // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
 
@@ -126,14 +126,11 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
 
     geometry_msgs::PoseStamped sourceVector, destVector;
 
-    Eigen::VectorXd torsoPosition = source_pos;
-    // Eigen::VectorXd torsoOrientation = source.tail(3);
-
-    sourceVector.header.stamp = worldToBaseTransform.header.stamp;
-    sourceVector.header.frame_id = "world";
-    sourceVector.pose.position.x = torsoPosition[0];
-    sourceVector.pose.position.y = torsoPosition[1];
-    sourceVector.pose.position.z = torsoPosition[2];
+    sourceVector.header.stamp = egocanFrameToWorldFrame.header.stamp;
+    sourceVector.header.frame_id = "egocan";
+    sourceVector.pose.position.x = source_pos[0];
+    sourceVector.pose.position.y = source_pos[1];
+    sourceVector.pose.position.z = source_pos[2];
 
     // euler to quat
     Eigen::Quaterniond q_source = source_quat;
@@ -144,7 +141,7 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
     sourceVector.pose.orientation.w = q_source.w();
     // std::cout << "  sourceVector: " << sourceVector << std::endl;
 
-    tf2::doTransform(sourceVector, destVector, worldToBaseTransform);
+    tf2::doTransform(sourceVector, destVector, egocanFrameToWorldFrame);
 
     // std::cout << "  destVector: " << destVector << std::endl;
 
@@ -161,9 +158,9 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
     dest[0] = destVector.pose.position.x;
     dest[1] = destVector.pose.position.y;
     dest[2] = destVector.pose.position.z;
-    dest[3] = yaw; // eulers_dest[0]; // yaw
+    dest[3] = roll; // eulers_dest[0]; // yaw
     dest[4] = pitch; // eulers_dest[1]; // pitch
-    dest[5] = roll; // eulers_dest[2]; // roll
+    dest[5] = yaw; // eulers_dest[2]; // roll
 
     return dest;
 }
