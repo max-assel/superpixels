@@ -2,6 +2,8 @@
 
 #include <superpixels/utils.h>
 
+#include <ros/package.h>
+
 #include <opencv2/opencv.hpp>
 
 // Include CvBridge, Image Transport, Image msg
@@ -41,6 +43,9 @@ class Visualizer
         void setParams(const SuperpixelParams & params);
 
         void setColors();
+
+        void outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
+                                const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls);
 
     private:
         void publishPlanarRegions(const cv::Mat & depth_img, 
