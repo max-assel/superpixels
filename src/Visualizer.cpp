@@ -121,7 +121,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     publishPlanarRegions(depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
-    outputToDatFile(raw_depth_img_ptr, superpixel_convex_hulls);
+    // outputToDatFile(raw_depth_img_ptr, superpixel_convex_hulls);
 
     return;
 }
