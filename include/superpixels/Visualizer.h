@@ -37,6 +37,7 @@ class Visualizer
                         const std::vector<std::vector<double>> & centers,
                         const cv::Mat & clusters,
                         const std::vector<int> & center_counts,
+                        const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                         const std::vector<Eigen::Matrix3d> & superpixel_rotations);
 

@@ -23,13 +23,14 @@ Eigen::Vector3d ConvexHullifier::projectPointOntoPlane(const Eigen::Vector3d & r
 
 void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
                             const std::vector<std::vector<cv::Point>> & superpixels,
+                            std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                             std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                             std::vector<Eigen::Matrix3d> & egocan_to_region_rotations,
                             const cv::Mat & depth_img)
 {
     // ROS_INFO_STREAM("   [ConvexHullifier::run]");
 
-    std::vector<std::vector<Eigen::Vector2d>> superpixel_projections(centers.size());
+    superpixel_projections = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
     superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
     egocan_to_region_rotations = std::vector<Eigen::Matrix3d>(centers.size());
 

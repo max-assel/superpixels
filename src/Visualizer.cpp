@@ -69,6 +69,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
                             const std::vector<std::vector<double>> & centers,
                             const cv::Mat & clusters,
                             const std::vector<int> & center_counts,
+                            const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                             const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                             const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
@@ -121,7 +122,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     publishPlanarRegions(depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
-    // outputToDatFile(raw_depth_img_ptr, superpixel_convex_hulls);
+    outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 
     return;
 }
@@ -524,18 +525,18 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
 }
 
 void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-                                    const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls)
+                                    const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections)
 {
     ros::Time time = raw_depth_img_ptr->header.stamp;
     std::ofstream dat_file;
-    std::string dat_file_path = ros::package::getPath("superpixels") + "/data/" + std::to_string(time.sec) + ".dat";
+    std::string dat_file_path = ros::package::getPath("superpixels") + "/data/" + std::to_string(time.sec) + "_" + std::to_string(time.nsec) + ".dat";
     dat_file.open(dat_file_path);
 
-    for (int i = 0; i < superpixel_convex_hulls.size(); i++)
+    for (int i = 0; i < superpixel_projections.size(); i++)
     {
-        for (int j = 0; j < superpixel_convex_hulls[i].size(); j++)
+        for (int j = 0; j < superpixel_projections[i].size(); j++)
         {
-            dat_file << superpixel_convex_hulls[i][j][0] << " " << superpixel_convex_hulls[i][j][1] << " " << i << std::endl;
+            dat_file << superpixel_projections[i][j][0] << " " << superpixel_projections[i][j][1] << " " << i << std::endl;
         }
         // dat_file << std::endl;
     }
