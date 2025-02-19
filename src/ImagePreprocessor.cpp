@@ -365,10 +365,11 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     ros::Time lookupTime = raw_depth_img_ptr->header.stamp;
     std::string egocan_frame = raw_depth_img_ptr->header.frame_id;
 
-    geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
-        tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
+    // geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
+    //     tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
 
-    double default_height = egocanFrameToWorldFrame.transform.translation.z;
+    // double default_height = egocanFrameToWorldFrame.transform.translation.z;
+    double default_height = 0.385;
 
     generator.seed(123456789);
     std::normal_distribution<double> distribution(0.0, 0.00001);
