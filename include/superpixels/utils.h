@@ -17,7 +17,7 @@ struct SuperpixelParams
 {
     // Floor image parameters
     int k_c_ = 512; // Floor width (pixels)
-    double v_fov_ = M_PI / 3; // Vertical field of view (radians)
+    double v_fov_ = M_PI / 4; // Vertical field of view (radians)
     double v_offset_ = 0.0;
     double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
 

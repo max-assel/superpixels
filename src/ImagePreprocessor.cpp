@@ -362,8 +362,8 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
 {
     // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::fillInImage]");
 
-    ros::Time lookupTime = raw_depth_img_ptr->header.stamp;
-    std::string egocan_frame = raw_depth_img_ptr->header.frame_id;
+    // ros::Time lookupTime = raw_depth_img_ptr->header.stamp;
+    // std::string egocan_frame = raw_depth_img_ptr->header.frame_id;
 
     // geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
     //     tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
