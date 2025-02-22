@@ -69,17 +69,37 @@ inline bool isPixelValid(const cv::Mat & depth_image,
                             const cv::Point & pixel,
                             const int & k_c)
 {
+    //////////////////
+    // IMAGE BOUNDS //
+    //////////////////
+
     if (!isPixelInBounds(k_c, pixel))
     {
         return false;
     }
 
+    ///////////
+    // DEPTH //
+    ///////////
+
     float depth = depth_image.at<float>(pixel.y, pixel.x);
 
-    if (std::isnan(depth) || std::abs(depth) < 1e-6 || depth < 0)
+    if (std::isnan(depth) || std::abs(depth) < 1e-6)
     {
         return false;
     }
+
+    float min_acceptable_depth = 0.0;
+    float max_acceptable_depth = 0.5;
+
+    if (depth < min_acceptable_depth || depth > max_acceptable_depth)
+    {
+        return false;
+    }
+
+    ///////////
+    // LABEL //
+    ///////////
 
     // uint8_t label = label_image.at<uint8_t>(pixel.y, pixel.x);
 
@@ -88,6 +108,10 @@ inline bool isPixelValid(const cv::Mat & depth_image,
     //     ROS_WARN_STREAM("Passing depth check but failing label check.");
     //     return false;
     // }
+
+    ////////////
+    // NORMAL //
+    ////////////
 
     cv::Vec3f normal = normal_image.at<cv::Vec3f>(pixel.y, pixel.x);
 
