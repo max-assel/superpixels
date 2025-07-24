@@ -14,9 +14,9 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
                         const cv::Mat & depth_image, 
                         const cv::Vec3f & og_normal)
 {
-// ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::ransac]");
+// RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::ransac]");
 
-    // ROS_INFO_STREAM("       number of points: " << pixels.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       number of points: " << pixels.size());
 
     cv::Vec3f normal = og_normal;
 
@@ -31,22 +31,22 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
         indices.clear();
         inliers.clear();
 
-        // ROS_INFO_STREAM("       iteration: " << n);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       iteration: " << n);
 
-        // ROS_INFO_STREAM("           sampling ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           sampling ...");
         sample(pixels, samples, indices);
 
-        // ROS_INFO_STREAM("           fitting ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           fitting ...");
         // fit
         fit(samples, depth_image, params_.ransac_K, x);
 
-        // ROS_INFO_STREAM("           computing inliers ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           computing inliers ...");
         // compute inliers
         compute_inliers(pixels, depth_image, inliers, x);
 
-        // ROS_INFO_STREAM("           number of inliers: " << inliers.size());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           number of inliers: " << inliers.size());
 
-        // ROS_INFO_STREAM("           updating ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           updating ...");
         // update
         if (inliers.size() > max_inliers)
         {
@@ -75,7 +75,7 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
         {
             int rand_idx = rand();
             idx = rand_idx % pixels.size();
-            // ROS_INFO_STREAM("           rand_idx: " << rand_idx << ", idx: " << idx);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           rand_idx: " << rand_idx << ", idx: " << idx);
         }
         samples.push_back(pixels[idx]);
         indices.push_back(idx);

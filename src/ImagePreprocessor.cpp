@@ -1,10 +1,12 @@
 #include <superpixels/ImagePreprocessor.h>
 
-ImagePreprocessor::ImagePreprocessor(const SuperpixelParams & params)
+ImagePreprocessor::ImagePreprocessor(const SuperpixelParams & params, const rclcpp::Node::SharedPtr & node)
 {
     params_ = params;
+    node_ = node;
 
-    tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
+    tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
+    tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
 }
 
 void ImagePreprocessor::setParams(const SuperpixelParams & params)
@@ -18,7 +20,7 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
                                     cv::Mat & cleaned_normal_img,
                                     cv::Mat & visited)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::cleanImages]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::cleanImages]");
 
     // Depth
     cleaned_depth_img = cv::Mat(raw_depth_img.size(), CV_32F, cv::Scalar(0));
@@ -74,7 +76,7 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
     //     }
     // }    
 
-    // ROS_INFO_STREAM("       Checking label image ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Checking label image ...");
 
     // for (int r = 0; r < cleaned_label_img.rows; r++)
     // {
@@ -90,7 +92,7 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
     //     }
     // }
 
-    // ROS_INFO_STREAM("       Checking normal image ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Checking normal image ...");
 
     // for (int r = 0; r < cleaned_normal_img.rows; r++)
     // {
@@ -114,7 +116,7 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
                                     // const cv::Mat & label_img,
                                     const cv::Mat & normal_img)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::healthCheck]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::healthCheck]");
     // Detecting invalid pixels
 
     int nan_depth_count = 0;
@@ -130,7 +132,7 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
     int finite_normal_count = 0;
     int zero_normal_count = 0;
 
-    // ROS_INFO_STREAM("        Checking images ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "        Checking images ...");
 
     // Depth
     for (int r = 0; r < depth_img.rows; r++)
@@ -141,15 +143,15 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
 
             if (std::isnan(depth))
             {
-                ROS_WARN_STREAM_COND(nan_depth_count == 0, "            Detected NaN depth pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+                RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), nan_depth_count == 0, "            Detected NaN depth pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
                 nan_depth_count++;
             } else if (std::abs(depth) < 1e-6)
             {
-                ROS_WARN_STREAM_COND(zero_depth_count == 0, "            Detected zero depth pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+                RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), zero_depth_count == 0, "            Detected zero depth pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
                 zero_depth_count++;
             } else if (depth < 0)
             {
-                ROS_WARN_STREAM_COND(negative_depth_count == 0, "            Detected negative depth pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+                RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), negative_depth_count == 0, "            Detected negative depth pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
                 negative_depth_count++;
             } else
             {
@@ -160,11 +162,11 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
 
             // if (std::isnan(label))
             // {
-            //     ROS_WARN_STREAM_COND(nan_label_count == 0, "            Detected NaN label pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+            //     RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), nan_label_count == 0, "            Detected NaN label pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
             //     nan_label_count++;
             // } else if (label < 0)
             // {
-            //     ROS_WARN_STREAM_COND(negative_label_count == 0, "            Detected negative label pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+            //     RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), negative_label_count == 0, "            Detected negative label pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
             //     negative_label_count++;
             // } else
             // {
@@ -175,11 +177,11 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
 
             if (std::isnan(normal.val[0]) || std::isnan(normal.val[1]) || std::isnan(normal.val[2]))
             {
-                ROS_WARN_STREAM_COND(nan_normal_count == 0, "            Detected NaN normal pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+                RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), nan_normal_count == 0, "            Detected NaN normal pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
                 nan_normal_count++;
             } else if (cv::norm(normal) < DELTA)
             {
-                ROS_WARN_STREAM_COND(zero_normal_count == 0, "            Detected zero normal pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
+                RCLCPP_WARN_STREAM_EXPRESSION(node_->get_logger(), zero_normal_count == 0, "            Detected zero normal pixel"); //  at: (" << r << ", " << c << "), zeroing ...");
                 zero_normal_count++;
             } else
             {
@@ -190,27 +192,27 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
 
     int total_pixels = depth_img.rows * depth_img.cols;
 
-    ROS_INFO_STREAM("        Health check:");
-    ROS_INFO_STREAM("           Depth:");
-    ROS_INFO_STREAM("               NaN count: " << nan_depth_count);
-    ROS_INFO_STREAM("               Negative count: " << negative_depth_count);
-    ROS_INFO_STREAM("               Zero count: " << zero_depth_count);
-    ROS_INFO_STREAM("               Finite count: " << finite_depth_count);
-    ROS_INFO_STREAM("               Unaccounted for: " << total_pixels - (nan_depth_count + negative_depth_count + zero_depth_count + finite_depth_count));
-    // ROS_INFO_STREAM("        Label:");
-    // ROS_INFO_STREAM("               NaN count: " << nan_label_count);
-    // ROS_INFO_STREAM("               Negative count: " << negative_label_count);
-    // ROS_INFO_STREAM("               Finite count: " << finite_label_count);
-    // ROS_INFO_STREAM("               Unaccounted for: " << total_pixels - (nan_label_count + negative_label_count + finite_label_count));
-    ROS_INFO_STREAM("        Normal:");
-    ROS_INFO_STREAM("               NaN count: " << nan_normal_count);
-    ROS_INFO_STREAM("               Zero count: " << zero_normal_count);
-    ROS_INFO_STREAM("               Finite count: " << finite_normal_count);
-    ROS_INFO_STREAM("               Unaccounted for: " << total_pixels - (nan_normal_count + zero_normal_count + finite_normal_count));
+    RCLCPP_INFO_STREAM(node_->get_logger(), "        Health check:");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "           Depth:");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               NaN count: " << nan_depth_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Negative count: " << negative_depth_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Zero count: " << zero_depth_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Finite count: " << finite_depth_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Unaccounted for: " << total_pixels - (nan_depth_count + negative_depth_count + zero_depth_count + finite_depth_count));
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "        Label:");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "               NaN count: " << nan_label_count);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "               Negative count: " << negative_label_count);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "               Finite count: " << finite_label_count);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "               Unaccounted for: " << total_pixels - (nan_label_count + negative_label_count + finite_label_count));
+    RCLCPP_INFO_STREAM(node_->get_logger(), "        Normal:");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               NaN count: " << nan_normal_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Zero count: " << zero_normal_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Finite count: " << finite_normal_count);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "               Unaccounted for: " << total_pixels - (nan_normal_count + zero_normal_count + finite_normal_count));
 
     if (finite_depth_count != finite_normal_count)
     {
-        ROS_WARN_STREAM("        Finite counts do not match between depth and normal images.");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "        Finite counts do not match between depth and normal images.");
     }
 
 }
@@ -222,7 +224,7 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
                                             // cv::Mat & preprocessed_label_img,
                                             cv::Mat & preprocessed_normal_img)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::preprocessImages]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::preprocessImages]");
 
     if (params_.kernel_radius_ < 1)
     {
@@ -326,7 +328,7 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
     // preprocessed_label_img = dilated_label_img.clone();
     preprocessed_normal_img = dilated_normal_img.clone();
 
-    // ROS_INFO_STREAM("       Comparing normal image to dilated normal image ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Comparing normal image to dilated normal image ...");
     // Compare normal image with dilated normal image
     // for (int r = 0; r < cleaned_normal_img.rows; r++)
     // {
@@ -343,9 +345,9 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
 
     //         cv::Vec3f dilated_normal = preprocessed_normal_img.at<cv::Vec3f>(r, c);
 
-    //         ROS_INFO_STREAM("       Normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
-    //         // ROS_INFO_STREAM("       Added normal: (" << added_normal.val[0] << ", " << added_normal.val[1] << ", " << added_normal.val[2] << ")");
-    //         ROS_INFO_STREAM("       Dilated Normal: (" << dilated_normal.val[0] << ", " << dilated_normal.val[1] << ", " << dilated_normal.val[2] << ")");
+    //         RCLCPP_INFO_STREAM(node_->get_logger(), "       Normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
+    //         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Added normal: (" << added_normal.val[0] << ", " << added_normal.val[1] << ", " << added_normal.val[2] << ")");
+    //         RCLCPP_INFO_STREAM(node_->get_logger(), "       Dilated Normal: (" << dilated_normal.val[0] << ", " << dilated_normal.val[1] << ", " << dilated_normal.val[2] << ")");
             
     //     }
     // }    
@@ -360,7 +362,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                                     cv::Mat & filled_normal_img,
                                     const cv_bridge::CvImagePtr & raw_depth_img_ptr)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::fillInImage]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::fillInImage]");
 
     // ros::Time lookupTime = raw_depth_img_ptr->header.stamp;
     // std::string egocan_frame = raw_depth_img_ptr->header.frame_id;
@@ -376,7 +378,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
 
   // generator.seed(std::hash<std::string>{}(regionID));
 
-    // ROS_INFO_STREAM("       egocanFrameToWorldFrame: " << egocanFrameToWorldFrame);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       egocanFrameToWorldFrame: " << egocanFrameToWorldFrame);
 
     // Depth
     filled_depth_img = cleaned_depth_img.clone();
@@ -393,7 +395,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     {
         for (int c = delta; c < (cleaned_depth_img.cols - delta); c += delta)
         {
-            // ROS_INFO_STREAM("    Checking pixel: (" << r << ", " << c << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "    Checking pixel: (" << r << ", " << c << ")");
 
             cv::Point curr_pixel(c, r);
             if (isPixelInBounds(params_.k_c_, curr_pixel) )
@@ -421,14 +423,14 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
 
                 if (!found_visited_pixel)
                 {
-                    // ROS_INFO_STREAM("       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
+                    // RCLCPP_INFO_STREAM(node_->get_logger(), "       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
 
                     filled_depth_img.at<float>(r, c) = default_height + distribution(generator);
                     // filled_label_img.at<uint8_t>(r, c) = 3;
                     filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
                 } else
                 {
-                    // ROS_INFO_STREAM("       invalid");
+                    // RCLCPP_INFO_STREAM(node_->get_logger(), "       invalid");
                 }
             }
         }

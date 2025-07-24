@@ -1,45 +1,52 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path)
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node, const std::string & config_path)
 {
     srand(123456789); // seed random calls
 
-    nh_ = nh;
+    // nh_ = nh;
+    node_ = node;
 
-    ROS_INFO_STREAM("   params_:");
-    ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
-    ROS_INFO_STREAM("       num_iterations_: " << params_.num_iterations_);
-    ROS_INFO_STREAM("       num_dilation_iterations_: " << params_.num_dilation_iterations_);
-    ROS_INFO_STREAM("       w_normal_: " << params_.w_normal_);
-    ROS_INFO_STREAM("       w_pos_: " << params_.w_pos_);
-    ROS_INFO_STREAM("       w_compact_: " << params_.w_compact_);
-    ROS_INFO_STREAM("       kernel_radius_: " << params_.kernel_radius_);
-    ROS_INFO_STREAM("       k_c_: " << params_.k_c_);
-    ROS_INFO_STREAM("       v_fov_: " << params_.v_fov_);
-    ROS_INFO_STREAM("       v_offset_: " << params_.v_offset_);
-    ROS_INFO_STREAM("       h_: " << params_.h_);
-    ROS_INFO_STREAM("       warm_start_: " << params_.warm_start_);
-    ROS_INFO_STREAM("       constraint_: " << params_.constraint_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "   params_:");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_dilation_iterations_: " << params_.num_dilation_iterations_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_normal_: " << params_.w_normal_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_pos_: " << params_.w_pos_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_compact_: " << params_.w_compact_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       kernel_radius_: " << params_.kernel_radius_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       k_c_: " << params_.k_c_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       v_fov_: " << params_.v_fov_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       v_offset_: " << params_.v_offset_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       h_: " << params_.h_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       warm_start_: " << params_.warm_start_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       constraint_: " << params_.constraint_);
 
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::calculateStep]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::calculateStep]");
 
     int num_pixels = params_.k_c_ * params_.k_c_;
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
 
     // Set up subscribers and publishers
-    image_transport::ImageTransport it(nh);
+    image_transport::ImageTransport it(node_);
 
     std::string depth_img_topic =  "/egocylinder/floor_image";
     // std::string label_img_topic =  "/egocylinder/floor_labels";
     std::string normal_img_topic = "/egocylinder/floor_normals";
 
-    nh_.getParam("depth_img_topic", depth_img_topic);
-    // nh_.getParam("label_img_topic", label_img_topic);
-    nh_.getParam("normal_img_topic", normal_img_topic);
+    // nh_.getParam("depth_img_topic", depth_img_topic);
+    depth_img_topic = node_->get_parameter("depth_img_topic").as_string();
 
-    raw_depth_img_sub_.subscribe(it, depth_img_topic, 3);
+    // nh_.getParam("label_img_topic", label_img_topic);
+    
+    // nh_.getParam("normal_img_topic", normal_img_topic);
+    normal_img_topic = node_->get_parameter("normal_img_topic").as_string();
+
+    rclcpp::QoS qos = rclcpp::QoS(10);
+
+    raw_depth_img_sub_.subscribe(node_.get(), depth_img_topic, "compressed");
     // raw_label_img_sub_.subscribe(it, label_img_topic, 3);
-    raw_normal_img_sub_.subscribe(it, normal_img_topic, 3);
+    raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic, "compressed");
 
     msg_sync_ = boost::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 10); // raw_label_img_sub_, 
     msg_sync_->registerCallback(boost::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2)); // , _3
@@ -50,8 +57,8 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(ros::NodeHandle nh, const std
 
     visited_ = cv::Mat(params_.k_c_, params_.k_c_, CV_8UC1, cv::Scalar(0));
 
-    imagePreprocessor_ = new ImagePreprocessor(params_);
-    visualizer_ = new Visualizer(params_, nh);
+    imagePreprocessor_ = new ImagePreprocessor(params_, node_);
+    visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
 }
@@ -65,45 +72,45 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
     delete convexHullifier_;
 }
 
-void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
-{
-    // Dilation parameters
-    params_.num_dilation_iterations_ = config.num_dilation_iterations;
-    params_.kernel_radius_ = config.kernel_radius;
+// void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
+// {
+//     // Dilation parameters
+//     params_.num_dilation_iterations_ = config.num_dilation_iterations;
+//     params_.kernel_radius_ = config.kernel_radius;
 
-    // Superpixel algorithm parameters
-    params_.num_iterations_ = config.num_iterations;
-    params_.num_superpixels_ = config.num_superpixels;
-    int num_pixels = params_.k_c_ * params_.k_c_;
-    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
-    params_.constraint_ = config.constraint;
-    params_.ransac_ = config.ransac;
-    params_.snapping_ = config.snapping;
+//     // Superpixel algorithm parameters
+//     params_.num_iterations_ = config.num_iterations;
+//     params_.num_superpixels_ = config.num_superpixels;
+//     int num_pixels = params_.k_c_ * params_.k_c_;
+//     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+//     params_.constraint_ = config.constraint;
+//     params_.ransac_ = config.ransac;
+//     params_.snapping_ = config.snapping;
 
-    // Superpixel distance parameters
-    params_.w_normal_ = config.w_normal;
-    params_.w_pos_ = config.w_pos;
-    params_.w_compact_ = config.w_compact;
+//     // Superpixel distance parameters
+//     params_.w_normal_ = config.w_normal;
+//     params_.w_pos_ = config.w_pos;
+//     params_.w_compact_ = config.w_compact;
 
-    // RANSAC parameters
-    params_.ransac_K = config.ransac_K;
-    params_.ransac_N = config.ransac_N;
-    params_.ransac_T = config.ransac_T;
+//     // RANSAC parameters
+//     params_.ransac_K = config.ransac_K;
+//     params_.ransac_N = config.ransac_N;
+//     params_.ransac_T = config.ransac_T;
 
-    convexHullifier_->setParams(params_);
-    imagePreprocessor_->setParams(params_);
-    visualizer_->setParams(params_);
-    ransac_->setParams(params_);
-}
+//     convexHullifier_->setParams(params_);
+//     imagePreprocessor_->setParams(params_);
+//     visualizer_->setParams(params_);
+//     ransac_->setParams(params_);
+// }
 
-void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg, 
+void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::Image& depth_image_msg, 
                                                 // const sensor_msgs::ImageConstPtr& label_image_msg, 
-                                                const sensor_msgs::ImageConstPtr& normal_image_msg)
+                                                const sensor_msgs::Image& normal_image_msg)
 {   
     std::lock_guard<std::mutex> lock(img_mutex_);
 
-    // ROS_INFO_STREAM("[SuperpixelDepthSegmenter::allImageCallback]");
-    // ROS_INFO_STREAM("       time stamp: " << depth_image->header.stamp);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::allImageCallback]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       time stamp: " << depth_image->header.stamp);
 
     raw_depth_img_msg_ = depth_image_msg;
     // raw_label_img_msg_ = label_image_msg;
@@ -114,7 +121,7 @@ void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::ImageConstPtr
 
 bool SuperpixelDepthSegmenter::notReceivedDepthImage()
 {
-    return (raw_depth_img_msg_ == nullptr);
+    return (raw_depth_img_msg_.data.empty());
 }
 
 // bool SuperpixelDepthSegmenter::notReceivedLabelImage()
@@ -124,7 +131,7 @@ bool SuperpixelDepthSegmenter::notReceivedDepthImage()
 
 bool SuperpixelDepthSegmenter::notReceivedNormalImage()
 {
-    return (raw_normal_img_msg_ == nullptr);
+    return (raw_normal_img_msg_.data.empty());
 }
 
 bool SuperpixelDepthSegmenter::notReceivedImage()
@@ -134,13 +141,13 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
     bool notReceivedNormal = notReceivedNormalImage();
 
     if (notReceivedDepth)
-        ROS_WARN_STREAM("Not received depth image.");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Not received depth image.");
 
     // if (notReceivedLabel)
-        // ROS_WARN_STREAM("Not received label image.");
+        // RCLCPP_WARN_STREAM(node_->get_logger(), "Not received label image.");
 
     if (notReceivedNormal)
-        ROS_WARN_STREAM("Not received normal image.");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Not received normal image.");
 
     return (notReceivedDepth || notReceivedNormal); // notReceivedLabel || 
 }
@@ -151,7 +158,7 @@ void SuperpixelDepthSegmenter::run()
 
     if (notReceivedImage())
     {
-        ROS_WARN("Not ready to segment, no images received yet.");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Not ready to segment, no images received yet.");
         return;
     }
  
@@ -163,7 +170,7 @@ void SuperpixelDepthSegmenter::run()
 
     } catch (cv_bridge::Exception& e)
     {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
+        RCLCPP_ERROR(node_->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
 
@@ -171,7 +178,7 @@ void SuperpixelDepthSegmenter::run()
     //  || raw_label_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()
     if (raw_depth_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()) 
     {
-        ROS_ERROR("Image sizes do not match.");
+        RCLCPP_ERROR(node_->get_logger(), "Image sizes do not match.");
         return;
     }
 
@@ -192,7 +199,7 @@ void SuperpixelDepthSegmenter::run()
     imagePreprocessor_->cleanImages(raw_depth_img, raw_normal_img, // raw_label_img,  
                                     cleaned_depth_img, cleaned_normal_img, visited_); // cleaned_label_img, 
 
-    // ROS_INFO_STREAM(" after cleaning, (480, 480) is: " << cleaned_depth_img.at<float>(480, 480));
+    // RCLCPP_INFO_STREAM(node_->get_logger(), " after cleaning, (480, 480) is: " << cleaned_depth_img.at<float>(480, 480));
 
     cleanEnd = std::chrono::steady_clock::now();
     int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
@@ -204,7 +211,7 @@ void SuperpixelDepthSegmenter::run()
     imagePreprocessor_->fillInImage(cleaned_depth_img, cleaned_normal_img, visited_, // cleaned_label_img, 
                                     filled_depth_img, filled_normal_img, raw_depth_img_ptr_); // filled_label_img, 
 
-    // ROS_INFO_STREAM(" after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
+    // RCLCPP_INFO_STREAM(node_->get_logger(), " after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
 
     fillEnd = std::chrono::steady_clock::now();
     int64_t fill_total_time = std::chrono::duration_cast<std::chrono::microseconds>(fillEnd - fillBegin).count();
@@ -220,7 +227,7 @@ void SuperpixelDepthSegmenter::run()
     imagePreprocessor_->preprocessImages(filled_depth_img, filled_normal_img, // filled_label_img, 
                                             preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
 
-    // ROS_INFO_STREAM(" after preprocessing, (480, 480) is: " << preprocessed_depth_img.at<float>(480, 480));
+    // RCLCPP_INFO_STREAM(node_->get_logger(), " after preprocessing, (480, 480) is: " << preprocessed_depth_img.at<float>(480, 480));
 
     preprocessEnd = std::chrono::steady_clock::now();
     int64_t preprocess_total_time = std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
@@ -249,7 +256,7 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
 
-    ROS_INFO_STREAM_THROTTLE(3, "Timing ---- \n" << 
+    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), node_->get_clock(), 3, "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
@@ -317,7 +324,7 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     {
         for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
         {        
-            // ROS_INFO_STREAM("       (r, c): (" << r << ", " << c << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       (r, c): (" << r << ", " << c << ")");
 
             // float depth = depth_image.at<float>(r, c);
 
@@ -337,8 +344,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 
             if (!isPixelValid(depth_image, normal_image, localMinimum, params_.k_c_)) // label_image, 
             {
-            //     ROS_INFO_STREAM("       Invalid local minimum found");
-            //     ROS_INFO_STREAM("           setting (" << r << ", " << c << ") to default ground floor value ...");
+            //     RCLCPP_INFO_STREAM(node_->get_logger(), "       Invalid local minimum found");
+            //     RCLCPP_INFO_STREAM(node_->get_logger(), "           setting (" << r << ", " << c << ") to default ground floor value ...");
             //     // augment center to be default ground floor value
             //     localMinimum = originalCenter;
             //     depth = 0.385;
@@ -363,8 +370,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
         }
     }
 
-    // ROS_INFO_STREAM("       centers_.size(): " << centers_.size());
-    // ROS_INFO_STREAM("       center_counts_.size(): " << center_counts_.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers_.size(): " << centers_.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       center_counts_.size(): " << center_counts_.size());
 
 }
 
@@ -430,7 +437,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                     // const cv::Mat & label_image,
                                                     const cv::Mat & normal_image)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::generateSuperpixels]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::generateSuperpixels]");
 
     srand(1);
 
@@ -449,7 +456,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
     {
-        // ROS_INFO_STREAM("       Iteration: " << i);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Iteration: " << i);
 
         /* Reset distance and cluster values. */
         distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
@@ -528,7 +535,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }     
 
         /* Normalize the clusters. */
-        // ROS_INFO_STREAM("       Normalizing clusters ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normalizing clusters ...");
         for (int j = 0; j < centers_.size(); j++) 
         {
             if (center_counts_[j] == 0) 
@@ -536,7 +543,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 continue;
             }
 
-            // ROS_INFO_STREAM("           Center " << j << ", count: " << center_counts_[j]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << ", count: " << center_counts_[j]);
 
             // Average
             centers_[j][0] /= center_counts_[j];
@@ -559,7 +566,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
 
         /* Snap clusters to nearest pixel */
-        // ROS_INFO_STREAM("       Refining via RANSAC ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
         for (int j = 0; j < centers_.size(); j++) 
         {
             if (center_counts_[j] == 0) 
@@ -567,9 +574,9 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 continue;
             }
 
-            // ROS_INFO_STREAM("       [" << j << "]: ");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
 
-            // ROS_INFO_STREAM("           superpixels size: " << superpixels_[j].size());
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
 
             if (params_.snapping_)
             {
@@ -588,14 +595,14 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             if (params_.ransac_)
             {
                 // refine normal via RANSAC
-                // ROS_INFO_STREAM("           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
-                // ROS_INFO_STREAM("           depth: " << centers_[j][2]);
-                // ROS_INFO_STREAM("           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
-                // ROS_INFO_STREAM("           counts: " << center_counts_[j]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
                 
                 cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
                 candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
-                // ROS_INFO_STREAM("           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
                 centers_[j][3] = candidate_normal.val[0];
                 centers_[j][4] = candidate_normal.val[1];
@@ -604,15 +611,15 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
     }
 
-    // ROS_INFO_STREAM("       centers:");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers:");
     // for (int j = 0; j < center_counts_.size(); j++)
     // {
-    //     ROS_INFO_STREAM("           [" << j << "]: ");
-    //     ROS_INFO_STREAM("               pixel: " << centers_[j][0] << ", " << centers_[j][1]);
-    //     ROS_INFO_STREAM("               depth: " << centers_[j][2]);
-    //     // ROS_INFO_STREAM("               label: " << centers_[i][3]);
-    //     ROS_INFO_STREAM("               normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
-    //     ROS_INFO_STREAM("               counts: " << center_counts_[j]);
+    //     RCLCPP_INFO_STREAM(node_->get_logger(), "           [" << j << "]: ");
+    //     RCLCPP_INFO_STREAM(node_->get_logger(), "               pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+    //     RCLCPP_INFO_STREAM(node_->get_logger(), "               depth: " << centers_[j][2]);
+    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               label: " << centers_[i][3]);
+    //     RCLCPP_INFO_STREAM(node_->get_logger(), "               normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
+    //     RCLCPP_INFO_STREAM(node_->get_logger(), "               counts: " << center_counts_[j]);
     // }
 }
 
@@ -646,7 +653,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
                                                     const cv::Vec3f & normal,
                                                     const cv::Point & pixel)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::computeDistance]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::computeDistance]");
 
     cv::Point center_pixel = cv::Point(centers_[center_idx][0], centers_[center_idx][1]);
     float center_depth = centers_[center_idx][2];
@@ -659,18 +666,18 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     cv::Vec3f centerEgocanPt;
     pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
-    // ROS_INFO_STREAM("           center_idx: " << center_idx);
-    // ROS_INFO_STREAM("           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
-    // ROS_INFO_STREAM("           center_world_pt: " << centerEgocanPt);
-    // ROS_INFO_STREAM("           center_depth: " << center_depth);
-    // // ROS_INFO_STREAM("           center_label: " << center_label);
-    // ROS_INFO_STREAM("           center_normal: " << center_normal);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_idx: " << center_idx);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_world_pt: " << centerEgocanPt);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_depth: " << center_depth);
+    // // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_label: " << center_label);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_normal: " << center_normal);
 
-    // ROS_INFO_STREAM("           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
-    // ROS_INFO_STREAM("           world_pt: " << egocanPt);
-    // ROS_INFO_STREAM("           depth: " << depth);
-    // // ROS_INFO_STREAM("           label: " << label);
-    // ROS_INFO_STREAM("           normal: " << normal);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           world_pt: " << egocanPt);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << depth);
+    // // RCLCPP_INFO_STREAM(node_->get_logger(), "           label: " << label);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << normal);
 
 
     // Normal term
@@ -683,10 +690,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     if (d_normal > max_d_normal)
     {
-        ROS_WARN_STREAM("       d_normal exceeds max, d_normal: " << d_normal << ", max_d_normal: " << max_d_normal);
+        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_normal exceeds max, d_normal: " << d_normal << ", max_d_normal: " << max_d_normal);
     }
 
-    // ROS_INFO_STREAM("           d_normal: " << d_normal);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_normal: " << d_normal);
 
     // Position term
 
@@ -696,14 +703,14 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     if (d_posn > max_d_posn)
     {
-        ROS_WARN_STREAM("       d_posn exceeds max, d_posn: " << d_posn << ", max_d_posn: " << max_d_posn);
+        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_posn exceeds max, d_posn: " << d_posn << ", max_d_posn: " << max_d_posn);
     }
 
     // // Spatial term
     // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
     //                  pow(pixel.y - centers_[center_idx][4], 2));
 
-    // ROS_INFO_STREAM("           d_posn: " << d_posn);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_posn: " << d_posn);
 
     // Compactness term
     double d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
@@ -712,7 +719,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     if (d_compact > max_compact_dist)
     {
-        ROS_WARN_STREAM("       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
+        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
     }
 
     // double d_compact = cv::norm(centerEgocanPt - egocanPt);
@@ -729,7 +736,7 @@ cv::Point SuperpixelDepthSegmenter::findClosestPixel(const int & center_idx,
                                                         // const cv::Mat & label_image,
                                                         const cv::Mat & normal_image)
 {
-    // ROS_INFO_STREAM("   [SuperpixelDepthSegmenter::findClosestPixel]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::findClosestPixel]");
 
     cv::Point new_center = center;
 

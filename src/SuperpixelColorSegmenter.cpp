@@ -8,7 +8,7 @@
 
 SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std::string & config_path)
 {
-    // ROS_INFO_STREAM("[SuperpixelColorSegmenter::SuperpixelColorSegmenter]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelColorSegmenter::SuperpixelColorSegmenter]");
 
     nh_ = nh;
 
@@ -23,12 +23,12 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
     params_.num_iterations_ = configYamlNode["superpixels"]["num_iterations"].as<int>();
     params_.warm_start_ = configYamlNode["superpixels"]["warm_start"].as<bool>();
 
-    ROS_INFO_STREAM("   params_:");
-    ROS_INFO_STREAM("       num_superpixels_: " << params_.num_superpixels_);
-    ROS_INFO_STREAM("       n_c_: " << params_.n_c_);
-    ROS_INFO_STREAM("       n_s_: " << params_.n_s_);
-    ROS_INFO_STREAM("       num_iterations_: " << params_.num_iterations_);
-    ROS_INFO_STREAM("       warm_start_: " << params_.num_iterations_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "   params_:");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       n_c_: " << params_.n_c_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       n_s_: " << params_.n_s_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       warm_start_: " << params_.num_iterations_);
 
     color_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
@@ -48,7 +48,7 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
         return;
     } else
     {
-        ROS_INFO_STREAM("Read the image: " << image_name);
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Read the image: " << image_name);
     }
 
     center_grid_image_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -76,7 +76,7 @@ SuperpixelColorSegmenter::SuperpixelColorSegmenter(ros::NodeHandle nh, const std
 
 void SuperpixelColorSegmenter::run()
 {
-    // ROS_INFO_STREAM("[SuperpixelColorSegmenter::run]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelColorSegmenter::run]");
 
     std::chrono::steady_clock::time_point timeBegin, timeEnd;
     timeBegin = std::chrono::steady_clock::now();
@@ -93,7 +93,7 @@ void SuperpixelColorSegmenter::run()
     timeEnd = std::chrono::steady_clock::now();
     int64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
     double total_time_sec = total_time / 1.0e6; 
-    ROS_INFO_STREAM("Superpixels took: " << total_time_sec << " seconds");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Superpixels took: " << total_time_sec << " seconds");
 
     return;
 }
@@ -135,7 +135,7 @@ void SuperpixelColorSegmenter::visualize()
 
 void SuperpixelColorSegmenter::preprocessing()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::preprocessing]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::preprocessing]");
 
     cv::cvtColor(color_image_ptr_->image, lab_image, cv::COLOR_BGR2Lab);
     int width = lab_image.cols;
@@ -147,7 +147,7 @@ void SuperpixelColorSegmenter::preprocessing()
 
 void SuperpixelColorSegmenter::generateSuperpixels()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::generateSuperpixels]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::generateSuperpixels]");
     
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
@@ -301,7 +301,7 @@ void SuperpixelColorSegmenter::createConnectivity()
 
 void SuperpixelColorSegmenter::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color)
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displayCenterGrid]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::displayCenterGrid]");
     
     // Display center grid
     for (int i = 0; i < (int) centers_.size(); i++) 
@@ -359,13 +359,13 @@ void SuperpixelColorSegmenter::displayContours(cv::Mat & contours)
 
 void SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans(cv::Mat & overlaid_image)
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans]");
 
     std::vector<cv::Scalar> colors(centers_.size());
     
-    // ROS_INFO_STREAM("       Gathering ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Gathering ...");
 
-    // ROS_INFO_STREAM("           colors.size(): " << colors.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           colors.size(): " << colors.size());
 
 
     /* Gather the colour values per cluster. */
@@ -389,20 +389,20 @@ void SuperpixelColorSegmenter::displaySuperpixelsWithClusterMeans(cv::Mat & over
         }
     }
     
-    // ROS_INFO_STREAM("       Averaging ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Averaging ...");
 
-    // ROS_INFO_STREAM("           colors.size(): " << colors.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           colors.size(): " << colors.size());
 
     /* Divide by the number of pixels per cluster to get the mean colour. */
     for (int i = 0; i < colors.size(); i++) 
     {
-        // ROS_INFO_STREAM("       center_counts_[i]: " << center_counts_[i]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       center_counts_[i]: " << center_counts_[i]);
         colors[i].val[0] /= center_counts_[i];
         colors[i].val[1] /= center_counts_[i];
         colors[i].val[2] /= center_counts_[i];
     }
     
-    // ROS_INFO_STREAM("       Coloring ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Coloring ...");
 
     /* Fill in. */
     for (int c = 0; c < lab_image.cols; c++) 
@@ -457,7 +457,7 @@ cv::Point SuperpixelColorSegmenter::findLocalMinimum(const cv::Mat & image, cons
 
 void SuperpixelColorSegmenter::reset_data()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::reset_data]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::reset_data]");
     
     if (params_.warm_start_)
     {
@@ -483,15 +483,15 @@ void SuperpixelColorSegmenter::reset_data()
 
 void SuperpixelColorSegmenter::init_data()
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::init_data]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::init_data]");
 
     /* Initialize the cluster and distance matrices. */
     clusters_ = cv::Mat(lab_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
     distances_ = cv::Mat(lab_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
-    // ROS_INFO_STREAM("       image.cols: " << image.cols);
-    // ROS_INFO_STREAM("       image.rows: " << image.rows);
-    // ROS_INFO_STREAM("       params_.step_: " << params_.step_);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       image.cols: " << image.cols);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       image.rows: " << image.rows);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       params_.step_: " << params_.step_);
 
     /* Initialize the centers and counters. */
     centers_.clear();
@@ -501,7 +501,7 @@ void SuperpixelColorSegmenter::init_data()
         for (int j = params_.step_; j < lab_image.rows - (params_.step_ / 2); j += params_.step_)
         {
 
-            // ROS_INFO_STREAM("       (i, j): (" << i << ", " << j << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       (i, j): (" << i << ", " << j << ")");
 
 
             std::vector<double> center;
@@ -523,8 +523,8 @@ void SuperpixelColorSegmenter::init_data()
         }
     }
 
-    // ROS_INFO_STREAM("       centers_.size(): " << centers_.size());
-    // ROS_INFO_STREAM("       center_counts_.size(): " << center_counts_.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers_.size(): " << centers_.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       center_counts_.size(): " << center_counts_.size());
 
 
     return;

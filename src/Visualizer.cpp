@@ -1,13 +1,15 @@
 #include <superpixels/Visualizer.h>
 
-Visualizer::Visualizer(const SuperpixelParams & params, ros::NodeHandle nh)
+Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::SharedPtr & node)
 {
     params_ = params;
+    node_ = node;
 
-    tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
+    tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
+    tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
 
     // Set up subscribers and publishers
-    image_transport::ImageTransport it(nh);
+    image_transport::ImageTransport it(node_);
 
     fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
     fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -25,14 +27,17 @@ Visualizer::Visualizer(const SuperpixelParams & params, ros::NodeHandle nh)
     colored_cluster_img_pub_ = it.advertise("/superpixels/colored_clusters", 1);
     colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    colored_point_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
-    colored_centroids_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/superpixels/colored_centroids", 1);
+    // colored_point_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
+    // colored_centroids_pub_ = nh.advertise<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
+    colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
+    colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
+    terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
 
-    setColors();
+    setColors();    
 
     // set up terrain publisher
-    terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
-                                    ("/convex_plane_decomposition_ros/planar_terrain", 1);
+    // terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
+                                    // ("/convex_plane_decomposition_ros/planar_terrain", 1);
 }
 
 void Visualizer::setParams(const SuperpixelParams & params)
@@ -73,7 +78,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
                             const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                             const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
-    // ROS_INFO_STREAM("   [Visualizer::visualize]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::visualize]");
 
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -83,25 +88,25 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     //     return;
     // }
 
-    // ROS_INFO_STREAM("       Publishing final depth image");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr->encoding;
     fin_depth_img_ptr_->image = depth_image;
     fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
-    // ROS_INFO_STREAM("       Preparing final label image");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final label image");
     // fin_label_img_ptr_->header = raw_label_img_ptr->header;
     // fin_label_img_ptr_->encoding = raw_label_img_ptr->encoding;
     // fin_label_img_ptr_->image = label_image;
-    // fin_label_img_pub_.publish(fin_label_img_ptr_->toImageMsg());
+    // fin_label_img_pub_->publish(fin_label_img_ptr_->toImageMsg());
 
-    // ROS_INFO_STREAM("       Preparing final normal image");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final normal image");
     fin_normal_img_ptr_->header = raw_normal_img_ptr->header;
     fin_normal_img_ptr_->encoding = raw_normal_img_ptr->encoding;
     fin_normal_img_ptr_->image = normal_image;
     // No publishing normal image
 
-    // ROS_INFO_STREAM("       Publishing final colored normal image");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
     fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
     fin_normal_img_colored_ptr_->encoding = "rgb8";
     fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
@@ -134,15 +139,15 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                         const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
-    // ROS_INFO_STREAM("   [Visualizer::publishPlanarRegions]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions]");
 
-    convex_plane_decomposition_msgs::PlanarTerrain terrain_msg;
+    convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
 
-    ros::Time lookupTime = fin_depth_img_ptr_->header.stamp;
+    rclcpp::Time lookupTime = fin_depth_img_ptr_->header.stamp;
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
 
-    geometry_msgs::TransformStamped egocanFrameToWorldFrame = 
-        tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);
+    geometry_msgs::msg::TransformStamped egocanFrameToWorldFrame = 
+        tfBuffer_->lookupTransform("world", egocan_frame, lookupTime);
 
     double foot_radius = 0.02;
 
@@ -152,7 +157,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     convex_plane_decomposition::CgalPolygon2d polygon;
     convex_plane_decomposition::CgalPolygon2d inflated_polygon;
     convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
-    convex_plane_decomposition_msgs::PlanarRegion region_msg;
+    convex_plane_decomposition_msgs::msg::PlanarRegion region_msg;
 
     std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets(1);
 
@@ -167,20 +172,20 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
     Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
 
-    // ROS_INFO_STREAM("       planar regions:");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
     for (int i = 0; i < centers.size(); i++)
     {        
-        // ROS_INFO_STREAM("           i: " << i);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           i: " << i);
 
         if (center_counts[i] == 0)
         {
-            // ROS_WARN_STREAM("           Region " << i << " has no points.");
+            // RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has no points.");
             continue;
         }
 
         if (superpixel_convex_hulls[i].size() <= 3)
         {
-            // ROS_WARN_STREAM("           Region " << i << " has less than or equal to 3 points.");
+            // RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has less than or equal to 3 points.");
             continue;
         }
 
@@ -191,10 +196,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
         Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
 
-        // ROS_INFO_STREAM("               center (pixel): " << centers[i][0] << ", " << centers[i][1]);
-        // ROS_INFO_STREAM("               center (depth): " << centers[i][2]);
-        // ROS_INFO_STREAM("               center (egocan frame): " << centerEgocanPt.transpose());
-        // ROS_INFO_STREAM("               normal (egocan frame): " << centers[i][3] << ", " << centers[i][4] << ", " << centers[i][5]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (pixel): " << centers[i][0] << ", " << centers[i][1]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (depth): " << centers[i][2]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (egocan frame): " << centerEgocanPt.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               normal (egocan frame): " << centers[i][3] << ", " << centers[i][4] << ", " << centers[i][5]);
 
         regionToEgocanRotMat = egocan_to_region_rotations[i].transpose();
         regionToEgocanQuat = Eigen::Quaterniond(regionToEgocanRotMat);
@@ -207,13 +212,13 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
         region.transformPlaneToWorld.translation() = centerWorldPose.head(3);
         region.transformPlaneToWorld.linear() = egocanToWorldRotMat;
 
-        // ROS_INFO_STREAM("               translation: " << region.transformPlaneToWorld.translation().transpose());
-        // ROS_INFO_STREAM("               rotation: " << region.transformPlaneToWorld.linear().row(0));
-        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(1));
-        // ROS_INFO_STREAM("                         " << region.transformPlaneToWorld.linear().row(2));
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               translation: " << region.transformPlaneToWorld.translation().transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               rotation: " << region.transformPlaneToWorld.linear().row(0));
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(1));
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(2));
 
 
-        // ROS_INFO_STREAM("               convex hull:");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
         polygon.container().clear();
         inflated_polygon.container().clear();
         for (int j = 0; j < superpixel_convex_hulls[i].size(); j++)
@@ -222,7 +227,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
             // normal polygon
             polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
-            // ROS_INFO_STREAM("           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
 
             // inflated polygon
             double norm = convexHullPt.norm();
@@ -231,14 +236,14 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
             if (norm > foot_radius)
             {
                 inflatedConvexHullPt = convexHullPt - foot_radius * convexHullDir;
-                // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             } else
             {
                 inflatedConvexHullPt = 0.5 * convexHullPt;
-                // ROS_INFO_STREAM("           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             }
             inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
-            // ROS_INFO_STREAM("           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
         }
 
         polygonWithHoles.outer_boundary() = polygon;
@@ -255,18 +260,18 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
 
         region_msg = convex_plane_decomposition::toMessage(region);
         cv::Scalar color = colors_[i];
-        std_msgs::ColorRGBA region_color;
+        std_msgs::msg::ColorRGBA region_color;
         region_color.r = color[2] / 255.0;
         region_color.g = color[1] / 255.0;
         region_color.b = color[0] / 255.0;
         region_color.a = 1.0;
         region_msg.color = region_color;
 
-        terrain_msg.planarRegions.push_back(region_msg);
+        terrain_msg.planar_regions.push_back(region_msg);
 
-        // ROS_INFO_STREAM("   e0: " << e0.transpose());
-        // ROS_INFO_STREAM("   e1: " << e1.transpose());
-        // ROS_INFO_STREAM("   normal: " << normal.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   e0: " << e0.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   e1: " << e1.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   normal: " << normal.transpose());
     }    
 
     // placeholder gridMap
@@ -280,11 +285,11 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_img,
     grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
     grid_map.setFrameId("odom");
 
-    grid_map_msgs::GridMap grid_map_msg;
-    grid_map::GridMapRosConverter::toMessage(grid_map, grid_map_msg);
+    grid_map_msgs::msg::GridMap grid_map_msg;
+    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
     terrain_msg.gridmap = grid_map_msg; 
 
-    terrainPub_.publish(terrain_msg);
+    terrainPub_->publish(terrain_msg);
 }
 
 
@@ -309,7 +314,7 @@ void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv:
     double min_depth = 0.0, max_depth = 0.0;
     cv::minMaxLoc(depth_image, &min_depth, &max_depth);
 
-    // ROS_INFO_STREAM("Converting to 8UC3...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "Converting to 8UC3...");
 
     for (int r = 0; r < color_depth_image.rows; r++)
     {
@@ -322,8 +327,8 @@ void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv:
                 continue;
             }
 
-            // ROS_INFO_STREAM("   (r, c): (" << r << ", " << c << ")");
-            // ROS_INFO_STREAM("       depth: " << depth);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
 
             int quantized_depth = (int) (depth * 255.0 / max_depth); // just scaling by max depth in image. If we do full max depth than image is really hard to see.
 
@@ -335,12 +340,12 @@ void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv:
 
 void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, const std::vector<std::vector<double>> & centers)
 {
-    // ROS_INFO_STREAM("   [SuperpixelColorSegmenter::displayCenterGrid]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::displayCenterGrid]");
     
     // Display center grid
     for (int i = 0; i < (int) centers.size(); i++) 
     {
-        // ROS_INFO_STREAM("       center[" << i << "]: (" << centers[i][0] << ", " << centers[i][1] << ")");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       center[" << i << "]: (" << centers[i][0] << ", " << centers[i][1] << ")");
         cv::circle(image, cv::Point(centers[i][0], centers[i][1]), 2, color, -1);
     }
 
@@ -350,7 +355,7 @@ void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, con
 void Visualizer::colorClusters(const cv::Mat & color_depth_image,
                                 const cv::Mat & clusters)
 {
-    // ROS_INFO_STREAM("   [Visualizer::colorClusters]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusters]");
     // overlay center grid on color version of depth image
     cv::Mat color_cluster_image = color_depth_image.clone();
 
@@ -371,10 +376,10 @@ void Visualizer::colorClusters(const cv::Mat & color_depth_image,
             int cluster_id = clusters.at<int>(r, c);
             if (cluster_id != -1)
             {
-                // ROS_INFO_STREAM("   (r, c): (" << r << ", " << c << ")");
-                // ROS_INFO_STREAM("       cluster_id: " << cluster_id);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "       cluster_id: " << cluster_id);
                 cv::Scalar color = colors_[cluster_id];
-                // ROS_INFO_STREAM("       color: " << color);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "       color: " << color);
                 color_cluster_image.at<cv::Vec3b>(r, c) = cv::Vec3b(color[0], color[1], color[2]);
             }
         }
@@ -391,11 +396,11 @@ void Visualizer::colorClusters(const cv::Mat & color_depth_image,
 
 void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::Mat & clusters)
 {
-    // ROS_INFO_STREAM("   [Visualizer::colorClusterPointCloud]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusterPointCloud]");
 
     // std::lock_guard<std::mutex> lock(cloud_mutex_);
 
-    // ROS_INFO_STREAM("       Coloring cluster point cloud ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Coloring cluster point cloud ...");
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
 
@@ -439,11 +444,11 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
         }
     }
 
-    sensor_msgs::PointCloud2 colored_cloud_msg;
+    sensor_msgs::msg::PointCloud2 colored_cloud_msg;
     pcl::toROSMsg(*colored_cloud, colored_cloud_msg);
     colored_cloud_msg.header = fin_depth_img_ptr_->header;
 
-    colored_point_cloud_pub_.publish(colored_cloud_msg);
+    colored_point_cloud_pub_->publish(colored_cloud_msg);
 
     return;
 }
@@ -451,18 +456,18 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
 void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers,
                                 const std::vector<int> & center_counts)
 {
-    // ROS_INFO_STREAM("   [Visualizer::colorCentroids]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorCentroids]");
 
     // clear prior markers
-    visualization_msgs::MarkerArray clear_marker_array;
-    visualization_msgs::Marker clearMarker;
+    visualization_msgs::msg::MarkerArray clear_marker_array;
+    visualization_msgs::msg::Marker clearMarker;
     clearMarker.id = 0;
     clearMarker.ns =  "clear";
-    clearMarker.action = visualization_msgs::Marker::DELETEALL;
+    clearMarker.action = visualization_msgs::msg::Marker::DELETEALL;
     clear_marker_array.markers.push_back(clearMarker);    
-    colored_centroids_pub_.publish(clear_marker_array);
+    colored_centroids_pub_->publish(clear_marker_array);
 
-    visualization_msgs::MarkerArray marker_array;
+    visualization_msgs::msg::MarkerArray marker_array;
 
     for (int i = 0; i < centers.size(); i++)
     {
@@ -471,12 +476,12 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
             continue;
         }
 
-        visualization_msgs::Marker marker;
+        visualization_msgs::msg::Marker marker;
         marker.header = fin_depth_img_ptr_->header;
         marker.ns = "superpixel_centroids";
         marker.id = i;
-        marker.type = visualization_msgs::Marker::ARROW;
-        marker.action = visualization_msgs::Marker::ADD;
+        marker.type = visualization_msgs::msg::Marker::ARROW;
+        marker.action = visualization_msgs::msg::Marker::ADD;
         marker.pose.position.x = 0.0;
         marker.pose.position.y = 0.0;
         marker.pose.position.z = 0.0;
@@ -494,7 +499,7 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
 
         marker.points.resize(2);
         double scale = 0.1;
-        geometry_msgs::Point p1, p2;
+        geometry_msgs::msg::Point p1, p2;
         p1.x = centerEgocanPt[0];
         p1.y = centerEgocanPt[1];
         p1.z = centerEgocanPt[2];
@@ -502,8 +507,8 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
         p2.y = p1.y + scale * center_normal[1];
         p2.z = p1.z + scale * center_normal[2];
 
-        // ROS_INFO_STREAM("       Centroid " << i << ": (" << p1.x << ", " << p1.y << ", " << p1.z << ")");
-        // ROS_INFO_STREAM("       Normal " << i << ": (" << centers[i][4] << ", " << centers[i][5] << ", " << centers[i][6] << ")");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Centroid " << i << ": (" << p1.x << ", " << p1.y << ", " << p1.z << ")");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normal " << i << ": (" << centers[i][4] << ", " << centers[i][5] << ", " << centers[i][6] << ")");
 
         marker.points[0] = p1;
         marker.points[1] = p2;
@@ -521,15 +526,15 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
         marker_array.markers.push_back(marker);
     }
 
-    colored_centroids_pub_.publish(marker_array);
+    colored_centroids_pub_->publish(marker_array);
 }
 
 void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections)
 {
-    ros::Time time = raw_depth_img_ptr->header.stamp;
+    rclcpp::Time time = raw_depth_img_ptr->header.stamp;
     std::ofstream dat_file;
-    std::string dat_file_path = ros::package::getPath("superpixels") + "/data/" + std::to_string(time.sec) + "_" + std::to_string(time.nsec) + ".dat";
+    std::string dat_file_path = rclcpp::package::getPath("superpixels") + "/data/" + std::to_string(time.sec) + "_" + std::to_string(time.nsec) + ".dat";
     dat_file.open(dat_file_path);
 
     for (int i = 0; i < superpixel_projections.size(); i++)

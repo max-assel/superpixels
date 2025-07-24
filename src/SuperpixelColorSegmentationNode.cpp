@@ -27,7 +27,7 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "superpixel_color_node");
     ros::NodeHandle nh;
 
-    ROS_INFO_STREAM("[SuperpixelColorSegmenter::main]");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelColorSegmenter::main]");
 
     ros::Rate loop_rate(30.0); // 30 Hz
 

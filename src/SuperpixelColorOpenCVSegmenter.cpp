@@ -71,7 +71,7 @@ void SuperpixelColorOpenCVSegmenter::runSegmentation()
     timeEnd = std::chrono::steady_clock::now();
     int64_t tracking_time = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeBegin).count();
     double tracking_time_sec = tracking_time / 1.0e6; 
-    ROS_INFO_STREAM("Superpixels took: " << tracking_time_sec << " seconds");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Superpixels took: " << tracking_time_sec << " seconds");
 
     overlayContoursWithMeans(); // overlaidContours, contourMask, labels, num_superpixels
 
@@ -83,7 +83,7 @@ void SuperpixelColorOpenCVSegmenter::runSegmentation()
     overlay_image_ptr_->header.stamp = color_image_ptr_->header.stamp;
     overlay_image_ptr_->image = overlaidContours;
 
-    // ROS_INFO_STREAM("contourMask middle pixel: " << contourMask.at<uint8_t>(contourMask.rows/2, contourMask.cols/2));
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "contourMask middle pixel: " << contourMask.at<uint8_t>(contourMask.rows/2, contourMask.cols/2));
 
     color_image_pub_.publish(color_image_ptr_->toImageMsg());
     overlay_image_pub_.publish(overlay_image_ptr_->toImageMsg());
@@ -101,32 +101,32 @@ void SuperpixelColorOpenCVSegmenter::overlayContoursWithMeans() // cv::Mat & ove
     {
         for (int c = 0; c < labels.cols; c++)
         {
-            // ROS_INFO_STREAM("[" << r << ", " << c << "]");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "[" << r << ", " << c << "]");
             cv::Vec3b color = color_image_ptr_->image.at<cv::Vec3b>(r, c);
             cv::Vec3i color_int = color;
-            // ROS_INFO_STREAM("       color: " << color);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       color: " << color);
             const int label = labels.at<int>(r, c);
-            // ROS_INFO_STREAM("       label: " << label);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       label: " << label);
 
-            // ROS_INFO_STREAM("       pre-counts[" << label << "]: " << counts[label]);
-            // ROS_INFO_STREAM("       pre-means_int[" << label << "]: " << means_int[label]);            
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       pre-counts[" << label << "]: " << counts[label]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       pre-means_int[" << label << "]: " << means_int[label]);            
 
             counts[label] = counts[label] + 1;
-            // ROS_INFO_STREAM("       counts[" << label << "]: " << counts[label]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       counts[" << label << "]: " << counts[label]);
             cv::Vec3i mult = means_int[label] * (counts[label] - 1);
-            // ROS_INFO_STREAM("       mult: " << mult);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       mult: " << mult);
             cv::Vec3i num = mult + color_int;
-            // ROS_INFO_STREAM("       num: " << num);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       num: " << num);
             means_int[label] = (num) / counts[label];
-            // ROS_INFO_STREAM("       means_int[" << label << "]: " << means_int[label]);            
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       means_int[" << label << "]: " << means_int[label]);            
         }
     }
 
-    // ROS_INFO_STREAM("means:");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "means:");
     for (int i = 0; i < num_superpixels; i++)
     {
         means_byte[i] = means_int[i];
-        // ROS_INFO_STREAM("   [" << i << "]: " << means[i]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   [" << i << "]: " << means[i]);
     }
 
     overlaidContours = cv::Mat::zeros(labels.size(), CV_8UC3);

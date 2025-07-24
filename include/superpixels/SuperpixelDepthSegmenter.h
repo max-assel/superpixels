@@ -3,7 +3,7 @@
 #include <image_transport/subscriber_filter.h>
 #include <tf2_ros/message_filter.h>
 
-#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -11,15 +11,15 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 // Include CvBridge, Image Transport, Image msg
-#include <image_transport/image_transport.h>
+#include <image_transport/image_transport.hpp>
 #include <cv_bridge/cv_bridge.h>
 
 #include <math.h>
 
-#include <ocs2_ros_interfaces/visualization/VisualizationHelpers.h>
+// #include <ocs2_ros_interfaces/visualization/VisualizationHelpers.h>
 
-#include <dynamic_reconfigure/server.h>
-#include <superpixels/ParametersConfig.h>
+// #include <dynamic_reconfigure/server.h>
+// #include <superpixels/ParametersConfig.h>
 
 // #include <superpixels/utils.h>
 #include <superpixels/ConvexHullifier.h>
@@ -30,7 +30,7 @@
 class SuperpixelDepthSegmenter 
 {
     public:
-        SuperpixelDepthSegmenter(ros::NodeHandle nh, const std::string & config_path);
+        SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node, const std::string & config_path);
         ~SuperpixelDepthSegmenter();
 
         /////////////
@@ -38,7 +38,7 @@ class SuperpixelDepthSegmenter
         /////////////
         void run();
 
-        void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
+        // void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
 
     private:
         void reset_data(const cv::Mat & depth_image,
@@ -84,9 +84,9 @@ class SuperpixelDepthSegmenter
 
         bool notReceivedNormalImage();
 
-        void allImageCallback(const sensor_msgs::ImageConstPtr& depth_image, 
-                                // const sensor_msgs::ImageConstPtr& label_image, 
-                                const sensor_msgs::ImageConstPtr& normal_image);
+        void allImageCallback(const sensor_msgs::msg::Image& depth_image, 
+                                // const sensor_msgs::msg::ImageConstPtr& label_image, 
+                                const sensor_msgs::msg::Image& normal_image);
 
         cv::Point findClosestPixel(const int & center_idx,
                                     const cv::Point & center, 
@@ -94,17 +94,19 @@ class SuperpixelDepthSegmenter
                                     // const cv::Mat & label_image,
                                     const cv::Mat & normal_image);
 
-        ros::NodeHandle nh_;
+        // ros::NodeHandle nh_;
+        rclcpp::Node::SharedPtr node_;
         
         // Subscribers
+
         image_transport::SubscriberFilter raw_depth_img_sub_;
         // image_transport::SubscriberFilter raw_label_img_sub_;
         image_transport::SubscriberFilter raw_normal_img_sub_;
 
         // Image message pointers
-        sensor_msgs::ImageConstPtr raw_depth_img_msg_ = nullptr;
+        sensor_msgs::msg::Image raw_depth_img_msg_;
         // sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;
-        sensor_msgs::ImageConstPtr raw_normal_img_msg_ = nullptr;
+        sensor_msgs::msg::Image raw_normal_img_msg_;
 
         // Image pointers
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
@@ -115,7 +117,7 @@ class SuperpixelDepthSegmenter
         cv_bridge::CvImagePtr prop_normal_img_ptr_ = nullptr;
 
         // Synchronizer
-        using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image>; // sensor_msgs::Image,   
+        using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>; // sensor_msgs::Image,   
         boost::shared_ptr<MsgSynchronizer> msg_sync_;
 
         // Mutex

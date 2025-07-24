@@ -8,7 +8,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
 
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 const float DELTA = std::numeric_limits<float>::epsilon();
 
@@ -105,7 +105,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 
     // if (std::isnan(label) || label < 0)
     // {
-    //     ROS_WARN_STREAM("Passing depth check but failing label check.");
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing label check.");
     //     return false;
     // }
 
@@ -118,7 +118,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
     if (std::isnan(normal[0]) || std::isnan(normal[1]) || std::isnan(normal[2]) ||
         cv::norm(normal) < DELTA)
     {
-        // ROS_WARN_STREAM("Passing depth check but failing normal check.");
+        // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
         return false;
     }
 
@@ -126,7 +126,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
     cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
     if ( std::abs( normal.dot(ideal_normal) ) < 0.75 )
     {
-        // ROS_WARN_STREAM("Passing depth check but failing normal check.");
+        // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
         return false;
     }
 
@@ -144,13 +144,13 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 */
 inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
                                                     const Eigen::Quaterniond & source_quat,
-                                                    const geometry_msgs::TransformStamped & egocanFrameToWorldFrame)
+                                                    const geometry_msgs::msg::TransformStamped & egocanFrameToWorldFrame)
 {
     // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
 
     // std::cout << "  worldFrameToBaseFrameTransform: " << worldToBaseTransform << std::endl;
 
-    geometry_msgs::PoseStamped sourceVector, destVector;
+    geometry_msgs::msg::PoseStamped sourceVector, destVector;
 
     sourceVector.header.stamp = egocanFrameToWorldFrame.header.stamp;
     sourceVector.header.frame_id = "egocan";

@@ -5,12 +5,17 @@
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 
+// Include transforms
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/buffer.h>
+
 #include <random>
 
 class ImagePreprocessor
 {
     public:
-        ImagePreprocessor(const SuperpixelParams & params);
+        ImagePreprocessor(const SuperpixelParams & params, const rclcpp::Node::SharedPtr & nodePtr);
 
         void setParams(const SuperpixelParams & params);
 
@@ -38,9 +43,10 @@ class ImagePreprocessor
     private:
         SuperpixelParams params_;
 
-        tf2_ros::TransformListener * tfListener_; /**< transform listener */
-
-        tf2_ros::Buffer tfBuffer_; /**< transform buffer */ // TODO: add buffer?      
+        std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
+        std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
 
         std::default_random_engine generator;
+
+        rclcpp::Node::SharedPtr node_;
 };
