@@ -62,16 +62,11 @@ ament_target_dependencies(${PROJECT_NAME}
 	${dependencies}
 )
 
-#target_link_libraries(${PROJECT_NAME}
-#        yaml-cpp
-#        )
-
 target_compile_options(${PROJECT_NAME} PUBLIC ${FLAGS})
 
 ## Declare a C++ executable
 
 # Superpixel algorithm node for depth images (custom implementation)
-
 add_executable(superpixel_depth_segmentation_node
         src/SuperpixelDepthSegmentationNode.cpp
         )
@@ -82,26 +77,34 @@ target_link_libraries(superpixel_depth_segmentation_node
         ${PROJECT_NAME}
         )
 
-# Superpixel algorithm node for color images (custom implementation)
+#############
+## Install ##
+#############
 
-# add_executable(superpixel_color_segmentation_node
-#         src/SuperpixelColorSegmentationNode.cpp
-#         )
-# ament_target_dependencies(superpixel_color_segmentation_node
-# 	${dependencies}
-# )        
-# target_link_libraries(superpixel_color_segmentation_node
-#         ${PROJECT_NAME}
-#         )
+install(
+  TARGETS ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include/${PROJECT_NAME}
+)
 
-# Superpixel algorithm node for color images (OTS implementation)
+install(
+  TARGETS 
+        superpixel_depth_segmentation_node
+        DESTINATION lib/${PROJECT_NAME}
+)
 
-# add_executable(superpixel_color_opencv_segmentation_node
-#         src/SuperpixelColorOpenCVSegmentationNode.cpp
-#         )
-# ament_target_dependencies(superpixel_color_opencv_segmentation_node
-# 	${dependencies}
-# )                
-# target_link_libraries(superpixel_color_opencv_segmentation_node
-#         ${PROJECT_NAME}
-#         )
+install(DIRECTORY include/ 
+  DESTINATION include/${PROJECT_NAME}
+)
+
+install(DIRECTORY cfg launch rviz
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+ament_export_dependencies(${dependencies})  
+ament_export_include_directories("include/${PROJECT_NAME}")
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_package()

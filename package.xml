@@ -40,4 +40,12 @@
   <depend>convex_plane_decomposition_msgs</depend>
   <depend>segmented_planes_terrain_model</depend>
 
+
+  <!-- Member of group for rosidl interface packages -->
+  <!-- <member_of_group>rosidl_interface_packages</member_of_group> -->
+
+  <export>                               
+   <build_type>ament_cmake</build_type>
+  </export>
+
 </package>

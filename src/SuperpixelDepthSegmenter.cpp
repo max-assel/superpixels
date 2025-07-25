@@ -36,12 +36,13 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     std::string normal_img_topic = "/egocylinder/floor_normals";
 
     // nh_.getParam("depth_img_topic", depth_img_topic);
-    depth_img_topic = node_->get_parameter("depth_img_topic").as_string();
+    depth_img_topic = node_->get_parameter("depth_image_topic").as_string();
 
-    // nh_.getParam("label_img_topic", label_img_topic);
-    
+    // // nh_.getParam("label_img_topic", label_img_topic);
+    // label_img_topic = node_->get_parameter("label_image_topic").as_string();
+
     // nh_.getParam("normal_img_topic", normal_img_topic);
-    normal_img_topic = node_->get_parameter("normal_img_topic").as_string();
+    normal_img_topic = node_->get_parameter("normal_image_topic").as_string();
 
     // rclcpp::QoS qos = rclcpp::QoS(10);
 
