@@ -23,7 +23,7 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
     if (pixels.size() < params_.ransac_K)
         return normal;
 
-    int max_inliers = 0;    
+    size_t max_inliers = 0;    
 
     for (int n = 0; n < params_.ransac_N; n++)
     {
@@ -110,7 +110,7 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
                                 std::vector<cv::Point> & inliers,
                                 const Eigen::VectorXd & x)
 {
-    for (int i = 0; i < pixels.size(); i++)
+    for (size_t i = 0; i < pixels.size(); i++)
     {
         cv::Point pixel = pixels[i];
         cv::Vec3f egocanPt;

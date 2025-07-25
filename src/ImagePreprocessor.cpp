@@ -353,14 +353,14 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
     // }    
 }
 
+//                                     const cv_bridge::CvImagePtr & raw_depth_img_ptr
 void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                                     // const cv::Mat & cleaned_label_img,
                                     const cv::Mat & cleaned_normal_img,
                                     const cv::Mat & visited,
                                     cv::Mat & filled_depth_img,
                                     // cv::Mat & filled_label_img,
-                                    cv::Mat & filled_normal_img,
-                                    const cv_bridge::CvImagePtr & raw_depth_img_ptr)
+                                    cv::Mat & filled_normal_img)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::fillInImage]");
 

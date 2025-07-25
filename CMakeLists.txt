@@ -62,10 +62,9 @@ ament_target_dependencies(${PROJECT_NAME}
 	${dependencies}
 )
 
-target_link_libraries(${PROJECT_NAME}
-        ${catkin_LIBRARIES}
-        yaml-cpp
-        )
+#target_link_libraries(${PROJECT_NAME}
+#        yaml-cpp
+#        )
 
 target_compile_options(${PROJECT_NAME} PUBLIC ${FLAGS})
 

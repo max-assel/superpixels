@@ -14,6 +14,8 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/buffer.h>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
@@ -53,8 +55,8 @@ class Visualizer
                                 const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls);
 
     private:
-        void publishPlanarRegions(const cv::Mat & depth_img, 
-                                    const std::vector<std::vector<double>> & centers,
+        // const cv::Mat & depth_img, 
+        void publishPlanarRegions(const std::vector<std::vector<double>> & centers,
                                     const std::vector<int> & center_counts,
                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                     const std::vector<Eigen::Matrix3d> & superpixel_rotations);  

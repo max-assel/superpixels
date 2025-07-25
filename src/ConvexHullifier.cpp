@@ -127,7 +127,7 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         ///////////////////////////////////////
 
         superpixel_projections[i].resize(superpixels[i].size());
-        for (int j = 0; j < superpixels[i].size(); j++)
+        for (size_t j = 0; j < superpixels[i].size(); j++)
         {
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixel point " << j << ":");
 

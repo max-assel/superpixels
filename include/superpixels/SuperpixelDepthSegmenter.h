@@ -1,9 +1,11 @@
 #pragma once
 
-#include <image_transport/subscriber_filter.h>
+#include <image_transport/subscriber_filter.hpp>
 #include <tf2_ros/message_filter.h>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+
+#include <functional>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -27,10 +29,12 @@
 #include <superpixels/Visualizer.h>
 #include <superpixels/Ransac.h>
 
+using namespace std::placeholders;
+
 class SuperpixelDepthSegmenter 
 {
     public:
-        SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node, const std::string & config_path);
+        SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node); // , const std::string & config_path
         ~SuperpixelDepthSegmenter();
 
         /////////////
@@ -84,9 +88,9 @@ class SuperpixelDepthSegmenter
 
         bool notReceivedNormalImage();
 
-        void allImageCallback(const sensor_msgs::msg::Image& depth_image, 
-                                // const sensor_msgs::msg::ImageConstPtr& label_image, 
-                                const sensor_msgs::msg::Image& normal_image);
+        void allImageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& depth_image_msg, 
+                                // const sensor_msgs::ImageConstPtr& label_image_msg, 
+                                const sensor_msgs::msg::Image::ConstSharedPtr& normal_image_ms);
 
         cv::Point findClosestPixel(const int & center_idx,
                                     const cv::Point & center, 
@@ -104,9 +108,9 @@ class SuperpixelDepthSegmenter
         image_transport::SubscriberFilter raw_normal_img_sub_;
 
         // Image message pointers
-        sensor_msgs::msg::Image raw_depth_img_msg_;
+        sensor_msgs::msg::Image::ConstSharedPtr raw_depth_img_msg_ = nullptr;
         // sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;
-        sensor_msgs::msg::Image raw_normal_img_msg_;
+        sensor_msgs::msg::Image::ConstSharedPtr raw_normal_img_msg_ = nullptr;
 
         // Image pointers
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
@@ -118,7 +122,7 @@ class SuperpixelDepthSegmenter
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>; // sensor_msgs::Image,   
-        boost::shared_ptr<MsgSynchronizer> msg_sync_;
+        std::shared_ptr<MsgSynchronizer> msg_sync_;
 
         // Mutex
         std::mutex img_mutex_;

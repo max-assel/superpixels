@@ -1,5 +1,5 @@
-#include <ros/init.h>
-#include <ros/node_handle.h>
+// #include <ros/init.h>
+// #include <ros/node_handle.h>
 
 #include <superpixels/SuperpixelDepthSegmenter.h>
 #include <segmented_planes_terrain_model/SegmentedPlanesTerrainModelRos.h>
@@ -14,10 +14,10 @@ int main(int argc, char** argv)
 
     rclcpp::Rate loop_rate(30.0); // 30 Hz
 
-    std::string config_path;
-    nodePtr->get_parameter("config_path", config_path).as_string();
+    // std::string config_path;
+    // config_path = nodePtr->get_parameter("config_path").as_string();
 
-    SuperpixelDepthSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nodePtr, config_path);
+    SuperpixelDepthSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nodePtr); // , config_path
 
     // dynamic_reconfigure::Server<superpixels::ParametersConfig> server;
     // dynamic_reconfigure::Server<superpixels::ParametersConfig>::CallbackType serverCallback;

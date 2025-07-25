@@ -10,7 +10,7 @@
 #include <image_transport/image_transport.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-#include <yaml-cpp/yaml.h>
+// #include <yaml-cpp/yaml.h>
 
 #include <opencv2/ximgproc/lsc.hpp>
 #include <opencv2/ximgproc/slic.hpp>

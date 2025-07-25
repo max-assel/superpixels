@@ -1,6 +1,7 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node, const std::string & config_path)
+// , const std::string & config_path
+SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node)
 {
     srand(123456789); // seed random calls
 
@@ -42,14 +43,14 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     // nh_.getParam("normal_img_topic", normal_img_topic);
     normal_img_topic = node_->get_parameter("normal_img_topic").as_string();
 
-    rclcpp::QoS qos = rclcpp::QoS(10);
+    // rclcpp::QoS qos = rclcpp::QoS(10);
 
-    raw_depth_img_sub_.subscribe(node_.get(), depth_img_topic, "compressed");
+    raw_depth_img_sub_.subscribe(node_.get(), depth_img_topic, "compressed"); // Not sure if this is right
     // raw_label_img_sub_.subscribe(it, label_img_topic, 3);
-    raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic, "compressed");
+    raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic, "compressed");// Not sure if this is right
 
-    msg_sync_ = boost::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 10); // raw_label_img_sub_, 
-    msg_sync_->registerCallback(boost::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2)); // , _3
+    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 10); // raw_label_img_sub_, 
+    msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2)); // , _3
 
     prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
     // prop_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -103,9 +104,9 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 //     ransac_->setParams(params_);
 // }
 
-void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::Image& depth_image_msg, 
+void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& depth_image_msg, 
                                                 // const sensor_msgs::ImageConstPtr& label_image_msg, 
-                                                const sensor_msgs::Image& normal_image_msg)
+                                                const sensor_msgs::msg::Image::ConstSharedPtr& normal_image_msg)
 {   
     std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -121,7 +122,7 @@ void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::Image& depth_
 
 bool SuperpixelDepthSegmenter::notReceivedDepthImage()
 {
-    return (raw_depth_img_msg_.data.empty());
+    return raw_depth_img_msg_ == nullptr;
 }
 
 // bool SuperpixelDepthSegmenter::notReceivedLabelImage()
@@ -131,7 +132,7 @@ bool SuperpixelDepthSegmenter::notReceivedDepthImage()
 
 bool SuperpixelDepthSegmenter::notReceivedNormalImage()
 {
-    return (raw_normal_img_msg_.data.empty());
+    return raw_normal_img_msg_ == nullptr;
 }
 
 bool SuperpixelDepthSegmenter::notReceivedImage()
@@ -209,7 +210,7 @@ void SuperpixelDepthSegmenter::run()
 
     cv::Mat filled_depth_img, filled_normal_img; // filled_label_img, 
     imagePreprocessor_->fillInImage(cleaned_depth_img, cleaned_normal_img, visited_, // cleaned_label_img, 
-                                    filled_depth_img, filled_normal_img, raw_depth_img_ptr_); // filled_label_img, 
+                                    filled_depth_img, filled_normal_img); // , raw_depth_img_ptr_, filled_label_img, 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
 
@@ -256,7 +257,7 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
 
-    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), node_->get_clock(), 3, "Timing ---- \n" << 
+    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
@@ -463,7 +464,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         // clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
         /* Update distances and clusters */
-        for (int j = 0; j < centers_.size(); j++) 
+        for (size_t j = 0; j < centers_.size(); j++) 
         {
             /* Only compare to pixels in a 2 x step by 2 x step region. */
             for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
@@ -494,7 +495,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         }
 
         /* Clear the center values. */
-        for (int j = 0; j < centers_.size(); j++) 
+        for (size_t j = 0; j < centers_.size(); j++) 
         {
             centers_[j][0] = 0; // x
             centers_[j][1] = 0; // y
@@ -536,7 +537,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
         /* Normalize the clusters. */
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normalizing clusters ...");
-        for (int j = 0; j < centers_.size(); j++) 
+        for (size_t j = 0; j < centers_.size(); j++) 
         {
             if (center_counts_[j] == 0) 
             {
@@ -567,7 +568,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
         /* Snap clusters to nearest pixel */
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
-        for (int j = 0; j < centers_.size(); j++) 
+        for (size_t j = 0; j < centers_.size(); j++) 
         {
             if (center_counts_[j] == 0) 
             {

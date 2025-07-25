@@ -40,7 +40,7 @@ struct SuperpixelParams
     double w_compact_ = 1.0; // Weighting parameter for compactness term
 
     // RANSAC parameters
-    int ransac_K = 3; // number of points to sample
+    size_t ransac_K = 3; // number of points to sample
     int ransac_N = 25; // number of iterations
     double ransac_T = 0.01; // threshold    
 };
