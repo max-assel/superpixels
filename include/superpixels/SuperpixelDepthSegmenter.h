@@ -112,6 +112,10 @@ class SuperpixelDepthSegmenter
         // sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;
         sensor_msgs::msg::Image::ConstSharedPtr raw_normal_img_msg_ = nullptr;
 
+        std::string depth_img_topic_;
+        // std::string label_img_topic_;
+        std::string normal_img_topic_;
+
         // Image pointers
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
         // cv_bridge::CvImagePtr raw_label_img_ptr_ = nullptr;
@@ -149,7 +153,6 @@ class SuperpixelDepthSegmenter
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
         std::chrono::steady_clock::time_point convexHullBegin, convexHullEnd;
-
 
         ImagePreprocessor * imagePreprocessor_;
         Visualizer * visualizer_;

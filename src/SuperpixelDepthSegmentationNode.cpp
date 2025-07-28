@@ -17,6 +17,8 @@ int main(int argc, char** argv)
     // std::string config_path;
     // config_path = nodePtr->get_parameter("config_path").as_string();
 
+    // bool terrain_receiver = nodePtr->get_parameter("terrain_receiver").as_bool();
+
     SuperpixelDepthSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nodePtr); // , config_path
 
     // dynamic_reconfigure::Server<superpixels::ParametersConfig> server;
@@ -26,7 +28,15 @@ int main(int argc, char** argv)
     // server.setCallback(serverCallback);
     
     // to visualize regions 
-    switched_model::SegmentedPlanesTerrainModelRos * terrain_model = new switched_model::SegmentedPlanesTerrainModelRos(nodePtr);
+    // if (terrain_receiver)
+    // {
+    //     RCLCPP_INFO_STREAM(nodePtr->get_logger(), "Terrain receiver is enabled. Will visualize regions.");
+    //     switched_model::SegmentedPlanesTerrainModelRos * terrain_model = new switched_model::SegmentedPlanesTerrainModelRos(nodePtr);
+
+    // } else
+    // {
+    //     RCLCPP_INFO_STREAM(nodePtr->get_logger(), "Terrain receiver is disabled. Will not visualize regions.");
+    // }
 
     while (rclcpp::ok())
     {
