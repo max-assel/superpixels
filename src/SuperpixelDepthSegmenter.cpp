@@ -31,9 +31,9 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     // Set up subscribers and publishers
     image_transport::ImageTransport it(node_);
 
-    std::string depth_img_topic =  "/egocylinder/floor_image";
+    std::string depth_img_topic =  "/floor_image";
     // std::string label_img_topic =  "/egocylinder/floor_labels";
-    std::string normal_img_topic = "/egocylinder/floor_normals";
+    std::string normal_img_topic = "/floor_normals";
 
     // nh_.getParam("depth_img_topic", depth_img_topic);
     depth_img_topic = node_->get_parameter("depth_image_topic").as_string();
@@ -46,11 +46,14 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
 
     // rclcpp::QoS qos = rclcpp::QoS(10);
 
-    raw_depth_img_sub_.subscribe(node_.get(), depth_img_topic, "compressed"); // Not sure if this is right
-    // raw_label_img_sub_.subscribe(it, label_img_topic, 3);
-    raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic, "compressed");// Not sure if this is right
+    rmw_qos_profile_t qos = rmw_qos_profile_default;
+    qos.depth = 3; // TODO: Make this a parameter
 
-    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 10); // raw_label_img_sub_, 
+    raw_depth_img_sub_.subscribe(node_.get(), depth_img_topic, "raw", qos); // Not sure if this is right
+    // raw_label_img_sub_.subscribe(it, label_img_topic, 3);
+    raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic, "raw", qos);// Not sure if this is right
+
+    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 3); // raw_label_img_sub_, 
     msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2)); // , _3
 
     prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);

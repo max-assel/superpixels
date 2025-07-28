@@ -147,8 +147,8 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
     rclcpp::Time lookupTime = fin_depth_img_ptr_->header.stamp;
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
 
-    geometry_msgs::msg::TransformStamped egocanFrameToWorldFrame = 
-        tfBuffer_->lookupTransform("world", egocan_frame, lookupTime);
+    geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame = 
+        tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime);
 
     double foot_radius = 0.02;
 
@@ -205,7 +205,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
         regionToEgocanRotMat = egocan_to_region_rotations[i].transpose();
         regionToEgocanQuat = Eigen::Quaterniond(regionToEgocanRotMat);
 
-        centerWorldPose = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToWorldFrame);
+        centerWorldPose = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToOdomFrame);
 
         // get rotation matrix
         egocanToWorldRotMat = calculateRotationMatrix(centerWorldPose[3], centerWorldPose[4], centerWorldPose[5]);
