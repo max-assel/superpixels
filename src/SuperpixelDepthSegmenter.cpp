@@ -12,24 +12,55 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
 
     RCLCPP_INFO_STREAM(node_->get_logger(), "   params_:");
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_dilation_iterations_: " << params_.num_dilation_iterations_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_normal_: " << params_.w_normal_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_pos_: " << params_.w_pos_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_compact_: " << params_.w_compact_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       kernel_radius_: " << params_.kernel_radius_);
+
+    // Floor image parameters
+    params_.k_c_ = node_->get_parameter("k_c").as_int();
+    params_.v_fov_ = node_->get_parameter("v_fov").as_double() * M_PI / 180.0; // Convert degrees to radians
+    params_.v_offset_ = node_->get_parameter("v_offset").as_double();
+    params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
     RCLCPP_INFO_STREAM(node_->get_logger(), "       k_c_: " << params_.k_c_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       v_fov_: " << params_.v_fov_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       v_offset_: " << params_.v_offset_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       h_: " << params_.h_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       warm_start_: " << params_.warm_start_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       constraint_: " << params_.constraint_);
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::calculateStep]");
+    // Dilation parameters
+    params_.num_dilation_iterations_ = node_->get_parameter("num_dilation_iterations").as_int();
+    params_.kernel_radius_ = node_->get_parameter("kernel_radius").as_int();
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_dilation_iterations_: " << params_.num_dilation_iterations_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       kernel_radius_: " << params_.kernel_radius_);
 
+    // Superpixel algorithm parameters
+    params_.num_iterations_ = node_->get_parameter("num_iterations").as_int();
+    params_.num_superpixels_ = node_->get_parameter("num_superpixels").as_int();
     int num_pixels = params_.k_c_ * params_.k_c_;
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+    params_.warm_start_ = node_->get_parameter("warm_start").as_bool();
+    params_.constraint_ = node_->get_parameter("constraint").as_bool();
+    params_.ransac_ = node_->get_parameter("ransac").as_bool();
+    params_.snapping_ = node_->get_parameter("snapping").as_bool();
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       step_: " << params_.step_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       warm_start_: " << params_.warm_start_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       constraint_: " << params_.constraint_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       ransac_: " << params_.ransac_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       snapping_: " << params_.snapping_);
+
+    // Superpixel distance parameters
+    params_.w_normal_ = node_->get_parameter("w_normal").as_double();
+    params_.w_pos_ = node_->get_parameter("w_pos").as_double();
+    params_.w_compact_ = node_->get_parameter("w_compact").as_double();
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_normal_: " << params_.w_normal_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_pos_: " << params_.w_pos_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_compact_: " << params_.w_compact_);
+
+    // RANSAC parameters
+    params_.ransac_K = node_->get_parameter("ransac_K").as_int();
+    params_.ransac_N = node_->get_parameter("ransac_N").as_int();
+    params_.ransac_T = node_->get_parameter("ransac_T").as_double();
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       ransac_K: " << params_.ransac_K);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       ransac_N: " << params_.ransac_N);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       ransac_T: " << params_.ransac_T);
 
     // Set up subscribers and publishers
     image_transport::ImageTransport it(node_);
@@ -69,6 +100,9 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
+
+    callback_handle_ = node_->add_on_set_parameters_callback(
+        std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
 }
 
 SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
@@ -78,6 +112,113 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
     delete visualizer_;
     delete ransac_;
     delete convexHullifier_;
+}
+
+rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCallback(const std::vector<rclcpp::Parameter> &parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    result.reason = "success";
+    for (const auto &param: parameters)
+    {
+        // Floor image parameters
+        if (param.get_name() == "k_c")
+        {
+            params_.k_c_ = param.get_value<int>();
+            // param.get_value(params_.k_c_);
+        } else if (param.get_name() == "v_fov")
+        {
+            params_.v_fov_ = param.get_value<double>() * M_PI / 180.0; // Convert degrees to radians (just for reading in string)
+            // param.get_value(params_.v_fov_);
+        } else if (param.get_name() == "v_offset")
+        {
+            params_.v_offset_ = param.get_value<double>();
+            // param.get_value(params_.v_offset_);
+        }
+        params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
+        
+        // Dilation parameters
+        if (param.get_name() == "num_dilation_iterations")
+        {
+            params_.num_dilation_iterations_ = param.get_value<int>();
+            // param.get_value(params_.num_dilation_iterations_);
+        } else if (param.get_name() == "kernel_radius")
+        {
+            params_.kernel_radius_ = param.get_value<int>();
+            // param.get_value(params_.kernel_radius_);
+        }
+        
+        // Superpixel algorithm parameters
+        if (param.get_name() == "num_iterations")
+        {
+            params_.num_iterations_ = param.get_value<int>();
+            // param.get_value(params_.num_iterations_);
+        } else if (param.get_name() == "num_superpixels")
+        {
+            params_.num_superpixels_ = param.get_value<int>();
+            // param.get_value(params_.num_superpixels_);
+            int num_pixels = params_.k_c_ * params_.k_c_;
+            params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+        } else if (param.get_name() == "warm_start")
+        {
+            params_.warm_start_ = param.get_value<bool>();
+            // param.get_value(params_.warm_start_);
+        } else if (param.get_name() == "constraint")
+        {
+            params_.constraint_ = param.get_value<bool>();
+            // param.get_value(params_.constraint_);
+        } else if (param.get_name() == "ransac")
+        {
+            params_.ransac_ = param.get_value<bool>();
+            // param.get_value(params_.ransac_);
+        } else if (param.get_name() == "snapping")
+        {
+            params_.snapping_ = param.get_value<bool>();
+            // param.get_value(params_.snapping_);
+        }
+        
+        // Superpixel distance parameters
+        if (param.get_name() == "w_normal")
+        {
+            params_.w_normal_ = param.get_value<double>();
+            // param.get_value(params_.w_normal_);
+        } else if (param.get_name() == "w_pos")
+        {
+            params_.w_pos_ = param.get_value<double>();
+            // param.get_value(params_.w_pos_);
+        } else if (param.get_name() == "w_compact")
+        {
+            params_.w_compact_ = param.get_value<double>();
+            // param.get_value(params_.w_compact_);
+        }
+        
+        // RANSAC parameters
+        if (param.get_name() == "ransac_K")
+        {
+            params_.ransac_K = param.get_value<size_t>();
+            // param.get_value(params_.ransac_K);
+        } else if (param.get_name() == "ransac_N")
+        {
+            params_.ransac_N = param.get_value<int>();
+            // param.get_value(params_.ransac_N);
+        } else if (param.get_name() == "ransac_T")
+        {
+            params_.ransac_T = param.get_value<double>();
+            // param.get_value(params_.ransac_T);
+        } 
+        // else
+        // {
+            // RCLCPP_WARN_STREAM(node_->get_logger(), "Unknown parameter: " << param.get_name());
+            // result.successful = false;
+            // result.reason = "Unknown parameter";
+        // }
+    }
+
+    convexHullifier_->setParams(params_);
+    imagePreprocessor_->setParams(params_);
+    visualizer_->setParams(params_);
+    ransac_->setParams(params_);    
+    return result;
 }
 
 // void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
@@ -280,14 +421,14 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
 
-    // RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
-    //                             "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
-    //                             "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
-    //                             "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
-    //                             "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
-    //                             "   Convex hulls took " << convex_hull_total_time_sec << " seconds, \n" <<
-    //                             "   Number of superpixels: " << centers_.size() << "\n" <<
-    //                             "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
+    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
+                                "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
+                                "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
+                                "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
+                                "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
+                                "   Convex hulls took " << convex_hull_total_time_sec << " seconds, \n" <<
+                                "   Number of superpixels: " << centers_.size() << "\n" <<
+                                "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
 
     // Visualize
     visualizer_->visualize(preprocessed_depth_img, 

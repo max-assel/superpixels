@@ -1,5 +1,8 @@
 #pragma once
 
+#include "rclcpp/rclcpp.hpp"
+#include "rcl_interfaces/msg/set_parameters_result.hpp"
+
 #include <image_transport/subscriber_filter.hpp>
 #include <tf2_ros/message_filter.h>
 
@@ -45,6 +48,8 @@ class SuperpixelDepthSegmenter
         // void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
 
     private:
+        rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
+
         void reset_data(const cv::Mat & depth_image,
                         // const cv::Mat & label_image,
                         const cv::Mat & normal_image);
@@ -127,6 +132,9 @@ class SuperpixelDepthSegmenter
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>; // sensor_msgs::Image,   
         std::shared_ptr<MsgSynchronizer> msg_sync_;
+
+        // Callback handle for parameter changes
+        rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_;
 
         // Mutex
         std::mutex img_mutex_;
