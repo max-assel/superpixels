@@ -147,7 +147,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
     rclcpp::Time lookupTime = fin_depth_img_ptr_->header.stamp;
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
 
-    // rclcpp::Duration timeout(0, 500000000); // 500 ms
+    // rclcpp::Duration timeout(3, 0); // 3 seconds
     geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame = 
         tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
 

@@ -44,7 +44,7 @@ def generate_launch_description():
         output="screen",
         parameters=[
             {
-                'use_sim_time': True,
+                'use_sim_time': False,
                 'terrain_receiver': terrain_receiver,
                 'depth_image_topic': depth_image_topic,
                 # 'label_image_topic': label_image_topic,

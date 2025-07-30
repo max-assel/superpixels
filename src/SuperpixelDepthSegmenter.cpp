@@ -8,6 +8,9 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     // nh_ = nh;
     node_ = node;
 
+    tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
+    tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
+
     RCLCPP_INFO_STREAM(node_->get_logger(), "   params_:");
     RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
@@ -165,8 +168,24 @@ void SuperpixelDepthSegmenter::run()
     {
         RCLCPP_WARN_STREAM(node_->get_logger(), "Not ready to segment, no images received yet.");
         return;
-    }
+    } 
+    // else
+    // {
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "Received all images, proceeding with segmentation.");
+    // }
  
+    rclcpp::Time lookupTime = raw_depth_img_msg_->header.stamp;
+    std::string egocan_frame = raw_depth_img_msg_->header.frame_id;
+
+    // rclcpp::Duration timeout(3, 0); // 3 seconds
+    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
+
+    if (!canTransform)
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom");
+        return;
+    }
+
     try
     {
         raw_depth_img_ptr_ = cv_bridge::toCvCopy(raw_depth_img_msg_, sensor_msgs::image_encodings::TYPE_32FC1);
@@ -261,14 +280,14 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
 
-    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
-                                "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
-                                "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
-                                "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
-                                "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
-                                "   Convex hulls took " << convex_hull_total_time_sec << " seconds, \n" <<
-                                "   Number of superpixels: " << centers_.size() << "\n" <<
-                                "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
+    // RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
+    //                             "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
+    //                             "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
+    //                             "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
+    //                             "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
+    //                             "   Convex hulls took " << convex_hull_total_time_sec << " seconds, \n" <<
+    //                             "   Number of superpixels: " << centers_.size() << "\n" <<
+    //                             "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
 
     // Visualize
     visualizer_->visualize(preprocessed_depth_img, 

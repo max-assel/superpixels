@@ -148,11 +148,16 @@ class SuperpixelDepthSegmenter
 
         SuperpixelParams params_;
 
+        geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame;
+
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
         std::chrono::steady_clock::time_point fillBegin, fillEnd;
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
         std::chrono::steady_clock::time_point convexHullBegin, convexHullEnd;
+
+        std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
+        std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
 
         ImagePreprocessor * imagePreprocessor_;
         Visualizer * visualizer_;
