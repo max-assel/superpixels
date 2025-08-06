@@ -30,6 +30,7 @@ endforeach()
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(PCL    REQUIRED)
 
+find_package(OpenMP)
 
 # Need now, not sure why
 find_package(Boost REQUIRED COMPONENTS 
@@ -75,6 +76,7 @@ ament_target_dependencies(superpixel_depth_segmentation_node
 )
 target_link_libraries(superpixel_depth_segmentation_node
         ${PROJECT_NAME}
+        ${OpenMP_CXX_FLAGS}
         )
 
 #############

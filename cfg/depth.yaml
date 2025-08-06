@@ -6,7 +6,7 @@ superpixel_depth_segmentation_node:
     normal_image_topic: /floor_normals
 
     k_c: 512
-    v_fov: 60.0
+    v_fov: 75.0
     v_offset: 0.0
 
     num_dilation_iterations: 0
