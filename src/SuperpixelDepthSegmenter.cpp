@@ -633,10 +633,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             /* Only compare to pixels in a 2 x step by 2 x step region. */
             for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
             {
-                int start_c = centers_[j][0] - params_.step_;
-                int end_c = centers_[j][0] + params_.step_;
                 // #pragma omp parallel for
-                for (int c = start_c; c < end_c; c++) 
+                for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
                 {                
                     current = cv::Point(c, r);
                     if (isPixelValid(depth_image, normal_image, current, params_.k_c_)) 
