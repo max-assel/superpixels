@@ -7,7 +7,7 @@
 int main(int argc, char** argv) 
 {
     rclcpp::init(argc, argv);
-    rclcpp::Node::SharedPtr nodePtr = rclcpp::Node::make_shared("superpixel_depth_node",
+    rclcpp::Node::SharedPtr nodePtr = rclcpp::Node::make_shared("superpixel_depth_segmentation_node",
                                                                 rclcpp::NodeOptions()
                                                                 .allow_undeclared_parameters(true)
                                                                 .automatically_declare_parameters_from_overrides(true));

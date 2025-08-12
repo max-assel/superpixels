@@ -303,7 +303,7 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
 
 void SuperpixelDepthSegmenter::run()
 {
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::run]");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::run]");
 
     std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -330,8 +330,8 @@ void SuperpixelDepthSegmenter::run()
     //     return;
     // }
 
-    rclcpp::Duration timeout(1, 0); // 3 seconds
-    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime, timeout);    
+    // rclcpp::Duration timeout(3, 0); // 3 seconds
+    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
 
     if (!canTransform)
     {
@@ -371,7 +371,7 @@ void SuperpixelDepthSegmenter::run()
     // Health check
     // healthCheck(raw_depth_img, raw_label_img, raw_normal_img);
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "Cleaning images ...");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Cleaning images ...");
 
     // Clean images
     cv::Mat cleaned_depth_img, cleaned_normal_img; // cleaned_label_img, 
@@ -384,7 +384,7 @@ void SuperpixelDepthSegmenter::run()
     int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
     double clean_total_time_sec = clean_total_time / 1.0e6; 
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "Filling images ...");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Filling images ...");
 
     fillBegin = std::chrono::steady_clock::now();
 
@@ -403,7 +403,7 @@ void SuperpixelDepthSegmenter::run()
 
     preprocessBegin = std::chrono::steady_clock::now();
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "Preprocessing images ...");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Preprocessing images ...");
 
     // Pre-processing
     cv::Mat preprocessed_depth_img, preprocessed_normal_img; // preprocessed_label_img, 
@@ -421,12 +421,12 @@ void SuperpixelDepthSegmenter::run()
 
     superpixelBegin = std::chrono::steady_clock::now();
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing ...");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing ...");
 
     // Clear data
     reset_data(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "Generating superpixels ...");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Generating superpixels ...");
 
     // Generate superpixels
     generateSuperpixels(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
@@ -443,7 +443,8 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
 
-    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
+    // *node_->get_clock(), 3,
+    RCLCPP_INFO_STREAM(node_->get_logger(),  "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
@@ -467,7 +468,8 @@ void SuperpixelDepthSegmenter::run()
     visEnd = std::chrono::steady_clock::now();
     int64_t vis_total_time = std::chrono::duration_cast<std::chrono::microseconds>(visEnd - visBegin).count();
     double vis_total_time_sec = vis_total_time / 1.0e6;
-    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Visualization took " << vis_total_time_sec << " seconds");
+    // *node_->get_clock(), 3,
+    RCLCPP_INFO_STREAM(node_->get_logger(),  "Visualization took " << vis_total_time_sec << " seconds");
     return;
 }
 

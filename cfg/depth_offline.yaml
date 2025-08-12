@@ -1,6 +1,6 @@
 superpixel_depth_segmentation_node:
   ros__parameters:
-    use_sim_time: false
+    use_sim_time: true
 
     depth_image_topic: /floor_image
     normal_image_topic: /floor_normals
