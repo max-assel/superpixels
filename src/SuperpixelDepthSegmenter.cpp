@@ -330,12 +330,12 @@ void SuperpixelDepthSegmenter::run()
     //     return;
     // }
 
-    rclcpp::Duration timeout(3, 0); // 3 seconds
-    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
+    rclcpp::Duration timeout(1, 0); // 3 seconds
+    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime, timeout);    
 
     if (!canTransform)
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom at time " << lookupTime.seconds());
         return;
     }
 

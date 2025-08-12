@@ -32,7 +32,7 @@ def generate_launch_description():
     #######################
 
     superpixels_path = get_package_share_directory("superpixels")
-    config_path = os.path.join(superpixels_path, "cfg", "depth_online.yaml")
+    config_path = os.path.join(superpixels_path, "cfg", "depth_offline.yaml")
 
     ############################
     # Declare Launch Arguments #

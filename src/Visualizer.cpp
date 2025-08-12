@@ -262,7 +262,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
 
         region_msg = convex_plane_decomposition::toMessage(region);
         // cv::Scalar color = colors_[i];
-        // std_msgs::msg::ColorRGBA region_color;
+        std_msgs::msg::ColorRGBA region_color;
         // region_color.r = color[2] / 255.0;
         // region_color.g = color[1] / 255.0;
         // region_color.b = color[0] / 255.0;
