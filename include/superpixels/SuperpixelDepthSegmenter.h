@@ -163,6 +163,7 @@ class SuperpixelDepthSegmenter
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
         std::chrono::steady_clock::time_point convexHullBegin, convexHullEnd;
+        std::chrono::steady_clock::time_point visBegin, visEnd;
 
         std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
         std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
