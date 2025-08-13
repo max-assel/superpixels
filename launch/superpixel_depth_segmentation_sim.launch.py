@@ -49,23 +49,23 @@ def generate_launch_description():
         parameters=[config_path]
     )
 
-    rqt_node = Node(
-        package="rqt_reconfigure",
-        executable="rqt_reconfigure",
-        name="rqt_reconfigure",
-        output="screen"
-    )
+    # rqt_node = Node(
+    #     package="rqt_reconfigure",
+    #     executable="rqt_reconfigure",
+    #     name="rqt_reconfigure",
+    #     output="screen"
+    # )
 
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="screen",
-        arguments=["-d", os.path.join(
-                    superpixels_path, "rviz", "superpixels_depth.rviz",
-                )
-        ]
-    )
+    # rviz_node = Node(
+    #     package="rviz2",
+    #     executable="rviz2",
+    #     name="rviz2",
+    #     output="screen",
+    #     arguments=["-d", os.path.join(
+    #                 superpixels_path, "rviz", "superpixels_depth.rviz",
+    #             )
+    #     ]
+    # )
 
     ###########################
     # Full Launch Description #
@@ -73,7 +73,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             superpixels_node,
-            rviz_node,
+            # rviz_node,
             # rqt_node
         ]
     )

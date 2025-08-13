@@ -13,7 +13,7 @@ superpixel_depth_segmentation_node:
     kernel_radius: 1
 
     num_iterations: 5
-    num_superpixels: 100
+    num_superpixels: 125
     warm_start: true
     constraint: false
     ransac: true

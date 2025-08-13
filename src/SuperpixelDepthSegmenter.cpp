@@ -469,7 +469,7 @@ void SuperpixelDepthSegmenter::run()
     int64_t vis_total_time = std::chrono::duration_cast<std::chrono::microseconds>(visEnd - visBegin).count();
     double vis_total_time_sec = vis_total_time / 1.0e6;
     // *node_->get_clock(), 3,
-    RCLCPP_INFO_STREAM(node_->get_logger(),  "Visualization took " << vis_total_time_sec << " seconds");
+    // RCLCPP_INFO_STREAM(node_->get_logger(),  "Visualization took " << vis_total_time_sec << " seconds");
     return;
 }
 
@@ -480,7 +480,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
 {
     if (params_.warm_start_ && initialized_)
     {
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "Resetting data ...");
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Resetting data ...");
         clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
         distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
@@ -489,17 +489,27 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
         center_counts_.assign(center_counts_.size(), 0);
     } else
     {
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
+        // Cold-starting, or initializing for the first time
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing data ...");
+        
+        RCLCPP_INFO_STREAM(node_->get_logger(), "   first mats ...");
+        // cv mats
         clusters_.release();
         distances_.release();
+
+        RCLCPP_INFO_STREAM(node_->get_logger(), "   clearing vectors ...");
         centers_.clear();
         center_counts_.clear();
+
         superpixels_.clear();
         superpixel_projections_.clear();
         superpixel_convex_hulls_.clear();
         egocan_to_region_rotations_.clear();
 
-        init_data(depth_image, normal_image); // label_image, 
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
+
+        // Will populate clusters_, distances_, centers_, and center_counts_
+        init_data(depth_image, normal_image); // label_image,
 
         initialized_ = true;
     }
@@ -510,18 +520,21 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
                                         //  const cv::Mat & label_image,
                                          const cv::Mat & normal_image)
 {
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::init_data]");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::init_data]");
 
     /* Initialize the cluster and distance matrices. */
     clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
     distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "    clusters_.size: " << clusters_.size() << ", type: " << clusters_.type() << ", channels: " << clusters_.channels());
+    RCLCPP_INFO_STREAM(node_->get_logger(), "    distances_.size: " << distances_.size() << ", type: " << distances_.type() << ", channels: " << distances_.channels());
 
     /* Initialize the centers and counters. */
     for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
     {
         for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
         {        
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       (r, c): (" << r << ", " << c << ")");
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       (r, c): (" << r << ", " << c << ")");
 
             // float depth = depth_image.at<float>(r, c);
 
@@ -532,12 +545,10 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 
             std::vector<double> center;
 
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       Finding local minimum ...");
             /* Find the local minimum (gradient-wise). */
             cv::Point originalCenter(c, r);
             cv::Point localMinimum = findLocalMinimum(depth_image, normal_image, originalCenter); // label_image, 
-            float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
-            // uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
-            cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
             if (!isPixelValid(depth_image, normal_image, localMinimum, params_.k_c_)) // label_image, 
             {
@@ -551,7 +562,17 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
                 continue;
             }
 
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       local minimum found at (" << localMinimum.x << ", " << localMinimum.y << ")");
 
+            float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
+            // uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
+            cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
+
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       label: " << (int) label);
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
+
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       Valid local minimum found, pushing back");
             /* Generate the center vector. */
             center.push_back(localMinimum.x);
             center.push_back(localMinimum.y);
