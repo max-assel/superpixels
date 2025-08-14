@@ -261,11 +261,14 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
         region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
         region_msg = convex_plane_decomposition::toMessage(region);
-        cv::Scalar color = colors_[i];
+        // cv::Scalar color = colors_[i];
         std_msgs::msg::ColorRGBA region_color;
-        region_color.r = color[2] / 255.0;
-        region_color.g = color[1] / 255.0;
-        region_color.b = color[0] / 255.0;
+        // region_color.r = color[2] / 255.0;
+        // region_color.g = color[1] / 255.0;
+        // region_color.b = color[0] / 255.0;
+        region_color.r = 0.0;
+        region_color.g = 0.0;
+        region_color.b = 0.0;
         region_color.a = 1.0;
         region_msg.color = region_color;
 
@@ -414,35 +417,42 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
     colored_cloud->points.resize(colored_cloud->width * colored_cloud->height);
 
     // iterate through valid pixels and color
+    pcl::PointXYZRGBA point = pcl::PointXYZRGBA();
+    cv::Point pixel = cv::Point(0, 0);
+    cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
+    int cluster_id = -1;
+    cv::Scalar color = cv::Scalar(0, 0, 0);
+    int idx = 0;
     for (int r = 0; r < depth_image.rows; r++)
     {
         for (int c = 0; c < depth_image.cols; c++)
-        {    
-            pcl::PointXYZRGBA point;
-            
-            cv::Point pixel(c, r);
-            cv::Vec3f egocanPt;
+        {
+            pixel = cv::Point(c, r);
+
             pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
 
             point.x = egocanPt[0];
             point.y = egocanPt[1];
             point.z = egocanPt[2];
 
-            int cluster_id = clusters.at<int>(r, c);
+            cluster_id = clusters.at<int>(r, c);
             if (cluster_id != -1)
             {
-                cv::Scalar color = colors_[cluster_id];
-                point.r = color[2];
-                point.g = color[1];
-                point.b = color[0];
+                // color = colors_[cluster_id];
+                // point.r = color[2];
+                // point.g = color[1];
+                // point.b = color[0];
+                point.r = 0;
+                point.g = 0;
+                point.b = 0;
                 point.a = 255;
             } else
             {
                 point.a = 0;
             }
 
-            int i = r * colored_cloud->width + c;
-            colored_cloud->points[i] = point;
+            idx = r * colored_cloud->width + c;
+            colored_cloud->points[idx] = point;
         }
     }
 

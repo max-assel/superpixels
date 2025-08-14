@@ -303,6 +303,8 @@ bool SuperpixelDepthSegmenter::notReceivedImage()
 
 void SuperpixelDepthSegmenter::run()
 {
+    RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::run]");
+
     std::lock_guard<std::mutex> lock(img_mutex_);
 
     if (notReceivedImage())
@@ -318,12 +320,22 @@ void SuperpixelDepthSegmenter::run()
     rclcpp::Time lookupTime = raw_depth_img_msg_->header.stamp;
     std::string egocan_frame = raw_depth_img_msg_->header.frame_id;
 
+    // try
+    // {
+    //     RCLCPP_INFO_STREAM(node_->get_logger(), "Looking up transform from " << egocan_frame << " to odom at time " << lookupTime.seconds() << "." << lookupTime.nanoseconds());
+    //     tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // Wait for transform
+    // } catch (tf2::TransformException &ex)
+    // {
+    //     RCLCPP_ERROR_STREAM(node_->get_logger(), "Transform error: " << ex.what());
+    //     return;
+    // }
+
     // rclcpp::Duration timeout(3, 0); // 3 seconds
     bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
 
     if (!canTransform)
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom at time " << lookupTime.seconds());
         return;
     }
 
@@ -359,6 +371,8 @@ void SuperpixelDepthSegmenter::run()
     // Health check
     // healthCheck(raw_depth_img, raw_label_img, raw_normal_img);
 
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Cleaning images ...");
+
     // Clean images
     cv::Mat cleaned_depth_img, cleaned_normal_img; // cleaned_label_img, 
     imagePreprocessor_->cleanImages(raw_depth_img, raw_normal_img, // raw_label_img,  
@@ -369,6 +383,8 @@ void SuperpixelDepthSegmenter::run()
     cleanEnd = std::chrono::steady_clock::now();
     int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
     double clean_total_time_sec = clean_total_time / 1.0e6; 
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Filling images ...");
 
     fillBegin = std::chrono::steady_clock::now();
 
@@ -387,6 +403,8 @@ void SuperpixelDepthSegmenter::run()
 
     preprocessBegin = std::chrono::steady_clock::now();
 
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Preprocessing images ...");
+
     // Pre-processing
     cv::Mat preprocessed_depth_img, preprocessed_normal_img; // preprocessed_label_img, 
     imagePreprocessor_->preprocessImages(filled_depth_img, filled_normal_img, // filled_label_img, 
@@ -403,8 +421,12 @@ void SuperpixelDepthSegmenter::run()
 
     superpixelBegin = std::chrono::steady_clock::now();
 
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing ...");
+
     // Clear data
     reset_data(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Generating superpixels ...");
 
     // Generate superpixels
     generateSuperpixels(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
@@ -421,7 +443,8 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = convex_hull_total_time / 1.0e6;
 
-    RCLCPP_INFO_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), 3, "Timing ---- \n" << 
+    // *node_->get_clock(), 3,
+    RCLCPP_INFO_STREAM(node_->get_logger(),  "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
@@ -431,6 +454,7 @@ void SuperpixelDepthSegmenter::run()
                                 "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
 
     // Visualize
+    visBegin = std::chrono::steady_clock::now();
     visualizer_->visualize(preprocessed_depth_img, 
                             preprocessed_normal_img,
                             raw_depth_img_ptr_,
@@ -441,7 +465,11 @@ void SuperpixelDepthSegmenter::run()
                             superpixel_projections_,
                             superpixel_convex_hulls_,
                             egocan_to_region_rotations_);
-
+    visEnd = std::chrono::steady_clock::now();
+    int64_t vis_total_time = std::chrono::duration_cast<std::chrono::microseconds>(visEnd - visBegin).count();
+    double vis_total_time_sec = vis_total_time / 1.0e6;
+    // *node_->get_clock(), 3,
+    // RCLCPP_INFO_STREAM(node_->get_logger(),  "Visualization took " << vis_total_time_sec << " seconds");
     return;
 }
 
@@ -452,6 +480,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
 {
     if (params_.warm_start_ && initialized_)
     {
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Resetting data ...");
         clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
         distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
@@ -460,16 +489,27 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
         center_counts_.assign(center_counts_.size(), 0);
     } else
     {
+        // Cold-starting, or initializing for the first time
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing data ...");
+        
+        RCLCPP_INFO_STREAM(node_->get_logger(), "   first mats ...");
+        // cv mats
         clusters_.release();
         distances_.release();
+
+        RCLCPP_INFO_STREAM(node_->get_logger(), "   clearing vectors ...");
         centers_.clear();
         center_counts_.clear();
+
         superpixels_.clear();
         superpixel_projections_.clear();
         superpixel_convex_hulls_.clear();
         egocan_to_region_rotations_.clear();
 
-        init_data(depth_image, normal_image); // label_image, 
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
+
+        // Will populate clusters_, distances_, centers_, and center_counts_
+        init_data(depth_image, normal_image); // label_image,
 
         initialized_ = true;
     }
@@ -480,16 +520,21 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
                                         //  const cv::Mat & label_image,
                                          const cv::Mat & normal_image)
 {
+    RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::init_data]");
+
     /* Initialize the cluster and distance matrices. */
     clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
     distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "    clusters_.size: " << clusters_.size() << ", type: " << clusters_.type() << ", channels: " << clusters_.channels());
+    RCLCPP_INFO_STREAM(node_->get_logger(), "    distances_.size: " << distances_.size() << ", type: " << distances_.type() << ", channels: " << distances_.channels());
 
     /* Initialize the centers and counters. */
     for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
     {
         for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
         {        
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       (r, c): (" << r << ", " << c << ")");
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       (r, c): (" << r << ", " << c << ")");
 
             // float depth = depth_image.at<float>(r, c);
 
@@ -500,12 +545,10 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 
             std::vector<double> center;
 
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       Finding local minimum ...");
             /* Find the local minimum (gradient-wise). */
             cv::Point originalCenter(c, r);
             cv::Point localMinimum = findLocalMinimum(depth_image, normal_image, originalCenter); // label_image, 
-            float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
-            // uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
-            cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
             if (!isPixelValid(depth_image, normal_image, localMinimum, params_.k_c_)) // label_image, 
             {
@@ -519,7 +562,17 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
                 continue;
             }
 
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       local minimum found at (" << localMinimum.x << ", " << localMinimum.y << ")");
 
+            float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
+            // uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
+            cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
+
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       label: " << (int) label);
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
+
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       Valid local minimum found, pushing back");
             /* Generate the center vector. */
             center.push_back(localMinimum.x);
             center.push_back(localMinimum.y);
@@ -633,10 +686,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             /* Only compare to pixels in a 2 x step by 2 x step region. */
             for (int r = centers_[j][1] - params_.step_; r < centers_[j][1] + params_.step_; r++) 
             {
-                int start_c = centers_[j][0] - params_.step_;
-                int end_c = centers_[j][0] + params_.step_;
                 // #pragma omp parallel for
-                for (int c = start_c; c < end_c; c++) 
+                for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
                 {                
                     current = cv::Point(c, r);
                     if (isPixelValid(depth_image, normal_image, current, params_.k_c_)) 

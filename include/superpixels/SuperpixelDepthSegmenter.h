@@ -108,7 +108,7 @@ class SuperpixelDepthSegmenter
         
         // Subscribers
 
-        image_transport::SubscriberFilter raw_depth_img_sub_;
+        image_transport::SubscriberFilter raw_depth_img_sub_; 
         // image_transport::SubscriberFilter raw_label_img_sub_;
         image_transport::SubscriberFilter raw_normal_img_sub_;
 
@@ -117,9 +117,9 @@ class SuperpixelDepthSegmenter
         // sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;
         sensor_msgs::msg::Image::ConstSharedPtr raw_normal_img_msg_ = nullptr;
 
-        std::string depth_img_topic_;
+        std::string depth_img_topic_ = "";
         // std::string label_img_topic_;
-        std::string normal_img_topic_;
+        std::string normal_img_topic_ = "";
 
         // Image pointers
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
@@ -131,10 +131,10 @@ class SuperpixelDepthSegmenter
 
         // Synchronizer
         using MsgSynchronizer = message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image>; // sensor_msgs::Image,   
-        std::shared_ptr<MsgSynchronizer> msg_sync_;
+        std::shared_ptr<MsgSynchronizer> msg_sync_ = nullptr;
 
         // Callback handle for parameter changes
-        rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_;
+        rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_ = nullptr;
 
         // Mutex
         std::mutex img_mutex_;
@@ -142,33 +142,34 @@ class SuperpixelDepthSegmenter
         // Flags
         bool initialized_ = false;
 
-        cv::Mat visited_; // Visited pixels
+        cv::Mat visited_ = cv::Mat(); // Visited pixels
 
         // Superpixel matrices and vector
-        cv::Mat clusters_; // per-pixel cluster assignments
-        cv::Mat distances_; // per-pixel distances to cluster center
-        std::vector<std::vector<double>> centers_; // LAB/xy cluster centers
-        std::vector<int> center_counts_; // Number of occurrences of each center
-        std::vector<std::vector<cv::Point>> superpixels_; // Superpixel pixel locations
-        std::vector<std::vector<Eigen::Vector2d>> superpixel_projections_; // Superpixel projections
-        std::vector<std::vector<Eigen::Vector2d>> superpixel_convex_hulls_; // Superpixel convex hulls
-        std::vector<Eigen::Matrix3d> egocan_to_region_rotations_; // Superpixel rotations
+        cv::Mat clusters_ = cv::Mat(); // per-pixel cluster assignments
+        cv::Mat distances_ = cv::Mat(); // per-pixel distances to cluster center
+        std::vector<std::vector<double>> centers_ = {}; // LAB/xy cluster centers
+        std::vector<int> center_counts_ = {}; // Number of occurrences of each center
+        std::vector<std::vector<cv::Point>> superpixels_ = {}; // Superpixel pixel locations
+        std::vector<std::vector<Eigen::Vector2d>> superpixel_projections_ = {}; // Superpixel projections
+        std::vector<std::vector<Eigen::Vector2d>> superpixel_convex_hulls_ = {}; // Superpixel convex hulls
+        std::vector<Eigen::Matrix3d> egocan_to_region_rotations_ = {}; // Superpixel rotations
 
         SuperpixelParams params_;
 
-        geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame;
+        geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame = geometry_msgs::msg::TransformStamped();
 
         std::chrono::steady_clock::time_point cleanBegin, cleanEnd;
         std::chrono::steady_clock::time_point fillBegin, fillEnd;
         std::chrono::steady_clock::time_point preprocessBegin, preprocessEnd;
         std::chrono::steady_clock::time_point superpixelBegin, superpixelEnd;
         std::chrono::steady_clock::time_point convexHullBegin, convexHullEnd;
+        std::chrono::steady_clock::time_point visBegin, visEnd;
 
         std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
-        std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
+        std::unique_ptr<tf2_ros::Buffer> tfBuffer_{nullptr};
 
-        ImagePreprocessor * imagePreprocessor_;
-        Visualizer * visualizer_;
-        Ransac * ransac_;
-        ConvexHullifier * convexHullifier_;
+        ImagePreprocessor * imagePreprocessor_ = nullptr;
+        Visualizer * visualizer_ = nullptr;
+        Ransac * ransac_ = nullptr;
+        ConvexHullifier * convexHullifier_ = nullptr;
 };
