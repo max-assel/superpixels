@@ -43,8 +43,8 @@ class ImagePreprocessor
     private:
         SuperpixelParams params_;
 
-        std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
-        std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
+        // std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
+        // std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
 
         std::default_random_engine generator;
 

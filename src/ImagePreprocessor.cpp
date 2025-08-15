@@ -5,8 +5,8 @@ ImagePreprocessor::ImagePreprocessor(const SuperpixelParams & params, const rclc
     params_ = params;
     node_ = node;
 
-    tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
-    tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
+    // tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
+    // tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
 }
 
 void ImagePreprocessor::setParams(const SuperpixelParams & params)

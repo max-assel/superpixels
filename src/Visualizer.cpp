@@ -148,8 +148,16 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
 
     // rclcpp::Duration timeout(3, 0); // 3 seconds
-    geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame = 
-        tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
+    geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame;
+    try
+    {
+        egocanFrameToOdomFrame = tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
+    }
+    catch (tf2::TransformException & ex)
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup failed: " << ex.what());
+        return;
+    }
 
     double foot_radius = 0.02;
 
