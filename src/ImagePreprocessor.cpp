@@ -371,7 +371,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     //     tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
 
     // double default_height = egocanFrameToWorldFrame.transform.translation.z;
-    double default_height = 0.385;
+    double default_height = 0.40;
 
     generator.seed(123456789);
     std::normal_distribution<double> distribution(0.0, 0.00001);
