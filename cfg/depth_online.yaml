@@ -14,14 +14,14 @@ superpixel_depth_segmentation_node:
 
     num_iterations: 5
     num_superpixels: 125
-    warm_start: true
+    warm_start: false
     constraint: false
     ransac: true
     snapping: false
 
     w_normal: 1.0
     w_pos: 1.0
-    w_compact: 3.0
+    w_compact: 10.0
 
     ransac_K: 10
     ransac_N: 25

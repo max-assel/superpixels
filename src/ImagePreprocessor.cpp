@@ -5,8 +5,8 @@ ImagePreprocessor::ImagePreprocessor(const SuperpixelParams & params, const rclc
     params_ = params;
     node_ = node;
 
-    tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
-    tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
+    // tfBuffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
+    // tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
 }
 
 void ImagePreprocessor::setParams(const SuperpixelParams & params)
@@ -371,7 +371,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     //     tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
 
     // double default_height = egocanFrameToWorldFrame.transform.translation.z;
-    double default_height = 0.385;
+    double default_height = 0.40;
 
     generator.seed(123456789);
     std::normal_distribution<double> distribution(0.0, 0.00001);

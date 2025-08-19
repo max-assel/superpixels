@@ -115,20 +115,20 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
     cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-    convertDepthImageToColor(color_depth_image, depth_image);
+    // convertDepthImageToColor(color_depth_image, depth_image);
 
-    overlayCenters(color_depth_image, centers);
+    // overlayCenters(color_depth_image, centers);
 
-    colorClusters(color_depth_image, clusters);
+    // colorClusters(color_depth_image, clusters);
 
     colorClusterPointCloud(depth_image, clusters);
 
-    colorCentroids(centers, center_counts);
+    // colorCentroids(centers, center_counts);
 
     // depth_image, 
     publishPlanarRegions(centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
-    outputToDatFile(raw_depth_img_ptr, superpixel_projections);
+    // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 
     return;
 }
@@ -148,8 +148,16 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
 
     // rclcpp::Duration timeout(3, 0); // 3 seconds
-    geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame = 
-        tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
+    geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame;
+    try
+    {
+        egocanFrameToOdomFrame = tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
+    }
+    catch (tf2::TransformException & ex)
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup failed: " << ex.what());
+        return;
+    }
 
     double foot_radius = 0.02;
 
@@ -421,7 +429,7 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
     cv::Point pixel = cv::Point(0, 0);
     cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
     int cluster_id = -1;
-    cv::Scalar color = cv::Scalar(0, 0, 0);
+    cv::Scalar color = cv::Scalar(0, 114, 189);
     int idx = 0;
     for (int r = 0; r < depth_image.rows; r++)
     {
@@ -442,9 +450,9 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
                 // point.r = color[2];
                 // point.g = color[1];
                 // point.b = color[0];
-                point.r = 0;
-                point.g = 0;
-                point.b = 0;
+                point.r = color[0];
+                point.g = color[1];
+                point.b = color[2];
                 point.a = 255;
             } else
             {
