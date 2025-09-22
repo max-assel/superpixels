@@ -35,9 +35,30 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
 
     setColors();    
 
+    // placeholder gridMap
+    // grid_map::GridMap grid_map;
+    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    // double grid_map_resolution = 0.1; // resolution [m]
+    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    // grid_map.setGeometry(grid_map_dimensions, 
+    //                         grid_map_resolution, 
+    //                         grid_map_origin);
+    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    // grid_map.setFrameId("odom");
+
+    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+
+    // terrain_msg.gridmap = grid_map_msg; 
+
     // set up terrain publisher
     // terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
                                     // ("/convex_plane_decomposition_ros/planar_terrain", 1);
+}
+
+bool Visualizer::canTransform(const std::string & egocan_frame, const rclcpp::Time & lookupTime)
+{
+    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
+    return canTransform;
 }
 
 void Visualizer::setParams(const SuperpixelParams & params)
@@ -80,6 +101,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::visualize]");
 
+    std::cout << "[visualize]" << std::endl;
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
     // if (notReceivedImage())
@@ -121,14 +143,18 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     // colorClusters(color_depth_image, clusters);
 
+    std::cout << "coloring clustered point cloud" << std::endl;
     colorClusterPointCloud(depth_image, clusters);
 
     // colorCentroids(centers, center_counts);
 
     // depth_image, 
+    std::cout << "publishing planar regions" << std::endl;
     publishPlanarRegions(centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
     // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
+
+    std::cout << "done" << std::endl;
 
     return;
 }
@@ -141,6 +167,8 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
                                         const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions]");
+
+    std::cout << "publishing planar regions" << std::endl;
 
     convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
 
@@ -181,6 +209,8 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
     Eigen::VectorXd centerWorldPose;
 
     Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
+
+    std::cout << "starting loop" << std::endl;
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
     for (size_t i = 0; i < centers.size(); i++)

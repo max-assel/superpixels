@@ -28,6 +28,9 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
     // Normals
     cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
+    float depth = 0.0;
+    cv::Vec3f normal;
+
     // zero invalid depth pixels
     for (int r = 0; r < cleaned_depth_img.rows; r++)
     {
@@ -36,11 +39,11 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
             if (isPixelValid(raw_depth_img, raw_normal_img, cv::Point(c, r), params_.k_c_)) // raw_label_img, 
             {
 
-                float depth = raw_depth_img.at<float>(r, c);
+                depth = raw_depth_img.at<float>(r, c);
 
                 // bool valid_depth = (!std::isnan(depth) && std::abs(depth) > 1e-6 && depth > 0);
 
-                cv::Vec3f normal = raw_normal_img.at<cv::Vec3f>(r, c);
+                normal = raw_normal_img.at<cv::Vec3f>(r, c);
 
                 // bool valid_normal = (!std::isnan(normal.val[0]) && !std::isnan(normal.val[1]) && !std::isnan(normal.val[2]) && 
                                         // cv::norm(normal) > DELTA);
@@ -226,7 +229,7 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::preprocessImages]");
 
-    if (params_.kernel_radius_ < 1)
+    if (params_.num_dilation_iterations_ == 0 || params_.kernel_radius_ < 1)
     {
         preprocessed_depth_img = cleaned_depth_img.clone();
         // preprocessed_label_img = cleaned_label_img.clone();
@@ -371,7 +374,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     //     tfBuffer_.lookupTransform("world", egocan_frame, lookupTime);    
 
     // double default_height = egocanFrameToWorldFrame.transform.translation.z;
-    double default_height = 0.40;
+    double default_height = 0.40; // meters
 
     generator.seed(123456789);
     std::normal_distribution<double> distribution(0.0, 0.00001);
@@ -391,22 +394,27 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
 
     int delta = params_.step_ / 8; // bit heuristic, close to actual image sparsity
 
+    bool found_visited_pixel = true;
+
+    cv::Point curr_pixel;
+    cv::Point pixel;
+
     for (int r = delta; r < (cleaned_depth_img.rows - delta); r += delta)
     {
         for (int c = delta; c < (cleaned_depth_img.cols - delta); c += delta)
         {
             // RCLCPP_INFO_STREAM(node_->get_logger(), "    Checking pixel: (" << r << ", " << c << ")");
 
-            cv::Point curr_pixel(c, r);
+            curr_pixel = cv::Point(c, r);
             if (isPixelInBounds(params_.k_c_, curr_pixel) )
             {
-                bool found_visited_pixel = false;
+                found_visited_pixel = false;
 
                 for (int i = -delta; i <= delta; i++)
                 {
                     for (int j = -delta; j <= delta; j++)
                     {
-                        cv::Point pixel(c + j, r + i);
+                        pixel = cv::Point(c + j, r + i);
 
                         if (isPixelInBounds(params_.k_c_, pixel) && visited.at<uint8_t>(pixel.y, pixel.x) == 1)
                         {

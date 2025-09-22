@@ -1,5 +1,6 @@
 #pragma once
 
+#include <superpixels/SuperpixelParams.h>
 #include <superpixels/utils.h>
 
 #include <opencv2/opencv.hpp>

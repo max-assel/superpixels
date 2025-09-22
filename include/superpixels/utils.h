@@ -13,37 +13,37 @@
 const float DELTA = std::numeric_limits<float>::epsilon();
 
 // Parameters
-struct SuperpixelParams
-{
-    // Floor image parameters
-    int k_c_ = 512; // Floor width (pixels)
-    double v_fov_ = M_PI / 2.0; // Vertical field of view (radians)
-    double v_offset_ = 0.0;
-    double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
+// struct SuperpixelParams
+// {
+//     // Floor image parameters
+//     int k_c_ = 512; // Floor width (pixels)
+//     double v_fov_ = M_PI / 2.0; // Vertical field of view (radians)
+//     double v_offset_ = 0.0;
+//     double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
 
-    // Dilation parameters
-    int num_dilation_iterations_ = 0; // Number of dilation iterations
-    int kernel_radius_ = 0; // Kernel size for dilation
+//     // Dilation parameters
+//     int num_dilation_iterations_ = 0; // Number of dilation iterations
+//     int kernel_radius_ = 0; // Kernel size for dilation
 
-    // Superpixel algorithm parameters
-    int num_iterations_ = 10; // Number of iterations
-    int num_superpixels_ = 200; // Desired number of approximately equally-sized superpixels
-    int step_ = 0; // superpixel grid interval
-    bool warm_start_ = false; // Warm start
-    bool constraint_ = true; // Use constraint
-    bool ransac_ = true; // Refine normals via RANSAC
-    bool snapping_ = false; // Snap clusters to nearest actual pixel
+//     // Superpixel algorithm parameters
+//     int num_iterations_ = 10; // Number of iterations
+//     int num_superpixels_ = 200; // Desired number of approximately equally-sized superpixels
+//     int step_ = 0; // superpixel grid interval
+//     bool warm_start_ = false; // Warm start
+//     bool constraint_ = true; // Use constraint
+//     bool ransac_ = true; // Refine normals via RANSAC
+//     bool snapping_ = false; // Snap clusters to nearest actual pixel
 
-    // Superpixel distance parameters
-    double w_normal_ = 1.0; // Weighting parameter for normal similarity term
-    double w_pos_ = 1.0; // Weighting parameter for plane - position distance term
-    double w_compact_ = 3.0; // Weighting parameter for compactness term
+//     // Superpixel distance parameters
+//     double w_normal_ = 1.0; // Weighting parameter for normal similarity term
+//     double w_pos_ = 1.0; // Weighting parameter for plane - position distance term
+//     double w_compact_ = 3.0; // Weighting parameter for compactness term
 
-    // RANSAC parameters
-    size_t ransac_K = 10; // number of points to sample
-    int ransac_N = 25; // number of iterations
-    double ransac_T = 0.01; // threshold    
-};
+//     // RANSAC parameters
+//     size_t ransac_K = 10; // number of points to sample
+//     int ransac_N = 25; // number of iterations
+//     double ransac_T = 0.01; // threshold    
+// };
 
 inline bool isPixelInBounds(const int & k_c, 
                             const cv::Point & pixel)

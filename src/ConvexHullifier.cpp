@@ -34,6 +34,31 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
     superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
     egocan_to_region_rotations = std::vector<Eigen::Matrix3d>(centers.size());
 
+    cv::Point center_pixel;
+    float center_depth;
+    cv::Vec3f centerEgocanPt;
+
+    Eigen::Vector3d center;
+    Eigen::Vector3d normal;
+
+    Eigen::Vector3d arbitraryVec(1, 0, 0);
+
+    Eigen::Vector3d e0, e1;
+
+    Eigen::Matrix3d egocanToRegionRotMat;
+    Eigen::Matrix4d egocanToRegionTransform;
+
+    cv::Point pixel;
+
+    float depth;
+
+    cv::Vec3f egocanPt;
+
+    Eigen::Vector4d egocanPtHomog;
+    Eigen::Vector4d regionPtHomog;
+    Eigen::Vector3d regionPt;
+    Eigen::Vector3d projPt;
+
     // Build convex hulls for each superpixel
     for (int i = 0; i < (int) centers.size(); i++)
     {
@@ -42,18 +67,16 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         //////////////////////////////////////////////////////////////
         // 1. Build transfrom from egocan frame to superpixel frame //
         //////////////////////////////////////////////////////////////
-        cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
-        float center_depth = centers[i][2];
-        cv::Vec3f centerEgocanPt;
+        center_pixel = cv::Point(centers[i][0], centers[i][1]);
+        center_depth = centers[i][2];
         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
-        Eigen::Vector3d center(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
-        Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
+        center << centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2];
+        normal << centers[i][3], centers[i][4], centers[i][5];
 
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       center (egocan frame): " << center.transpose());
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       normal (egocan frame): " << normal.transpose());
 
-        Eigen::Vector3d arbitraryVec(1, 0, 0);
 
         // check here to make sure arbitraryVec is not parallel to normal
         if (std::abs(arbitraryVec.dot(normal)) > 0.99)
@@ -61,16 +84,16 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
             arbitraryVec = Eigen::Vector3d(0, 1, 0);
         }
 
-        Eigen::Vector3d e0 = normal.cross(arbitraryVec);
+        e0 = normal.cross(arbitraryVec);
         e0.normalize();
-        Eigen::Vector3d e1 = normal.cross(e0);
+        
+        e1 = normal.cross(e0);
         e1.normalize();
 
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       e0: " << e0.transpose());
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       e1: " << e1.transpose());
 
         // Egocan to region rotation matrix
-        Eigen::Matrix3d egocanToRegionRotMat;
         // almost positive this is correct
         egocanToRegionRotMat.row(0) = e0;
         egocanToRegionRotMat.row(1) = e1;
@@ -112,7 +135,6 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
 
         // Eigen::Matrix4d egocanToRegionTransform = egocanToWorldTransform * worldToRegionTransform;
 
-        Eigen::Matrix4d egocanToRegionTransform;
         egocanToRegionTransform << egocanToRegionRotMat, -egocanToRegionRotMat * center,
                                     0, 0, 0, 1;
 
@@ -132,10 +154,9 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixel point " << j << ":");
 
             // Transform superpixel points into region frame
-            cv::Point pixel = superpixels[i][j];
-            float depth = depth_img.at<float>(pixel.y, pixel.x);
+            pixel = superpixels[i][j];
+            depth = depth_img.at<float>(pixel.y, pixel.x);
 
-            cv::Vec3f egocanPt;
             pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
             if (egocanPt == centerEgocanPt)
@@ -146,15 +167,15 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
 
-            Eigen::Vector4d egocanPtHomog(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0);
-            Eigen::Vector4d regionPtHomog = egocanToRegionTransform * egocanPtHomog;
+            egocanPtHomog << egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0;
+            regionPtHomog = egocanToRegionTransform * egocanPtHomog;
 
-            Eigen::Vector3d regionPt = regionPtHomog.head(3);
+            regionPt = regionPtHomog.head(3);
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "               (region frame): " << regionPt.transpose());
 
             // project points onto plane
-            Eigen::Vector3d projPt = projectPointOntoPlane(regionPt);
+            projPt = projectPointOntoPlane(regionPt);
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "               projected (region frame): " << projPt.transpose());
 
@@ -271,9 +292,10 @@ void ConvexHullifier::grahamScan(const std::vector<Eigen::Vector2d> & superpixel
     // Find the point with the lowest y-coordinate
     Eigen::Vector2d lowest = superpixel_projections[0];
     // RCLCPP_INFO_STREAM(node_->get_logger(), "                   initial lowest: " << lowest[0] << ", " << lowest[1]);
+    Eigen::Vector2d current;
     for (int i = 1; i < (int) superpixel_projections.size(); i++)
     {
-        Eigen::Vector2d current = superpixel_projections[i];
+        current = superpixel_projections[i];
         // RCLCPP_INFO_STREAM(node_->get_logger(), "                   point " << i << ": " << current[0] << ", " << current[1]);
         if (current[1] < lowest[1])
         {

@@ -27,6 +27,7 @@
 // #include <superpixels/ParametersConfig.h>
 
 // #include <superpixels/utils.h>
+#include <superpixels/SuperpixelParams.h>
 #include <superpixels/ConvexHullifier.h>
 #include <superpixels/ImagePreprocessor.h>
 #include <superpixels/Visualizer.h>
@@ -48,7 +49,7 @@ class SuperpixelDepthSegmenter
         // void reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level);
 
     private:
-        rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
+        // rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
 
         void reset_data(const cv::Mat & depth_image,
                         // const cv::Mat & label_image,
@@ -137,12 +138,14 @@ class SuperpixelDepthSegmenter
         rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_ = nullptr;
 
         // Mutex
-        std::mutex img_mutex_;
+        // std::mutex img_mutex_;
 
         // Flags
         bool initialized_ = false;
 
         cv::Mat visited_ = cv::Mat(); // Visited pixels
+
+        rclcpp::TimerBase::SharedPtr timer_{nullptr};
 
         // Superpixel matrices and vector
         cv::Mat clusters_ = cv::Mat(); // per-pixel cluster assignments
@@ -153,6 +156,9 @@ class SuperpixelDepthSegmenter
         std::vector<std::vector<Eigen::Vector2d>> superpixel_projections_ = {}; // Superpixel projections
         std::vector<std::vector<Eigen::Vector2d>> superpixel_convex_hulls_ = {}; // Superpixel convex hulls
         std::vector<Eigen::Matrix3d> egocan_to_region_rotations_ = {}; // Superpixel rotations
+
+        cv::Mat raw_depth_img;
+        cv::Mat raw_normal_img;
 
         SuperpixelParams params_;
 
@@ -165,8 +171,8 @@ class SuperpixelDepthSegmenter
         std::chrono::steady_clock::time_point convexHullBegin, convexHullEnd;
         std::chrono::steady_clock::time_point visBegin, visEnd;
 
-        std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
-        std::unique_ptr<tf2_ros::Buffer> tfBuffer_{nullptr};
+        // std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
+        // std::unique_ptr<tf2_ros::Buffer> tfBuffer_{nullptr};
 
         ImagePreprocessor * imagePreprocessor_ = nullptr;
         Visualizer * visualizer_ = nullptr;

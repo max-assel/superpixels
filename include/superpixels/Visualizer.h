@@ -1,5 +1,6 @@
 #pragma once
 
+#include <superpixels/SuperpixelParams.h>
 #include <superpixels/utils.h>
 
 // #include <ros/package.h>
@@ -53,6 +54,8 @@ class Visualizer
 
         void outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
                                 const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls);
+
+        bool canTransform(const std::string & egocan_frame, const rclcpp::Time & lookupTime);
 
     private:
         // const cv::Mat & depth_img, 
@@ -108,6 +111,9 @@ class Visualizer
         cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
 
         std::vector<cv::Scalar> colors_;
+
+        // convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
+        // grid_map_msgs::msg::GridMap grid_map_msg;
 
         std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
         std::unique_ptr<tf2_ros::Buffer> tfBuffer_;

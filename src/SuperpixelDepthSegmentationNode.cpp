@@ -12,7 +12,7 @@ int main(int argc, char** argv)
                                                                 .allow_undeclared_parameters(true)
                                                                 .automatically_declare_parameters_from_overrides(true));
 
-    rclcpp::Rate loop_rate(30.0); // 30 Hz
+    // rclcpp::Rate loop_rate(30.0); // 30 Hz
 
     // std::string config_path;
     // config_path = nodePtr->get_parameter("config_path").as_string();
@@ -38,17 +38,18 @@ int main(int argc, char** argv)
     //     RCLCPP_INFO_STREAM(nodePtr->get_logger(), "Terrain receiver is disabled. Will not visualize regions.");
     // }
 
-    while (rclcpp::ok())
-    {
-        // Do something
-        superpixel_segmenter->run();
+    // while (rclcpp::ok())
+    // {
+    //     // Do something
+    //     superpixel_segmenter->run();
 
-        // Visualize outputs
-        // superpixel_segmenter->visualize();
+    //     // Visualize outputs
+    //     // superpixel_segmenter->visualize();
 
-        rclcpp::spin_some(nodePtr);
-        loop_rate.sleep();
-    }
+    //     rclcpp::spin_some(nodePtr);
+    //     loop_rate.sleep();
+    // }
+    rclcpp::spin(nodePtr);
 
     return 0;
 }

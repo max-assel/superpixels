@@ -1,4 +1,6 @@
 #pragma once
+
+#include <superpixels/SuperpixelParams.h>
 #include <superpixels/utils.h>
 
 #include <cv_bridge/cv_bridge.h>
