@@ -112,8 +112,8 @@ class Visualizer
 
         std::vector<cv::Scalar> colors_;
 
-        // convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
-        // grid_map_msgs::msg::GridMap grid_map_msg;
+        convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
+        grid_map_msgs::msg::GridMap grid_map_msg;
 
         std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
         std::unique_ptr<tf2_ros::Buffer> tfBuffer_;

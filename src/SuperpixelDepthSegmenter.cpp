@@ -500,14 +500,14 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
     } else
     {
         // Cold-starting, or initializing for the first time
-        RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing data ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing data ...");
         
-        RCLCPP_INFO_STREAM(node_->get_logger(), "   first mats ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   first mats ...");
         // cv mats
         clusters_.release();
         distances_.release();
 
-        RCLCPP_INFO_STREAM(node_->get_logger(), "   clearing vectors ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   clearing vectors ...");
         centers_.clear();
         center_counts_.clear();
 
@@ -516,7 +516,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
         superpixel_convex_hulls_.clear();
         egocan_to_region_rotations_.clear();
 
-        RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
 
         // Will populate clusters_, distances_, centers_, and center_counts_
         init_data(depth_image, normal_image); // label_image,

@@ -36,19 +36,19 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     setColors();    
 
     // placeholder gridMap
-    // grid_map::GridMap grid_map;
-    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    // double grid_map_resolution = 0.1; // resolution [m]
-    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    // grid_map.setGeometry(grid_map_dimensions, 
-    //                         grid_map_resolution, 
-    //                         grid_map_origin);
-    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    // grid_map.setFrameId("odom");
+    grid_map::GridMap grid_map;
+    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    double grid_map_resolution = 0.1; // resolution [m]
+    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    grid_map.setGeometry(grid_map_dimensions, 
+                            grid_map_resolution, 
+                            grid_map_origin);
+    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    grid_map.setFrameId("odom");
 
-    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
 
-    // terrain_msg.gridmap = grid_map_msg; 
+    terrain_msg.gridmap = grid_map_msg; 
 
     // set up terrain publisher
     // terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
@@ -101,7 +101,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::visualize]");
 
-    std::cout << "[visualize]" << std::endl;
+    // std::cout << "[visualize]" << std::endl;
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
     // if (notReceivedImage())
@@ -143,18 +143,18 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     // colorClusters(color_depth_image, clusters);
 
-    std::cout << "coloring clustered point cloud" << std::endl;
+    // std::cout << "coloring clustered point cloud" << std::endl;
     colorClusterPointCloud(depth_image, clusters);
 
     // colorCentroids(centers, center_counts);
 
     // depth_image, 
-    std::cout << "publishing planar regions" << std::endl;
+    // std::cout << "publishing planar regions" << std::endl;
     publishPlanarRegions(centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
     // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 
-    std::cout << "done" << std::endl;
+    // std::cout << "done" << std::endl;
 
     return;
 }
@@ -168,9 +168,9 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions]");
 
-    std::cout << "publishing planar regions" << std::endl;
+    // std::cout << "publishing planar regions" << std::endl;
 
-    convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
+    // convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
 
     rclcpp::Time lookupTime = fin_depth_img_ptr_->header.stamp;
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
@@ -210,7 +210,21 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
 
     Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
 
-    std::cout << "starting loop" << std::endl;
+    std_msgs::msg::ColorRGBA region_color;
+    // region_color.r = color[2] / 255.0;
+    // region_color.g = color[1] / 255.0;
+    // region_color.b = color[0] / 255.0;
+    region_color.r = 0.0;
+    region_color.g = 0.0;
+    region_color.b = 0.0;
+    region_color.a = 1.0;
+
+    // std::cout << "starting loop" << std::endl;
+
+    Eigen::Vector3d centerEgocanPt;
+    double norm = 0.0;
+
+    terrain_msg.planar_regions.clear();
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
     for (size_t i = 0; i < centers.size(); i++)
@@ -234,7 +248,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
 
         pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
-        Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
+        centerEgocanPt << centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2];
 
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (pixel): " << centers[i][0] << ", " << centers[i][1]);
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (depth): " << centers[i][2]);
@@ -257,7 +271,6 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
         // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(1));
         // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(2));
 
-
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
         polygon.container().clear();
         inflated_polygon.container().clear();
@@ -270,7 +283,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
 
             // inflated polygon
-            double norm = convexHullPt.norm();
+            norm = convexHullPt.norm();
             convexHullDir = convexHullPt / norm;
 
             if (norm > foot_radius)
@@ -300,14 +313,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
 
         region_msg = convex_plane_decomposition::toMessage(region);
         // cv::Scalar color = colors_[i];
-        std_msgs::msg::ColorRGBA region_color;
-        // region_color.r = color[2] / 255.0;
-        // region_color.g = color[1] / 255.0;
-        // region_color.b = color[0] / 255.0;
-        region_color.r = 0.0;
-        region_color.g = 0.0;
-        region_color.b = 0.0;
-        region_color.a = 1.0;
+
         region_msg.color = region_color;
 
         terrain_msg.planar_regions.push_back(region_msg);
@@ -317,20 +323,20 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
         // RCLCPP_INFO_STREAM(node_->get_logger(), "   normal: " << normal.transpose());
     }    
 
-    // placeholder gridMap
-    grid_map::GridMap grid_map;
-    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    double grid_map_resolution = 0.1; // resolution [m]
-    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    grid_map.setGeometry(grid_map_dimensions, 
-                            grid_map_resolution, 
-                            grid_map_origin);
-    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    grid_map.setFrameId("odom");
+    // // placeholder gridMap
+    // grid_map::GridMap grid_map;
+    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    // double grid_map_resolution = 0.1; // resolution [m]
+    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    // grid_map.setGeometry(grid_map_dimensions, 
+    //                         grid_map_resolution, 
+    //                         grid_map_origin);
+    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    // grid_map.setFrameId("odom");
 
-    grid_map_msgs::msg::GridMap grid_map_msg;
-    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
-    terrain_msg.gridmap = grid_map_msg; 
+    // grid_map_msgs::msg::GridMap grid_map_msg;
+    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+    // terrain_msg.gridmap = grid_map_msg; 
 
     terrainPub_->publish(terrain_msg);
 }
