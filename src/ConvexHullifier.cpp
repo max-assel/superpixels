@@ -64,7 +64,7 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
     // Build convex hulls for each superpixel
     for (int i = 0; i < (int) centers_lc.size(); i++)
     {
-        if (superpixels_lc[i].size() < 3)
+        if (superpixels_lc[i].size() < 10)
         {
             // Not enough points to form a superpixel, delete.
             centers_lc.erase(centers_lc.begin() + i);
@@ -75,6 +75,9 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
             i--;
             continue;
         }
+
+        // Check if points are colinear
+
 
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       center " << i << ":");
 

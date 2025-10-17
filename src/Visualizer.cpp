@@ -237,9 +237,9 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
             continue;
         }
 
-        if (superpixel_convex_hulls[i].size() <= 3)
+        if (superpixel_convex_hulls[i].size() < 10)
         {
-            // RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has less than or equal to 3 points.");
+            // RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has less than 3 points.");
             continue;
         }
 
