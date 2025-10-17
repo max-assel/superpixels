@@ -39,6 +39,7 @@
   <depend>convex_plane_decomposition_ros</depend>
   <depend>convex_plane_decomposition_msgs</depend>
   <depend>segmented_planes_terrain_model</depend>
+  <depend>egocylindrical</depend>
 
 
   <!-- Member of group for rosidl interface packages -->
