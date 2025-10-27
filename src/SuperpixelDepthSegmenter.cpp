@@ -339,6 +339,17 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
+    geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame;
+    try
+    {
+        egocanFrameToOdomFrame = tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
+    }
+    catch (tf2::TransformException & ex)
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup failed: " << ex.what());
+        return;
+    }    
+
     try
     {
         raw_depth_img_ptr_ = cv_bridge::toCvCopy(raw_depth_img_msg_, sensor_msgs::image_encodings::TYPE_32FC1);
@@ -388,9 +399,14 @@ void SuperpixelDepthSegmenter::run()
 
     fillBegin = std::chrono::steady_clock::now();
 
+    double default_height = egocanFrameToOdomFrame.transform.translation.z;
+    // double default_height = 0.575;
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "   Default height for filling: " << default_height);
+
     cv::Mat filled_depth_img, filled_normal_img; // filled_label_img, 
     imagePreprocessor_->fillInImage(cleaned_depth_img, cleaned_normal_img, visited_, // cleaned_label_img, 
-                                    filled_depth_img, filled_normal_img); // , raw_depth_img_ptr_, filled_label_img, 
+                                    filled_depth_img, filled_normal_img, default_height); // , raw_depth_img_ptr_, filled_label_img, 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
 
