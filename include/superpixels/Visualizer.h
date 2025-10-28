@@ -84,9 +84,13 @@ class Visualizer
         void overlayCenters(const cv::Mat & color_depth_image, 
                             const std::vector<std::vector<double>> & centers);
 
-        void visualizePlanarRegionBoundaries(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg);
-        void visualizePlanarRegionIDs(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg);
         void visualizePlanarRegions(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg);
+        void visualizePlanarRegionBoundaries(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
+                                                const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions);
+        void visualizePlanarRegionNormals(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
+                                        const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions);
+        void visualizePlanarRegionIDs(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
+                                        const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions);
 
         SuperpixelParams params_;
         rclcpp::Node::SharedPtr node_;
@@ -106,8 +110,10 @@ class Visualizer
         rclcpp::Publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>::SharedPtr terrainPub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionIDPublisher_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionNormalPublisher_;
         
         int priorPlanarRegionsSize = 0;
+        int priorPlanarRegionsNormalSize = 0;
         int priorPlanarRegionsIDSize = 0;
 
         // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;

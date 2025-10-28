@@ -34,6 +34,7 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
 
     localRegionPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_regions", 1);
+    localRegionNormalPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_region_normals", 1);
     localRegionIDPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/ids", 1);
 
     setColors();    
@@ -574,44 +575,9 @@ void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr
     dat_file.close();
 }
 
-// visualization_msgs::msg::Marker regionNormalMarker;
-// regionNormalMarker.header.frame_id = "odom";
-// regionNormalMarker.header.stamp = timeStamp;
-// regionNormalMarker.ns = "local_region_normals";
-// regionNormalMarker.id = 2*i + 1;
-// regionNormalMarker.type = visualization_msgs::msg::Marker::ARROW;
-// regionNormalMarker.action = visualization_msgs::msg::Marker::ADD;
-// regionNormalMarker.scale.x = 0.01;
-// regionNormalMarker.scale.y = 0.02;
-// regionNormalMarker.scale.z = 0.06;
-// regionNormalMarker.points.reserve(2);
-// double normalLength = 0.1;
-// const Eigen::Vector3d surfaceNormal = normalLength * surfaceNormalInWorld(convexTerrain.plane);
-// const Eigen::Vector3d startPointVec = convexTerrain.plane.positionInWorld;
-// geometry_msgs::msg::Point startPoint;
-// startPoint.x = startPointVec.x();
-// startPoint.y = startPointVec.y();
-// startPoint.z = startPointVec.z();
-// geometry_msgs::msg::Point endPoint;
-// endPoint.x = startPointVec.x() + surfaceNormal.x();
-// endPoint.y = startPointVec.y() + surfaceNormal.y();
-// endPoint.z = startPointVec.z() + surfaceNormal.z();
-// regionNormalMarker.points.push_back(startPoint);
-// regionNormalMarker.points.push_back(endPoint);
-// regionNormalMarker.color.a = 1.0; // transparency
-// regionNormalMarker.color.r = 0.0; // red
-// regionNormalMarker.color.g = 0.4470; // green
-// regionNormalMarker.color.b = 0.7410; // blue
-// regionNormalMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
-// regionNormalMarker.pose.orientation.w = 1.0; // No rotation
-// planarRegionMarkerArray.markers.emplace_back(regionMarker);
-
-void Visualizer::visualizePlanarRegionBoundaries(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg)
+void Visualizer::visualizePlanarRegionBoundaries(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
+                                                    const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions)
 {
-    std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> terrainPtr = std::make_unique<switched_model::SegmentedPlanesTerrainModel>(convex_plane_decomposition::fromMessage(terrain_msg));
-
-    std::vector<convex_plane_decomposition::PlanarRegion> planarRegions = terrainPtr->planarTerrain().planarRegions;
-
     int counter = 0;
     visualization_msgs::msg::MarkerArray planarRegionMarkerArray;
 
@@ -707,12 +673,99 @@ void Visualizer::visualizePlanarRegionBoundaries(const convex_plane_decompositio
     localRegionPublisher_->publish(planarRegionMarkerArray);
 }
 
-void Visualizer::visualizePlanarRegionIDs(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg)
+void Visualizer::visualizePlanarRegionNormals(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
+                                                const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions)
 {
-    std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> terrainPtr = std::make_unique<switched_model::SegmentedPlanesTerrainModel>(convex_plane_decomposition::fromMessage(terrain_msg));
+    int counter = 0;
+    visualization_msgs::msg::MarkerArray planarRegionNormalMarkerArray;
 
-    std::vector<convex_plane_decomposition::PlanarRegion> planarRegions = terrainPtr->planarTerrain().planarRegions;
+    for (int i = 0; i < (int) planarRegions.size(); i++)
+    {
+        convex_plane_decomposition::PlanarRegion region = planarRegions[i];
 
+        rclcpp::Time timeStamp = node_->get_clock()->now();
+
+        switched_model::ConvexTerrain convexTerrain = terrainPtr->getConvexTerrainAtPositionInWorld(region.transformPlaneToWorld.translation(),
+            [](const Eigen::Vector3d&) { return 0.0; });
+
+        // Add region ID marker
+        visualization_msgs::msg::Marker regionNormalMarker;
+        regionNormalMarker.header.frame_id = "odom";
+        regionNormalMarker.header.stamp = timeStamp;
+        regionNormalMarker.ns = "local_region_normals";
+        regionNormalMarker.id = i;
+        regionNormalMarker.type = visualization_msgs::msg::Marker::ARROW;
+        regionNormalMarker.action = visualization_msgs::msg::Marker::ADD;
+        regionNormalMarker.scale.x = 0.01;
+        regionNormalMarker.scale.y = 0.02;
+        regionNormalMarker.scale.z = 0.06;
+        regionNormalMarker.points.reserve(2);
+        double normalLength = 0.1;
+        const Eigen::Vector3d surfaceNormal = normalLength * surfaceNormalInWorld(convexTerrain.plane);
+        const Eigen::Vector3d startPointVec = convexTerrain.plane.positionInWorld;
+        geometry_msgs::msg::Point startPoint;
+        startPoint.x = startPointVec.x();
+        startPoint.y = startPointVec.y();
+        startPoint.z = startPointVec.z();
+        geometry_msgs::msg::Point endPoint;
+        endPoint.x = startPointVec.x() + surfaceNormal.x();
+        endPoint.y = startPointVec.y() + surfaceNormal.y();
+        endPoint.z = startPointVec.z() + surfaceNormal.z();
+        regionNormalMarker.points.push_back(startPoint);
+        regionNormalMarker.points.push_back(endPoint);
+        regionNormalMarker.color.a = 1.0; // transparency
+        regionNormalMarker.color.r = 0.0; // red
+        regionNormalMarker.color.g = 0.4470; // green
+        regionNormalMarker.color.b = 0.7410; // blue
+        regionNormalMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
+        regionNormalMarker.pose.orientation.w = 1.0; // No rotation
+        planarRegionNormalMarkerArray.markers.push_back(regionNormalMarker);
+    }
+
+    if (planarRegions.size() < priorPlanarRegionsIDSize)
+    {
+        // Clear extra markers from prior visualization
+        for (size_t j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
+        {
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+
+            rclcpp::Time timeStamp = node_->get_clock()->now();
+
+            // Add region ID marker
+            visualization_msgs::msg::Marker regionNormalMarker;
+            regionNormalMarker.header.frame_id = "odom";
+            regionNormalMarker.header.stamp = timeStamp;
+            regionNormalMarker.ns = "local_region_normals";
+            regionNormalMarker.id = j;
+            regionNormalMarker.type = visualization_msgs::msg::Marker::ARROW;
+            regionNormalMarker.action = visualization_msgs::msg::Marker::DELETE;
+            regionNormalMarker.pose.position.x = 0.0;
+            regionNormalMarker.pose.position.y = 0.0;
+            regionNormalMarker.pose.position.z = 0.0;
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+            regionNormalMarker.pose.orientation.w = 1.0; // No rotation
+            regionNormalMarker.text = ""; // Region ID as text
+            // regionNormalMarker.scale.x = 1.0; // radius
+            // regionNormalMarker.scale.y = 1.0; // radius
+            regionNormalMarker.scale.z = 0.05; // radius
+            regionNormalMarker.color.a = 1.0; // transparency
+            regionNormalMarker.color.r = 0.0; // red
+            regionNormalMarker.color.g = 0.0; // green
+            regionNormalMarker.color.b = 0.0; // blue
+            regionNormalMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
+            planarRegionNormalMarkerArray.markers.push_back(regionNormalMarker);
+        }
+    }
+
+    priorPlanarRegionsNormalSize = planarRegions.size();
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region normal markers of size " << planarRegionNormalMarkerArray.markers.size());
+    localRegionNormalPublisher_->publish(planarRegionNormalMarkerArray);
+}
+
+void Visualizer::visualizePlanarRegionIDs(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
+                                            const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions)
+{
     int counter = 0;
     visualization_msgs::msg::MarkerArray planarRegionIDMarkerArray;
 
@@ -789,11 +842,15 @@ void Visualizer::visualizePlanarRegionIDs(const convex_plane_decomposition_msgs:
 
     RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region ID markers of size " << planarRegionIDMarkerArray.markers.size());
     localRegionIDPublisher_->publish(planarRegionIDMarkerArray);    
-
 }
 
 void Visualizer::visualizePlanarRegions(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg)
 {
-    visualizePlanarRegionBoundaries(terrain_msg);
-    visualizePlanarRegionIDs(terrain_msg);
+    std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> terrainPtr = std::make_unique<switched_model::SegmentedPlanesTerrainModel>(convex_plane_decomposition::fromMessage(terrain_msg));
+
+    std::vector<convex_plane_decomposition::PlanarRegion> planarRegions = terrainPtr->planarTerrain().planarRegions;
+
+    visualizePlanarRegionBoundaries(terrainPtr, planarRegions);
+    visualizePlanarRegionNormals(terrainPtr, planarRegions);
+    visualizePlanarRegionIDs(terrainPtr, planarRegions);
 }
