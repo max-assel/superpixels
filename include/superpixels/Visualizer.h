@@ -28,6 +28,9 @@
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
 
+#include "segmented_planes_terrain_model/SegmentedPlanesTerrainModel.h"
+#include "ocs2_switched_model_interface/terrain/TerrainPlane.h"
+
 class Visualizer
 {
     public:
@@ -81,6 +84,8 @@ class Visualizer
         void overlayCenters(const cv::Mat & color_depth_image, 
                             const std::vector<std::vector<double>> & centers);
 
+        void visualizePlanarRegions(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg);
+
         SuperpixelParams params_;
         rclcpp::Node::SharedPtr node_;
 
@@ -97,6 +102,10 @@ class Visualizer
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr colored_point_cloud_pub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr colored_centroids_pub_;
         rclcpp::Publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>::SharedPtr terrainPub_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionIDPublisher_;
+        
+        int priorPlanarRegionsSize = 0;
 
         // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;

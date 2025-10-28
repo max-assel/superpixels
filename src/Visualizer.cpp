@@ -33,6 +33,9 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
     terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
 
+    localRegionPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_regions", 1);
+    localRegionIDPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/ids", 1);
+
     setColors();    
 
     // set up terrain publisher
@@ -303,6 +306,8 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
     terrain_msg.gridmap = grid_map_msg; 
 
     terrainPub_->publish(terrain_msg);
+
+    visualizePlanarRegions(terrain_msg);
 }
 
 
@@ -567,4 +572,173 @@ void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr
     }
 
     dat_file.close();
+}
+
+void Visualizer::visualizePlanarRegions(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg)
+{
+    // if (!terrain_msg)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualizePlanarRegions] Received empty terrain message");
+    //     return;
+    // }
+
+    std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> terrainPtr = std::make_unique<switched_model::SegmentedPlanesTerrainModel>(convex_plane_decomposition::fromMessage(terrain_msg));
+
+    std::vector<convex_plane_decomposition::PlanarRegion> planarRegions = terrainPtr->planarTerrain().planarRegions;
+
+    int counter = 0;
+    visualization_msgs::msg::MarkerArray planarRegionMarkerArray;
+    visualization_msgs::msg::MarkerArray planarRegionIDMarkerArray;
+
+    for (int i = 0; i < (int) planarRegions.size(); i++)
+    {
+        convex_plane_decomposition::PlanarRegion region = planarRegions[i];
+
+        rclcpp::Time timeStamp = node_->get_clock()->now();
+
+        switched_model::ConvexTerrain convexTerrain = terrainPtr->getConvexTerrainAtPositionInWorld(region.transformPlaneToWorld.translation(),
+            [](const Eigen::Vector3d&) { return 0.0; });
+
+        // Add region marker
+        // if (!convexTerrain.boundary.empty()) 
+        // {
+        visualization_msgs::msg::Marker regionMarker;
+        regionMarker.header.frame_id = "odom";
+        regionMarker.header.stamp = timeStamp;
+        regionMarker.ns = "local_regions";
+        regionMarker.id = i;
+
+        std::vector<geometry_msgs::msg::Point> boundary;
+        boundary.reserve(convexTerrain.boundary.size() + 1);
+    
+        for (const auto& point : convexTerrain.boundary) 
+        {
+            const auto& pointInWorldFrame = switched_model::positionInWorldFrameFromPositionInTerrain({point.x(), point.y(), 0.0}, convexTerrain.plane);
+            geometry_msgs::msg::Point pointMsg; //  = ocs2::getPointMsg(pointInWorldFrame);
+            pointMsg.x = pointInWorldFrame.x();
+            pointMsg.y = pointInWorldFrame.y();
+            pointMsg.z = pointInWorldFrame.z();
+            boundary.emplace_back(pointMsg);
+        }
+    
+        // Close the polygon
+        const auto& pointInWorldFrame = switched_model::positionInWorldFrameFromPositionInTerrain(
+            {convexTerrain.boundary.front().x(), convexTerrain.boundary.front().y(), 0.0}, convexTerrain.plane);
+        geometry_msgs::msg::Point pointMsg; //  = ocs2::getPointMsg(pointInWorldFrame);
+        pointMsg.x = pointInWorldFrame.x();
+        pointMsg.y = pointInWorldFrame.y();
+        pointMsg.z = pointInWorldFrame.z();
+        boundary.emplace_back(pointMsg);
+
+        // Headers
+
+        regionMarker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        regionMarker.action = visualization_msgs::msg::Marker::ADD;
+        regionMarker.scale.x = 0.02; // Line width
+        regionMarker.color.a = 1.0; // Opacity
+        regionMarker.color.r = 0.0; // Red
+        regionMarker.color.g = 0.0; // Green
+        regionMarker.color.b = 1.0; // Blue
+        regionMarker.points = boundary;
+        regionMarker.pose.orientation.w = 1.0; // No rotation
+        // auto lineMsg = ocs2::getLineMsg(std::move(boundary), ocs2Color, linewidth);
+        // lineMsg.header = ocs2::getHeaderMsg(frameId, timeStamp);
+        // lineMsg.color = regionColor;
+        // lineMsg.lifetime = rclcpp::Duration::from_seconds(0.0);
+        regionMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
+
+        planarRegionMarkerArray.markers.emplace_back(regionMarker);
+        // }
+
+        // Add region ID marker
+        visualization_msgs::msg::Marker regionIDMarker;
+        regionIDMarker.header.frame_id = "odom";
+        regionIDMarker.header.stamp = timeStamp;
+        regionIDMarker.ns = "local_region_ids";
+        regionIDMarker.id = i;
+        regionIDMarker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+        regionIDMarker.action = visualization_msgs::msg::Marker::ADD;
+        regionIDMarker.pose.position.x = convexTerrain.plane.positionInWorld.x();
+        regionIDMarker.pose.position.y = convexTerrain.plane.positionInWorld.y();
+        regionIDMarker.pose.position.z = convexTerrain.plane.positionInWorld.z();
+        RCLCPP_INFO_STREAM(node_->get_logger(), "       Region " << i << " position: (" << regionIDMarker.pose.position.x << ", " << regionIDMarker.pose.position.y << ", " << regionIDMarker.pose.position.z << ")");
+        regionIDMarker.pose.orientation.w = 1.0; // No rotation
+        regionIDMarker.text = std::to_string(i); // Region ID as text
+        // regionIDMarker.scale.x = 1.0; // radius
+        // regionIDMarker.scale.y = 1.0; // radius
+        regionIDMarker.scale.z = 0.05; // radius
+        regionIDMarker.color.a = 1.0; // transparency
+        regionIDMarker.color.r = 0.0; // red
+        regionIDMarker.color.g = 0.0; // green
+        regionIDMarker.color.b = 0.0; // blue
+        regionIDMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
+        planarRegionIDMarkerArray.markers.push_back(regionIDMarker);
+    }
+
+    if (planarRegions.size() < priorPlanarRegionsSize)
+    {
+        // Clear extra markers from prior visualization
+        for (size_t j = planarRegions.size(); j < priorPlanarRegionsSize; j++)
+        {
+            RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+
+            rclcpp::Time timeStamp = node_->get_clock()->now();
+
+            // Add region marker
+            visualization_msgs::msg::Marker regionMarker;
+            regionMarker.header.frame_id = "odom";
+            regionMarker.header.stamp = timeStamp;
+            regionMarker.ns = "local_regions";
+            regionMarker.id = j;
+            regionMarker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            regionMarker.action = visualization_msgs::msg::Marker::DELETE;
+            regionMarker.pose.position.x = 0.0;
+            regionMarker.pose.position.y = 0.0;
+            regionMarker.pose.position.z = 0.0;
+            regionMarker.pose.orientation.w = 1.0; // No rotation
+            regionMarker.text = ""; // Region ID as text
+            // regionMarker.scale.x = 1.0; // radius
+            // regionMarker.scale.y = 1.0; // radius
+            regionMarker.scale.z = 0.05; // radius
+            regionMarker.color.a = 1.0; // transparency
+            regionMarker.color.r = 0.0; // red
+            regionMarker.color.g = 0.0; // green
+            regionMarker.color.b = 0.0; // blue
+            regionMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
+            planarRegionMarkerArray.markers.push_back(regionMarker);
+
+            // Add region ID marker
+            visualization_msgs::msg::Marker regionIDMarker;
+            regionIDMarker.header.frame_id = "odom";
+            regionIDMarker.header.stamp = timeStamp;
+            regionIDMarker.ns = "local_region_ids";
+            regionIDMarker.id = j;
+            regionIDMarker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+            regionIDMarker.action = visualization_msgs::msg::Marker::DELETE;
+            regionIDMarker.pose.position.x = 0.0;
+            regionIDMarker.pose.position.y = 0.0;
+            regionIDMarker.pose.position.z = 0.0;
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+            regionIDMarker.pose.orientation.w = 1.0; // No rotation
+            regionIDMarker.text = ""; // Region ID as text
+            // regionIDMarker.scale.x = 1.0; // radius
+            // regionIDMarker.scale.y = 1.0; // radius
+            regionIDMarker.scale.z = 0.05; // radius
+            regionIDMarker.color.a = 1.0; // transparency
+            regionIDMarker.color.r = 0.0; // red
+            regionIDMarker.color.g = 0.0; // green
+            regionIDMarker.color.b = 0.0; // blue
+            regionIDMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
+            planarRegionIDMarkerArray.markers.push_back(regionIDMarker);
+        }
+    }
+
+    priorPlanarRegionsSize = planarRegions.size();
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region ID markers of size " << planarRegionIDMarkerArray.markers.size());
+    localRegionIDPublisher_->publish(planarRegionIDMarkerArray);    
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region markers of size " << planarRegionMarkerArray.markers.size());
+    localRegionPublisher_->publish(planarRegionMarkerArray);
+
 }
