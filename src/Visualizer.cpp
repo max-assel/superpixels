@@ -193,15 +193,15 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
 
         if (center_counts[i] == 0)
         {
-            // RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has no points.");
+            RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has no points.");
             continue;
         }
 
-        if (superpixel_convex_hulls[i].size() < 10)
-        {
-            // RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has less than 3 points.");
-            continue;
-        }
+        // if (superpixel_convex_hulls[i].size() < 10)
+        // {
+        //     RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has less than 10 points.");
+        //     continue;
+        // }
 
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         center_depth = centers[i][2];
@@ -435,7 +435,7 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
     cv::Point pixel = cv::Point(0, 0);
     cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
     int cluster_id = -1;
-    cv::Scalar color = cv::Scalar(0, 114, 189);
+    cv::Scalar color = cv::Scalar(114, 0, 189);
     int idx = 0;
     for (int r = 0; r < depth_image.rows; r++)
     {
@@ -638,7 +638,7 @@ void Visualizer::visualizePlanarRegionBoundaries(const std::unique_ptr<switched_
         // Clear extra markers from prior visualization
         for (size_t j = planarRegions.size(); j < priorPlanarRegionsSize; j++)
         {
-            RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
 
             rclcpp::Time timeStamp = node_->get_clock()->now();
 
@@ -669,7 +669,7 @@ void Visualizer::visualizePlanarRegionBoundaries(const std::unique_ptr<switched_
 
     priorPlanarRegionsSize = planarRegions.size();
 
-    RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region markers of size " << planarRegionMarkerArray.markers.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region markers of size " << planarRegionMarkerArray.markers.size());
     localRegionPublisher_->publish(planarRegionMarkerArray);
 }
 
@@ -727,7 +727,7 @@ void Visualizer::visualizePlanarRegionNormals(const std::unique_ptr<switched_mod
         // Clear extra markers from prior visualization
         for (size_t j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
         {
-            RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
 
             rclcpp::Time timeStamp = node_->get_clock()->now();
 
@@ -759,7 +759,7 @@ void Visualizer::visualizePlanarRegionNormals(const std::unique_ptr<switched_mod
 
     priorPlanarRegionsNormalSize = planarRegions.size();
 
-    RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region normal markers of size " << planarRegionNormalMarkerArray.markers.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region normal markers of size " << planarRegionNormalMarkerArray.markers.size());
     localRegionNormalPublisher_->publish(planarRegionNormalMarkerArray);
 }
 
@@ -789,7 +789,7 @@ void Visualizer::visualizePlanarRegionIDs(const std::unique_ptr<switched_model::
         regionIDMarker.pose.position.x = convexTerrain.plane.positionInWorld.x();
         regionIDMarker.pose.position.y = convexTerrain.plane.positionInWorld.y();
         regionIDMarker.pose.position.z = convexTerrain.plane.positionInWorld.z();
-        RCLCPP_INFO_STREAM(node_->get_logger(), "       Region " << i << " position: (" << regionIDMarker.pose.position.x << ", " << regionIDMarker.pose.position.y << ", " << regionIDMarker.pose.position.z << ")");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Region " << i << " position: (" << regionIDMarker.pose.position.x << ", " << regionIDMarker.pose.position.y << ", " << regionIDMarker.pose.position.z << ")");
         regionIDMarker.pose.orientation.w = 1.0; // No rotation
         regionIDMarker.text = std::to_string(i); // Region ID as text
         // regionIDMarker.scale.x = 1.0; // radius
@@ -808,7 +808,7 @@ void Visualizer::visualizePlanarRegionIDs(const std::unique_ptr<switched_model::
         // Clear extra markers from prior visualization
         for (size_t j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
         {
-            RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
 
             rclcpp::Time timeStamp = node_->get_clock()->now();
 
@@ -840,7 +840,7 @@ void Visualizer::visualizePlanarRegionIDs(const std::unique_ptr<switched_model::
 
     priorPlanarRegionsIDSize = planarRegions.size();
 
-    RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region ID markers of size " << planarRegionIDMarkerArray.markers.size());
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "Publishing planar region ID markers of size " << planarRegionIDMarkerArray.markers.size());
     localRegionIDPublisher_->publish(planarRegionIDMarkerArray);    
 }
 

@@ -41,6 +41,7 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
     {
         if (superpixels_lc[i].size() < 10)
         {
+            RCLCPP_INFO_STREAM(logger_, "       throwing out superpixel " << i << ": not enough points");
             // Not enough points to form a superpixel, delete.
             centers_lc.erase(centers_lc.begin() + i);
             superpixels_lc.erase(superpixels_lc.begin() + i);

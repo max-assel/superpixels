@@ -30,4 +30,6 @@ class ConvexHullifier
         Eigen::Vector3d projectPointOntoPlane(const Eigen::Vector3d & regionPt);
 
         SuperpixelParams params_;    
+
+        rclcpp::Logger logger_ = rclcpp::get_logger("ConvexHullifier");
 };
