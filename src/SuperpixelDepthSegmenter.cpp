@@ -100,7 +100,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
-    regionSplitter_ = new RegionSplitter();
+    // regionSplitter_ = new RegionSplitter(params_);
 
     callback_handle_ = node_->add_on_set_parameters_callback(
         std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
@@ -452,6 +452,14 @@ void SuperpixelDepthSegmenter::run()
     int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
     double superpixel_total_time_sec = 1.0e-6 * superpixel_total_time;
 
+    // Split regions
+    // regionSplitBegin = std::chrono::steady_clock::now();
+    // regionSplitter_->run(centers_, superpixels_, superpixel_projections_, 
+    //                         egocan_to_region_rotations_, preprocessed_depth_img);
+    // regionSplitEnd = std::chrono::steady_clock::now();
+    // int64_t region_split_total_time = std::chrono::duration_cast<std::chrono::microseconds>(regionSplitEnd - regionSplitBegin).count();
+    // double region_split_total_time_sec = 1.0e-6 * region_split_total_time;
+
     // Calculate convex hulls
     convexHullBegin = std::chrono::steady_clock::now();
     convexHullifier_->run(centers_, superpixels_, superpixel_projections_, 
@@ -460,14 +468,12 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = 1.0e-6 * convex_hull_total_time;
 
-    regionSplitter_->run(centers_, superpixels_, superpixel_projections_, 
-                            superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
-
     RCLCPP_INFO_STREAM(node_->get_logger(),  "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
                                 "   Image preprocessing took " << preprocess_total_time_sec << " seconds, \n" <<
                                 "   Superpixels took " << superpixel_total_time_sec << " seconds, \n" << 
+                                // "   Region splitting took " << region_split_total_time_sec << " seconds, \n" <<
                                 "   Convex hulls took " << convex_hull_total_time_sec << " seconds, \n" <<
                                 "   Number of superpixels: " << centers_.size() << "\n" <<
                                 "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");

@@ -84,6 +84,30 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::visualize]");
 
+    if (centers.size() != center_counts.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and center_counts size do not match!");
+        return;
+    }
+
+    if (centers.size() != superpixel_projections.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and superpixel_projections size do not match!");
+        return;
+    }
+
+    if (centers.size() != superpixel_convex_hulls.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and superpixel_convex_hulls size do not match!");
+        return;
+    }
+
+    if (centers.size() != egocan_to_region_rotations.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and egocan_to_region_rotations size do not match!");
+        return;
+    }
+
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
     // if (notReceivedImage())
@@ -196,12 +220,6 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
             RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has no points.");
             continue;
         }
-
-        // if (superpixel_convex_hulls[i].size() < 10)
-        // {
-        //     RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has less than 10 points.");
-        //     continue;
-        // }
 
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         center_depth = centers[i][2];
