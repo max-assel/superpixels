@@ -100,6 +100,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
+    regionSplitter_ = new RegionSplitter();
 
     callback_handle_ = node_->add_on_set_parameters_callback(
         std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
@@ -459,7 +460,9 @@ void SuperpixelDepthSegmenter::run()
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     double convex_hull_total_time_sec = 1.0e-6 * convex_hull_total_time;
 
-    // *node_->get_clock(), 3,
+    regionSplitter_->run(centers_, superpixels_, superpixel_projections_, 
+                            superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
+
     RCLCPP_INFO_STREAM(node_->get_logger(),  "Timing ---- \n" << 
                                 "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
                                 "   Image filling took: " << fill_total_time_sec << " seconds, \n" <<
