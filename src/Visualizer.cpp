@@ -84,27 +84,29 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::visualize]");
 
+    // WARNING: clusters IDs are wrong after removing superpixels, ID itself is invalid
+
     if (centers.size() != center_counts.size())
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and center_counts size do not match!");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and center_counts size (" << center_counts.size() << ") do not match!");
         return;
     }
 
     if (centers.size() != superpixel_projections.size())
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and superpixel_projections size do not match!");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_projections size (" << superpixel_projections.size() << ") do not match!");
         return;
     }
 
     if (centers.size() != superpixel_convex_hulls.size())
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and superpixel_convex_hulls size do not match!");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_convex_hulls size (" << superpixel_convex_hulls.size() << ") do not match!");
         return;
     }
 
     if (centers.size() != egocan_to_region_rotations.size())
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size and egocan_to_region_rotations size do not match!");
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and egocan_to_region_rotations size (" << egocan_to_region_rotations.size() << ") do not match!");
         return;
     }
 
@@ -278,7 +280,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
         }
 
-        polygonWithHoles.outer_boundary() = polygon;
+        polygonWithHoles.outer_boundary() = inflated_polygon; // polygon;
         boundaryWithInset.boundary = polygonWithHoles;
 
         inflated_polygon_with_holes.outer_boundary() = inflated_polygon;

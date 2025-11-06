@@ -259,8 +259,8 @@ void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::msg::Image::C
 {   
     std::lock_guard<std::mutex> lock(img_mutex_);
 
-    RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::allImageCallback]");
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       time stamp: " << depth_image_msg->header.stamp.sec << "." << depth_image_msg->header.stamp.nanosec);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::allImageCallback]");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       time stamp: " << depth_image_msg->header.stamp.sec << "." << depth_image_msg->header.stamp.nanosec);
 
     raw_depth_img_msg_ = depth_image_msg;
     // raw_label_img_msg_ = label_image_msg;
@@ -462,7 +462,7 @@ void SuperpixelDepthSegmenter::run()
 
     // Calculate convex hulls
     convexHullBegin = std::chrono::steady_clock::now();
-    convexHullifier_->run(centers_, superpixels_, superpixel_projections_, 
+    convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
                             superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
     convexHullEnd = std::chrono::steady_clock::now();
     int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
@@ -927,6 +927,11 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // Normal term
     double d_normal = (1.0 - normal.dot(center_normal));
+
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << normal);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_normal: " << center_normal);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_normal: " << d_normal);
+
     double max_d_normal = 2.0;
     double weighted_d_normal = params_.w_normal_ * (d_normal / max_d_normal);
     // double dc = sqrt(pow(color.val[0] - centers_[center_idx][0], 2) +
@@ -944,6 +949,11 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // double d_posn = std::abs( (egocanPt - centerEgocanPt).dot(center_normal) );
     double d_posn = cv::norm(egocanPt - centerEgocanPt);
+
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           egocanPt: " << egocanPt);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           centerEgocanPt: " << centerEgocanPt);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_posn: " << d_posn);
+
     double max_d_posn = params_.v_fov_;
     double weighted_d_posn = params_.w_pos_ * (d_posn / max_d_posn);
 
@@ -960,6 +970,11 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // Compactness term
     double d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
+
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_compact: " << d_compact);
+
     double max_compact_dist = sqrt(pow(params_.step_, 2) + pow(params_.step_, 2));
     double weighted_d_compact = params_.w_compact_ * (d_compact / max_compact_dist);
 

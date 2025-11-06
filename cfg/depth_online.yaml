@@ -19,8 +19,8 @@ superpixel_depth_segmentation_node:
     ransac: true
     snapping: false
 
-    w_normal: 1.0
-    w_pos: 1.0
+    w_normal: 25.0
+    w_pos: 100.0
     w_compact: 1.0
 
     ransac_K: 10
