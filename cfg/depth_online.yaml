@@ -12,8 +12,8 @@ superpixel_depth_segmentation_node:
     num_dilation_iterations: 0
     kernel_radius: 1
 
-    num_iterations: 5
-    num_superpixels: 150
+    num_iterations: 10
+    num_superpixels: 100
     warm_start: false
     constraint: false
     ransac: true
