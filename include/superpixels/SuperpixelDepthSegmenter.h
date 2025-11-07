@@ -96,6 +96,11 @@ class SuperpixelDepthSegmenter
                                 // const sensor_msgs::ImageConstPtr& label_image_msg, 
                                 const sensor_msgs::msg::Image::ConstSharedPtr& normal_image_ms);
 
+        cv::Point findCentroid(const cv::Mat & depth_image, 
+                                // const cv::Mat & label_image,
+                                const cv::Mat & normal_image,
+                                const cv::Point & og_center);
+
         cv::Point findClosestPixel(const int & center_idx,
                                     const cv::Point & center, 
                                     const cv::Mat & depth_image,

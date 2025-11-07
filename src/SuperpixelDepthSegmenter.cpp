@@ -573,7 +573,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       Finding local minimum ...");
             /* Find the local minimum (gradient-wise). */
             cv::Point originalCenter(c, r);
-            cv::Point localMinimum = findLocalMinimum(depth_image, normal_image, originalCenter); // label_image, 
+            // cv::Point localMinimum = findLocalMinimum(depth_image, normal_image, originalCenter); // label_image, 
+            cv::Point localMinimum = findCentroid(depth_image, normal_image, originalCenter); // label_image,
 
             if (!isPixelValid(depth_image, normal_image, localMinimum, params_.k_c_)) // label_image, 
             {
@@ -616,6 +617,82 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers_.size(): " << centers_.size());
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       center_counts_.size(): " << center_counts_.size());
 
+}
+
+cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image, 
+                                                        // const cv::Mat & label_image,
+                                                        const cv::Mat & normal_image,
+                                                        const cv::Point & og_center)
+{
+    cv::Point centroid(0, 0);
+    int count = 0;
+
+    int delta = params_.step_ / 4; // 5;
+
+    for (int d = 0; d < delta; d++)
+    {
+        for (int r = og_center.y - delta; r <= og_center.y + delta; r++)
+        {
+            for (int c = og_center.x - delta; c <= og_center.x + delta; c++)
+            {
+                cv::Point current(c, r);
+
+                if (!isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image, 
+                {
+                    continue;
+                } else
+                {
+                    centroid.x += c;
+                    centroid.y += r;
+                    count++;
+                }
+            }
+        }
+
+        if (count > 0)
+        {
+            centroid.x /= count;
+            centroid.y /= count;
+        } else
+        {
+            return cv::Point(-1, -1);
+        }
+    }
+
+    // find the valid pixel closest to the centroid
+    cv::Point loc_min(-1, -1);
+    double min_dist = std::numeric_limits<double>::max();
+    for (int d = 0; d < delta; d++)
+    {
+        for (int r = og_center.y - delta; r <= og_center.y + delta; r++)
+        {
+            for (int c = og_center.x - delta; c <= og_center.x + delta; c++)
+            {
+                cv::Point current(c, r);
+
+                if (!isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image, 
+                {
+                    continue;
+                } else
+                {
+                    double dist = sqrt(pow(current.x - centroid.x, 2) + pow(current.y - centroid.y, 2));
+
+                    if (dist < min_dist)
+                    {
+                        min_dist = dist;
+                        loc_min = current;
+                    }
+                }
+            }
+        }
+
+        if (isPixelInBounds(params_.k_c_, loc_min))
+        {
+            break;
+        }
+    }
+
+    return loc_min;
 }
 
 cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image, 

@@ -280,7 +280,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
         }
 
-        polygonWithHoles.outer_boundary() = inflated_polygon; // polygon;
+        polygonWithHoles.outer_boundary() = polygon; // inflated_polygon; // 
         boundaryWithInset.boundary = polygonWithHoles;
 
         inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
