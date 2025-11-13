@@ -21,18 +21,26 @@ def generate_launch_description():
     ####################
     # Launch Arguments #
     ####################
-    rviz = True
-    terrain_receiver = False
-    depth_image_topic = "/floor_image"
-    # label_image_topic = "/floor_labels"
-    normal_image_topic = "/floor_normals"
+    use_sim_time = LaunchConfiguration("use_sim_time")
+
+    declare_use_sim_time = DeclareLaunchArgument(
+        "use_sim_time",
+        default_value="false",
+        description="Use simulation (Gazebo) clock if true",
+    )    
+
+    set_use_sim_time = launch_ros.actions.SetParameter(name='use_sim_time', value=False)
+
 
     #######################
     # Package Directories #
     #######################
 
+    anymal_interface_path = get_package_share_directory("anymal_interface")
+    egocylindrical_path = get_package_share_directory("egocylindrical")
+    depth_img_normal_estimation_path = get_package_share_directory("depth_img_normal_estimation")
     superpixels_path = get_package_share_directory("superpixels")
-    config_path = os.path.join(superpixels_path, "cfg", "depth_offline.yaml")
+    config_path = os.path.join(superpixels_path, "cfg", "depth_rosbag.yaml")
 
     ############################
     # Declare Launch Arguments #
@@ -41,6 +49,28 @@ def generate_launch_description():
     #################
     # Include Nodes #
     #################
+    normal_estimation_ld = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                depth_img_normal_estimation_path, "launch", "normal_estimation_sim.launch.py",
+            )
+        ),
+        launch_arguments={
+            "use_sim_time": use_sim_time,
+        }.items(),
+    )
+
+    semantic_egocan_ld = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                egocylindrical_path, "launch", "semantic_egocan.launch.py",
+            )
+        ),
+        launch_arguments={
+            "use_sim_time": use_sim_time,
+        }.items(),
+    )    
+
     superpixels_node = Node(
         package="superpixels",
         executable="superpixel_depth_segmentation_node",
@@ -49,31 +79,35 @@ def generate_launch_description():
         parameters=[config_path]
     )
 
-    rqt_node = Node(
-        package="rqt_reconfigure",
-        executable="rqt_reconfigure",
-        name="rqt_reconfigure",
-        output="screen"
-    )
-
-    rviz_node = Node(
+    rviz_node = launch_ros.actions.Node(
         package="rviz2",
         executable="rviz2",
         name="rviz2",
         output="screen",
-        arguments=["-d", os.path.join(
-                    superpixels_path, "rviz", "superpixels_depth.rviz",
-                )
+        arguments=[
+            "-d",
+            os.path.join(
+                anymal_interface_path, "rviz", "anymal_mmp.rviz",
+            )
+        ],
+        parameters=[
+            {
+                "use_sim_time": use_sim_time,
+            }
         ]
     )
+
 
     ###########################
     # Full Launch Description #
     ###########################
     return LaunchDescription(
         [
+            set_use_sim_time,
+            declare_use_sim_time,
+            normal_estimation_ld,
+            semantic_egocan_ld,
             superpixels_node,
             rviz_node,
-            # rqt_node
         ]
     )
