@@ -48,10 +48,12 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
 
     // Superpixel distance parameters
     params_.w_normal_ = node_->get_parameter("w_normal").as_double();
-    params_.w_pos_ = node_->get_parameter("w_pos").as_double();
+    params_.w_plane_dist_ = node_->get_parameter("w_plane_dist").as_double();
+    params_.w_world_dist_ = node_->get_parameter("w_world_dist").as_double();
     params_.w_compact_ = node_->get_parameter("w_compact").as_double();
     RCLCPP_INFO_STREAM(node_->get_logger(), "       w_normal_: " << params_.w_normal_);
-    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_pos_: " << params_.w_pos_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_plane_dist_: " << params_.w_plane_dist_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       w_world_dist_: " << params_.w_world_dist_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       w_compact_: " << params_.w_compact_);
 
     // RANSAC parameters
@@ -126,15 +128,12 @@ rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCal
         if (param.get_name() == "k_c")
         {
             params_.k_c_ = param.get_value<int>();
-            // param.get_value(params_.k_c_);
         } else if (param.get_name() == "v_fov")
         {
             params_.v_fov_ = param.get_value<double>() * M_PI / 180.0; // Convert degrees to radians (just for reading in string)
-            // param.get_value(params_.v_fov_);
         } else if (param.get_name() == "v_offset")
         {
             params_.v_offset_ = param.get_value<double>();
-            // param.get_value(params_.v_offset_);
         }
         params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
         
@@ -142,70 +141,59 @@ rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCal
         if (param.get_name() == "num_dilation_iterations")
         {
             params_.num_dilation_iterations_ = param.get_value<int>();
-            // param.get_value(params_.num_dilation_iterations_);
         } else if (param.get_name() == "kernel_radius")
         {
             params_.kernel_radius_ = param.get_value<int>();
-            // param.get_value(params_.kernel_radius_);
         }
         
         // Superpixel algorithm parameters
         if (param.get_name() == "num_iterations")
         {
             params_.num_iterations_ = param.get_value<int>();
-            // param.get_value(params_.num_iterations_);
         } else if (param.get_name() == "num_superpixels")
         {
             params_.num_superpixels_ = param.get_value<int>();
-            // param.get_value(params_.num_superpixels_);
             int num_pixels = params_.k_c_ * params_.k_c_;
             params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
         } else if (param.get_name() == "warm_start")
         {
             params_.warm_start_ = param.get_value<bool>();
-            // param.get_value(params_.warm_start_);
         } else if (param.get_name() == "constraint")
         {
             params_.constraint_ = param.get_value<bool>();
-            // param.get_value(params_.constraint_);
         } else if (param.get_name() == "ransac")
         {
             params_.ransac_ = param.get_value<bool>();
-            // param.get_value(params_.ransac_);
         } else if (param.get_name() == "snapping")
         {
             params_.snapping_ = param.get_value<bool>();
-            // param.get_value(params_.snapping_);
         }
         
         // Superpixel distance parameters
         if (param.get_name() == "w_normal")
         {
             params_.w_normal_ = param.get_value<double>();
-            // param.get_value(params_.w_normal_);
-        } else if (param.get_name() == "w_pos")
+        } else if (param.get_name() == "w_plane_dist")
         {
-            params_.w_pos_ = param.get_value<double>();
-            // param.get_value(params_.w_pos_);
+            params_.w_plane_dist_ = param.get_value<double>();
+        } else if (param.get_name() == "w_world_dist")
+        {
+            params_.w_world_dist_ = param.get_value<double>();
         } else if (param.get_name() == "w_compact")
         {
             params_.w_compact_ = param.get_value<double>();
-            // param.get_value(params_.w_compact_);
         }
         
         // RANSAC parameters
         if (param.get_name() == "ransac_K")
         {
             params_.ransac_K = param.get_value<size_t>();
-            // param.get_value(params_.ransac_K);
         } else if (param.get_name() == "ransac_N")
         {
             params_.ransac_N = param.get_value<int>();
-            // param.get_value(params_.ransac_N);
         } else if (param.get_name() == "ransac_T")
         {
             params_.ransac_T = param.get_value<double>();
-            // param.get_value(params_.ransac_T);
         } 
         // else
         // {
@@ -239,7 +227,7 @@ rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCal
 
 //     // Superpixel distance parameters
 //     params_.w_normal_ = config.w_normal;
-//     params_.w_pos_ = config.w_pos;
+//     params_.w_plane_dist_ = config.w_plane_dist;
 //     params_.w_compact_ = config.w_compact;
 
 //     // RANSAC parameters
@@ -1011,9 +999,6 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     double max_d_normal = 2.0;
     double weighted_d_normal = params_.w_normal_ * (d_normal / max_d_normal);
-    // double dc = sqrt(pow(color.val[0] - centers_[center_idx][0], 2) +
-    //                  pow(color.val[1] - centers_[center_idx][1], 2) +
-    //                  pow(color.val[2] - centers_[center_idx][2], 2));
 
     if (d_normal > max_d_normal)
     {
@@ -1022,28 +1007,33 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_normal: " << d_normal);
 
-    // Position term
+    // Plane distance term
 
-    // double d_posn = std::abs( (egocanPt - centerEgocanPt).dot(center_normal) );
-    double d_posn = cv::norm(egocanPt - centerEgocanPt);
+    double d_plane = std::abs( (egocanPt - centerEgocanPt).dot(center_normal) );
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           egocanPt: " << egocanPt);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           centerEgocanPt: " << centerEgocanPt);
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_posn: " << d_posn);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_plane: " << d_plane);
+    double max_d_plane = params_.v_fov_;
+    double weighted_d_plane = params_.w_plane_dist_ * (d_plane / max_d_plane);
 
-    double max_d_posn = params_.v_fov_;
-    double weighted_d_posn = params_.w_pos_ * (d_posn / max_d_posn);
-
-    if (d_posn > max_d_posn)
+    if (d_plane > max_d_plane)
     {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_posn exceeds max, d_posn: " << d_posn << ", max_d_posn: " << max_d_posn);
+        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_plane exceeds max, d_plane: " << d_plane << ", max_d_plane: " << max_d_plane);
     }
 
-    // // Spatial term
-    // double ds = sqrt(pow(pixel.x - centers_[center_idx][3], 2) +
-    //                  pow(pixel.y - centers_[center_idx][4], 2));
+    double d_world = cv::norm(egocanPt - centerEgocanPt);
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_posn: " << d_posn);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           egocanPt: " << egocanPt);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           centerEgocanPt: " << centerEgocanPt);
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_world: " << d_world);
+    double max_d_world = params_.v_fov_;
+    double weighted_d_world = params_.w_world_dist_ * (d_world / max_d_world);
+
+    if (d_world > max_d_world)
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_world exceeds max, d_world: " << d_world << ", max_d_world: " << max_d_world);
+    }
 
     // Compactness term
     double d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
@@ -1060,12 +1050,7 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
         RCLCPP_WARN_STREAM(node_->get_logger(), "       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
     }
 
-    // double d_compact = cv::norm(centerEgocanPt - egocanPt);
-    // double max_compact_dist = 
-    // double weighted_d_compact = params_.w_compact_ * d_compact;
-
-    // return sqrt(pow(dc / params_.n_c_, 2) + pow(ds / params_.n_s_, 2));
-    return weighted_d_normal + weighted_d_posn + weighted_d_compact;
+    return weighted_d_normal + weighted_d_plane + weighted_d_world + weighted_d_compact;
 }
 
 cv::Point SuperpixelDepthSegmenter::findClosestPixel(const int & center_idx,

@@ -36,7 +36,8 @@ struct SuperpixelParams
 
     // Superpixel distance parameters
     double w_normal_ = 1.0; // Weighting parameter for normal similarity term
-    double w_pos_ = 1.0; // Weighting parameter for plane - position distance term
+    double w_plane_dist_ = 1.0; // Weighting parameter for plane - position distance term
+    double w_world_dist_ = 1.0; // Weighting parameter for world - position distance term
     double w_compact_ = 3.0; // Weighting parameter for compactness term
 
     // RANSAC parameters
