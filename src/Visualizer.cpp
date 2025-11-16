@@ -277,7 +277,7 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             }
             
-            polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
+            polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
             inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());

@@ -388,7 +388,7 @@ void SuperpixelDepthSegmenter::run()
 
     fillBegin = std::chrono::steady_clock::now();
 
-    double default_height = egocanFrameToOdomFrame.transform.translation.z  - 0.05; //
+    double default_height = egocanFrameToOdomFrame.transform.translation.z; //   - 0.05
     // double default_height = 0.575;
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   Default height for filling: " << default_height);
