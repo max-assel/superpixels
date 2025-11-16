@@ -131,20 +131,20 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // fin_label_img_pub_->publish(fin_label_img_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final normal image");
-    fin_normal_img_ptr_->header = raw_normal_img_ptr->header;
-    fin_normal_img_ptr_->encoding = raw_normal_img_ptr->encoding;
-    fin_normal_img_ptr_->image = normal_image;
+    // fin_normal_img_ptr_->header = raw_normal_img_ptr->header;
+    // fin_normal_img_ptr_->encoding = raw_normal_img_ptr->encoding;
+    // fin_normal_img_ptr_->image = normal_image;
     // No publishing normal image
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
-    fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
-    fin_normal_img_colored_ptr_->encoding = "rgb8";
-    fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
-    fin_normal_img_colored_ptr_->image = cv::abs(fin_normal_img_colored_ptr_->image);
-    fin_normal_img_colored_ptr_->image.convertTo(fin_normal_img_colored_ptr_->image, CV_8UC3, 255.0);
-    fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
+    // fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
+    // fin_normal_img_colored_ptr_->encoding = "rgb8";
+    // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
+    // fin_normal_img_colored_ptr_->image = cv::abs(fin_normal_img_colored_ptr_->image);
+    // fin_normal_img_colored_ptr_->image.convertTo(fin_normal_img_colored_ptr_->image, CV_8UC3, 255.0);
+    // fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
-    cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
     // convertDepthImageToColor(color_depth_image, depth_image);
 
     // overlayCenters(color_depth_image, centers);

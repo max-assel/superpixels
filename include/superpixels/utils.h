@@ -91,7 +91,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
     }
 
     float min_acceptable_depth = 0.0;
-    float max_acceptable_depth = 1.5;
+    float max_acceptable_depth = 1.0;
 
     if (depth < min_acceptable_depth || depth > max_acceptable_depth)
     {

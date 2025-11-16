@@ -1000,10 +1000,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     double max_d_normal = 2.0;
     double weighted_d_normal = params_.w_normal_ * (d_normal / max_d_normal);
 
-    if (d_normal > max_d_normal)
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_normal exceeds max, d_normal: " << d_normal << ", max_d_normal: " << max_d_normal);
-    }
+    // if (d_normal > max_d_normal)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "       d_normal exceeds max, d_normal: " << d_normal << ", max_d_normal: " << max_d_normal);
+    // }
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_normal: " << d_normal);
 
@@ -1017,10 +1017,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     double max_d_plane = params_.v_fov_;
     double weighted_d_plane = params_.w_plane_dist_ * (d_plane / max_d_plane);
 
-    if (d_plane > max_d_plane)
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_plane exceeds max, d_plane: " << d_plane << ", max_d_plane: " << max_d_plane);
-    }
+    // if (d_plane > max_d_plane)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "       d_plane exceeds max, d_plane: " << d_plane << ", max_d_plane: " << max_d_plane);
+    // }
 
     double d_world = cv::norm(egocanPt - centerEgocanPt);
 
@@ -1030,10 +1030,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     double max_d_world = params_.v_fov_;
     double weighted_d_world = params_.w_world_dist_ * (d_world / max_d_world);
 
-    if (d_world > max_d_world)
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_world exceeds max, d_world: " << d_world << ", max_d_world: " << max_d_world);
-    }
+    // if (d_world > max_d_world)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "       d_world exceeds max, d_world: " << d_world << ", max_d_world: " << max_d_world);
+    // }
 
     // Compactness term
     double d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
@@ -1045,10 +1045,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     double max_compact_dist = sqrt(pow(params_.step_, 2) + pow(params_.step_, 2));
     double weighted_d_compact = params_.w_compact_ * (d_compact / max_compact_dist);
 
-    if (d_compact > max_compact_dist)
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
-    }
+    // if (d_compact > max_compact_dist)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "       d_compact exceeds max, d_compact: " << d_compact << ", max_compact_dist: " << max_compact_dist);
+    // }
 
     return weighted_d_normal + weighted_d_plane + weighted_d_world + weighted_d_compact;
 }
