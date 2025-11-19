@@ -40,7 +40,7 @@ void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
     // Build convex hulls for each superpixel
     for (int i = 0; i < (int) centers.size(); i++)
     {
-        if (superpixels[i].size() < 20)
+        if (superpixels[i].size() < 15)
         {
             // RCLCPP_INFO_STREAM(logger_, "       throwing out superpixel " << i << ": not enough points");
             // Not enough points to form a superpixel, delete.
