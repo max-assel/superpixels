@@ -3,6 +3,7 @@ superpixel_depth_segmentation_node:
     use_sim_time: true
 
     depth_image_topic: /floor_image
+    label_image_topic: /floor_labels
     normal_image_topic: /floor_normals
 
     k_c: 256

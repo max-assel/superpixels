@@ -541,7 +541,8 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
 
         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
         float center_depth = centers[i][2];
-        cv::Vec3f center_normal = cv::Vec3f(centers[i][3], centers[i][4], centers[i][5]);
+        uint8_t center_label = centers[i][3];
+        cv::Vec3f center_normal = cv::Vec3f(centers[i][4], centers[i][5], centers[i][6]);
 
         cv::Vec3f centerEgocanPt;
         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);

@@ -15,8 +15,10 @@ void ImagePreprocessor::setParams(const SuperpixelParams & params)
 }
 
 void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
+                                    const cv::Mat & raw_label_img,
                                     const cv::Mat & raw_normal_img,
                                     cv::Mat & cleaned_depth_img,
+                                    cv::Mat & cleaned_label_img,
                                     cv::Mat & cleaned_normal_img,
                                     cv::Mat & visited)
 {
@@ -24,6 +26,9 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
 
     // Depth
     cleaned_depth_img = cv::Mat(raw_depth_img.size(), CV_32F, cv::Scalar(0));
+
+    // Label
+    cleaned_label_img = cv::Mat(raw_label_img.size(), CV_8UC1, cv::Scalar(0));
 
     // Normals
     cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
@@ -33,10 +38,12 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
     {
         for (int c = 0; c < cleaned_depth_img.cols; c++)
         {
-            if (isPixelValid(raw_depth_img, raw_normal_img, cv::Point(c, r), params_.k_c_)) // raw_label_img, 
+            if (isLabeledPixelValid(raw_depth_img, raw_label_img, raw_normal_img, cv::Point(c, r), params_.k_c_))
             {
 
                 float depth = raw_depth_img.at<float>(r, c);
+
+                uint8_t label = raw_label_img.at<uint8_t>(r, c);
 
                 // bool valid_depth = (!std::isnan(depth) && std::abs(depth) > 1e-6 && depth > 0);
 
@@ -48,14 +55,14 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
                 // if (valid_depth && valid_label && valid_normal)
                 // {
                 cleaned_depth_img.at<float>(r, c) = depth;
-                // cleaned_label_img.at<uint8_t>(r, c) = label;
+                cleaned_label_img.at<uint8_t>(r, c) = label;
                 cleaned_normal_img.at<cv::Vec3f>(r, c) = normal;
                 visited.at<uint8_t>(r, c) = 1;
                 // } 
             } else
             {
                 cleaned_depth_img.at<float>(r, c) = 0;
-                // cleaned_label_img.at<uint8_t>(r, c) = 0;
+                cleaned_label_img.at<uint8_t>(r, c) = 0;
                 cleaned_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, 0, 0);
             }
 
@@ -218,10 +225,10 @@ void ImagePreprocessor::healthCheck(const cv::Mat & depth_img,
 }
 
 void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
-                                            // const cv::Mat & cleaned_label_img,
+                                            const cv::Mat & cleaned_label_img,
                                             const cv::Mat & cleaned_normal_img,
                                             cv::Mat & preprocessed_depth_img,
-                                            // cv::Mat & preprocessed_label_img,
+                                            cv::Mat & preprocessed_label_img,
                                             cv::Mat & preprocessed_normal_img)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::preprocessImages]");
@@ -229,7 +236,7 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
     if (params_.kernel_radius_ < 1)
     {
         preprocessed_depth_img = cleaned_depth_img.clone();
-        // preprocessed_label_img = cleaned_label_img.clone();
+        preprocessed_label_img = cleaned_label_img.clone();
         preprocessed_normal_img = cleaned_normal_img.clone();
         return;
     }
@@ -241,16 +248,16 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
     // cv::Point max_depth_pixel(-1, -1);
 
     float min_depth = std::numeric_limits<float>::max();
-    // int min_label = 0;
+    int min_label = 0;
     cv::Vec3f min_normal(0, 0, 0);
     cv::Point min_depth_pixel(-1, -1);
 
     cv::Mat dilated_depth_img = cleaned_depth_img.clone(); // cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
-    // cv::Mat dilated_label_img = cleaned_label_img.clone(); // cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
+    cv::Mat dilated_label_img = cleaned_label_img.clone(); // cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
     cv::Mat dilated_normal_img = cleaned_normal_img.clone(); // cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
     cv::Mat temp_dilated_depth_img = cv::Mat(cleaned_depth_img.size(), CV_32F, cv::Scalar(0));
-    // cv::Mat temp_dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
+    cv::Mat temp_dilated_label_img = cv::Mat(cleaned_label_img.size(), CV_8UC1, cv::Scalar(0));
     cv::Mat temp_dilated_normal_img = cv::Mat(cleaned_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
     int new_r = 0;
@@ -270,7 +277,7 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
                 // max_depth_pixel = cv::Point(-1, -1);
 
                 min_depth = std::numeric_limits<float>::max();
-                // min_label = 0;
+                min_label = 0;
                 min_normal = cv::Vec3f(0, 0, 0);
                 min_depth_pixel = cv::Point(-1, -1);
 
@@ -291,11 +298,11 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
                         if (depth > 0.0 && depth < min_depth)
                         {
                             min_depth = depth;
-                            // min_label = dilated_label_img.at<uint8_t>(new_r, new_c);
+                            min_label = dilated_label_img.at<uint8_t>(new_r, new_c);
                             min_normal = dilated_normal_img.at<cv::Vec3f>(new_r, new_c);
                             min_depth_pixel = cv::Point(new_c, new_r);
                             temp_dilated_depth_img.at<float>(r, c) = min_depth;
-                            // temp_dilated_label_img.at<uint8_t>(r, c) = min_label;
+                            temp_dilated_label_img.at<uint8_t>(r, c) = min_label;
                             temp_dilated_normal_img.at<cv::Vec3f>(r, c) = min_normal;                            
                         }
 
@@ -320,12 +327,12 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
         }
 
         dilated_depth_img = temp_dilated_depth_img.clone();
-        // dilated_label_img = temp_dilated_label_img.clone();
+        dilated_label_img = temp_dilated_label_img.clone();
         dilated_normal_img = temp_dilated_normal_img.clone();
     }
 
     preprocessed_depth_img = dilated_depth_img.clone();
-    // preprocessed_label_img = dilated_label_img.clone();
+    preprocessed_label_img = dilated_label_img.clone();
     preprocessed_normal_img = dilated_normal_img.clone();
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Comparing normal image to dilated normal image ...");
@@ -355,11 +362,11 @@ void ImagePreprocessor::preprocessImages(const cv::Mat & cleaned_depth_img,
 
 //                                     const cv_bridge::CvImagePtr & raw_depth_img_ptr
 void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
-                                    // const cv::Mat & cleaned_label_img,
+                                    const cv::Mat & cleaned_label_img,
                                     const cv::Mat & cleaned_normal_img,
                                     const cv::Mat & visited,
                                     cv::Mat & filled_depth_img,
-                                    // cv::Mat & filled_label_img,
+                                    cv::Mat & filled_label_img,
                                     cv::Mat & filled_normal_img,
                                     const double & default_height)
 {
@@ -378,7 +385,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
     filled_depth_img = cleaned_depth_img.clone();
 
     // Labels
-    // filled_label_img = cleaned_label_img.clone();
+    filled_label_img = cleaned_label_img.clone();
 
     // Normals
     filled_normal_img = cleaned_normal_img.clone();
@@ -420,7 +427,7 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                     // RCLCPP_INFO_STREAM(node_->get_logger(), "       did not find a pixel, filling in at (" << r << ", " << c << ") ...");
 
                     filled_depth_img.at<float>(r, c) = default_height + distribution(generator);
-                    // filled_label_img.at<uint8_t>(r, c) = 3;
+                    filled_label_img.at<uint8_t>(r, c) = 3;
                     filled_normal_img.at<cv::Vec3f>(r, c) = cv::Vec3f(0, -1.0, 0);
                 } else
                 {

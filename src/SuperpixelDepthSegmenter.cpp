@@ -68,33 +68,24 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     image_transport::ImageTransport it(node_);
 
     depth_img_topic_ =  "/floor_image";
-    // std::string label_img_topic =  "/egocylinder/floor_labels";
+    label_img_topic_ =  "/floor_labels";
     normal_img_topic_ = "/floor_normals";
 
-    // nh_.getParam("depth_img_topic", depth_img_topic);
     depth_img_topic_ = node_->get_parameter("depth_image_topic").as_string();
 
-    // // nh_.getParam("label_img_topic", label_img_topic);
-    // label_img_topic = node_->get_parameter("label_image_topic").as_string();
+    label_img_topic_ = node_->get_parameter("label_image_topic").as_string();
 
-    // nh_.getParam("normal_img_topic", normal_img_topic);
     normal_img_topic_ = node_->get_parameter("normal_image_topic").as_string();
-
-    // rclcpp::QoS qos = rclcpp::QoS(10);
 
     rmw_qos_profile_t qos = rmw_qos_profile_default;
     qos.depth = 3; // TODO: Make this a parameter
 
     raw_depth_img_sub_.subscribe(node_.get(), depth_img_topic_, "raw", qos); // Not sure if this is right
-    // raw_label_img_sub_.subscribe(it, label_img_topic, 3);
+    raw_label_img_sub_.subscribe(node_.get(), label_img_topic_, "raw", qos);
     raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic_, "raw", qos);// Not sure if this is right
 
-    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 3); // raw_label_img_sub_, 
-    msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2)); // , _3
-
-    prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    // prop_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    prop_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_label_img_sub_, raw_normal_img_sub_, 3); // 
+    msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2, _3)); // 
 
     visited_ = cv::Mat(params_.k_c_, params_.k_c_, CV_8UC1, cv::Scalar(0));
 
@@ -102,7 +93,6 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
-    // regionSplitter_ = new RegionSplitter(params_);
 
     callback_handle_ = node_->add_on_set_parameters_callback(
         std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
@@ -210,39 +200,8 @@ rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCal
     return result;
 }
 
-// void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
-// {
-//     // Dilation parameters
-//     params_.num_dilation_iterations_ = config.num_dilation_iterations;
-//     params_.kernel_radius_ = config.kernel_radius;
-
-//     // Superpixel algorithm parameters
-//     params_.num_iterations_ = config.num_iterations;
-//     params_.num_superpixels_ = config.num_superpixels;
-//     int num_pixels = params_.k_c_ * params_.k_c_;
-//     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
-//     params_.constraint_ = config.constraint;
-//     params_.ransac_ = config.ransac;
-//     params_.snapping_ = config.snapping;
-
-//     // Superpixel distance parameters
-//     params_.w_normal_ = config.w_normal;
-//     params_.w_plane_dist_ = config.w_plane_dist;
-//     params_.w_compact_ = config.w_compact;
-
-//     // RANSAC parameters
-//     params_.ransac_K = config.ransac_K;
-//     params_.ransac_N = config.ransac_N;
-//     params_.ransac_T = config.ransac_T;
-
-//     convexHullifier_->setParams(params_);
-//     imagePreprocessor_->setParams(params_);
-//     visualizer_->setParams(params_);
-//     ransac_->setParams(params_);
-// }
-
 void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& depth_image_msg, 
-                                                // const sensor_msgs::ImageConstPtr& label_image_msg, 
+                                                const sensor_msgs::msg::Image::ConstSharedPtr& label_image_msg, 
                                                 const sensor_msgs::msg::Image::ConstSharedPtr& normal_image_msg)
 {   
     std::lock_guard<std::mutex> lock(img_mutex_);
@@ -251,7 +210,7 @@ void SuperpixelDepthSegmenter::allImageCallback(const sensor_msgs::msg::Image::C
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       time stamp: " << depth_image_msg->header.stamp.sec << "." << depth_image_msg->header.stamp.nanosec);
 
     raw_depth_img_msg_ = depth_image_msg;
-    // raw_label_img_msg_ = label_image_msg;
+    raw_label_img_msg_ = label_image_msg;
     raw_normal_img_msg_ = normal_image_msg;
 
     return;
@@ -262,10 +221,10 @@ bool SuperpixelDepthSegmenter::notReceivedDepthImage()
     return raw_depth_img_msg_ == nullptr;
 }
 
-// bool SuperpixelDepthSegmenter::notReceivedLabelImage()
-// {
-//     return (raw_label_img_msg_ == nullptr);
-// }
+bool SuperpixelDepthSegmenter::notReceivedLabelImage()
+{
+    return (raw_label_img_msg_ == nullptr);
+}
 
 bool SuperpixelDepthSegmenter::notReceivedNormalImage()
 {
@@ -275,19 +234,19 @@ bool SuperpixelDepthSegmenter::notReceivedNormalImage()
 bool SuperpixelDepthSegmenter::notReceivedImage()
 {
     bool notReceivedDepth = notReceivedDepthImage();
-    // bool notReceivedLabel = notReceivedLabelImage();
+    bool notReceivedLabel = notReceivedLabelImage();
     bool notReceivedNormal = notReceivedNormalImage();
 
     if (notReceivedDepth)
         RCLCPP_WARN_STREAM(node_->get_logger(), "Not received depth image on topic: " << depth_img_topic_);
 
-    // if (notReceivedLabel)
-        // RCLCPP_WARN_STREAM(node_->get_logger(), "Not received label image.");
+    if (notReceivedLabel)
+        RCLCPP_WARN_STREAM(node_->get_logger(), "Not received label image on topic: " << label_img_topic_);
 
     if (notReceivedNormal)
         RCLCPP_WARN_STREAM(node_->get_logger(), "Not received normal image on topic: " << normal_img_topic_);
 
-    return (notReceivedDepth || notReceivedNormal); // notReceivedLabel || 
+    return (notReceivedDepth || notReceivedLabel || notReceivedNormal);
 }
 
 void SuperpixelDepthSegmenter::run()
@@ -319,7 +278,6 @@ void SuperpixelDepthSegmenter::run()
     //     return;
     // }
 
-    // rclcpp::Duration timeout(3, 0); // 3 seconds
     bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
 
     if (!canTransform)
@@ -342,7 +300,7 @@ void SuperpixelDepthSegmenter::run()
     try
     {
         raw_depth_img_ptr_ = cv_bridge::toCvCopy(raw_depth_img_msg_, sensor_msgs::image_encodings::TYPE_32FC1);
-        // raw_label_img_ptr_ = cv_bridge::toCvCopy(raw_label_img_msg_, sensor_msgs::image_encodings::TYPE_8UC1);
+        raw_label_img_ptr_ = cv_bridge::toCvCopy(raw_label_img_msg_, sensor_msgs::image_encodings::TYPE_8UC1);
         raw_normal_img_ptr_ = cv_bridge::toCvCopy(raw_normal_img_msg_, sensor_msgs::image_encodings::TYPE_32FC3);
 
     } catch (cv_bridge::Exception& e)
@@ -351,9 +309,10 @@ void SuperpixelDepthSegmenter::run()
         return;
     }
 
-    // raw_depth_img_ptr_->image.size() != raw_label_img_ptr_->image.size() || 
-    //  || raw_label_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()
-    if (raw_depth_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()) 
+    // 
+    if (raw_depth_img_ptr_->image.size() != raw_normal_img_ptr_->image.size() ||
+        raw_depth_img_ptr_->image.size() != raw_label_img_ptr_->image.size() || 
+        raw_label_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()) 
     {
         RCLCPP_ERROR(node_->get_logger(), "Image sizes do not match.");
         return;
@@ -362,7 +321,7 @@ void SuperpixelDepthSegmenter::run()
     cleanBegin = std::chrono::steady_clock::now();
 
     cv::Mat raw_depth_img = raw_depth_img_ptr_->image;
-    // cv::Mat raw_label_img = raw_label_img_ptr_->image;
+    cv::Mat raw_label_img = raw_label_img_ptr_->image;
     cv::Mat raw_normal_img = raw_normal_img_ptr_->image;
 
     // Pre-processing
@@ -374,9 +333,9 @@ void SuperpixelDepthSegmenter::run()
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Cleaning images ...");
 
     // Clean images
-    cv::Mat cleaned_depth_img, cleaned_normal_img; // cleaned_label_img, 
-    imagePreprocessor_->cleanImages(raw_depth_img, raw_normal_img, // raw_label_img,  
-                                    cleaned_depth_img, cleaned_normal_img, visited_); // cleaned_label_img, 
+    cv::Mat cleaned_depth_img, cleaned_label_img, cleaned_normal_img; 
+    imagePreprocessor_->cleanImages(raw_depth_img, raw_label_img, raw_normal_img, // 
+                                    cleaned_depth_img, cleaned_label_img, cleaned_normal_img, visited_); // 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after cleaning, (480, 480) is: " << cleaned_depth_img.at<float>(480, 480));
 
@@ -393,9 +352,9 @@ void SuperpixelDepthSegmenter::run()
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   Default height for filling: " << default_height);
 
-    cv::Mat filled_depth_img, filled_normal_img; // filled_label_img, 
-    imagePreprocessor_->fillInImage(cleaned_depth_img, cleaned_normal_img, visited_, // cleaned_label_img, 
-                                    filled_depth_img, filled_normal_img, default_height); // , raw_depth_img_ptr_, filled_label_img, 
+    cv::Mat filled_depth_img, filled_label_img, filled_normal_img; 
+    imagePreprocessor_->fillInImage(cleaned_depth_img, cleaned_label_img, cleaned_normal_img, visited_, // 
+                                    filled_depth_img, filled_label_img, filled_normal_img, default_height); // , raw_depth_img_ptr_, filled_label_img, 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
 
@@ -411,9 +370,9 @@ void SuperpixelDepthSegmenter::run()
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Preprocessing images ...");
 
     // Pre-processing
-    cv::Mat preprocessed_depth_img, preprocessed_normal_img; // preprocessed_label_img, 
-    imagePreprocessor_->preprocessImages(filled_depth_img, filled_normal_img, // filled_label_img, 
-                                            preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
+    cv::Mat preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img; 
+    imagePreprocessor_->preprocessImages(filled_depth_img, filled_label_img, filled_normal_img, // 
+                                            preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img); // 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after preprocessing, (480, 480) is: " << preprocessed_depth_img.at<float>(480, 480));
 
@@ -429,12 +388,12 @@ void SuperpixelDepthSegmenter::run()
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing ...");
 
     // Clear data
-    reset_data(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
+    reset_data(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img); // 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Generating superpixels ...");
 
     // Generate superpixels
-    generateSuperpixels(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
+    generateSuperpixels(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img); // 
 
     superpixelEnd = std::chrono::steady_clock::now();
     int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
@@ -488,7 +447,7 @@ void SuperpixelDepthSegmenter::run()
 
 
 void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
-                                            // const cv::Mat & label_image,
+                                            const cv::Mat & label_image,
                                             const cv::Mat & normal_image)
 {
     if (params_.warm_start_ && initialized_)
@@ -522,7 +481,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
 
         // Will populate clusters_, distances_, centers_, and center_counts_
-        init_data(depth_image, normal_image); // label_image,
+        init_data(depth_image, label_image, normal_image); // 
 
         initialized_ = true;
     }
@@ -530,7 +489,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
 }
 
 void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
-                                        //  const cv::Mat & label_image,
+                                         const cv::Mat & label_image,
                                          const cv::Mat & normal_image)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::init_data]");
@@ -562,9 +521,9 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             /* Find the local minimum (gradient-wise). */
             cv::Point originalCenter(c, r);
             // cv::Point localMinimum = findLocalMinimum(depth_image, normal_image, originalCenter); // label_image, 
-            cv::Point localMinimum = findCentroid(depth_image, normal_image, originalCenter); // label_image,
+            cv::Point localMinimum = findCentroid(depth_image, label_image, normal_image, originalCenter); // 
 
-            if (!isPixelValid(depth_image, normal_image, localMinimum, params_.k_c_)) // label_image, 
+            if (!isLabeledPixelValid(depth_image, label_image, normal_image, localMinimum, params_.k_c_)) // 
             {
             //     RCLCPP_INFO_STREAM(node_->get_logger(), "       Invalid local minimum found");
             //     RCLCPP_INFO_STREAM(node_->get_logger(), "           setting (" << r << ", " << c << ") to default ground floor value ...");
@@ -579,7 +538,7 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       local minimum found at (" << localMinimum.x << ", " << localMinimum.y << ")");
 
             float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
-            // uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
+            uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
             cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
@@ -591,7 +550,7 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             center.push_back(localMinimum.x);
             center.push_back(localMinimum.y);
             center.push_back(depth);
-            // center.push_back(label);
+            center.push_back(label);
             center.push_back(normal.val[0]);
             center.push_back(normal.val[1]);
             center.push_back(normal.val[2]);
@@ -608,9 +567,9 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 }
 
 cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image, 
-                                                        // const cv::Mat & label_image,
-                                                        const cv::Mat & normal_image,
-                                                        const cv::Point & og_center)
+                                                    const cv::Mat & label_image,
+                                                    const cv::Mat & normal_image,
+                                                    const cv::Point & og_center)
 {
     cv::Point centroid(0, 0);
     int count = 0;
@@ -625,7 +584,7 @@ cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image,
             {
                 cv::Point current(c, r);
 
-                if (!isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image, 
+                if (!isLabeledPixelValid(depth_image, label_image, normal_image, current, params_.k_c_)) // 
                 {
                     continue;
                 } else
@@ -658,7 +617,7 @@ cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image,
             {
                 cv::Point current(c, r);
 
-                if (!isPixelValid(depth_image, normal_image, current, params_.k_c_)) // label_image, 
+                if (!isLabeledPixelValid(depth_image, label_image, normal_image, current, params_.k_c_)) // 
                 {
                     continue;
                 } else
@@ -742,7 +701,7 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
 }
 
 void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
-                                                    // const cv::Mat & label_image,
+                                                    const cv::Mat & label_image,
                                                     const cv::Mat & normal_image)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::generateSuperpixels]");
@@ -752,7 +711,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     cv::Point current, center, new_center;
 
     float depth;
-    // uint8_t label;
+    uint8_t label;
     cv::Vec3f normal;
     cv::Vec3f candidate_normal;
 
@@ -783,12 +742,14 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                     if (isPixelValid(depth_image, normal_image, current, params_.k_c_)) 
                     {
                         depth = depth_image.at<float>(r, c);
+                        label = label_image.at<uint8_t>(r, c);
                         normal = normal_image.at<cv::Vec3f>(r, c);
 
-                        check = params_.constraint_ ? checkConstraints(j, depth, normal, current) : true;
+                        check = params_.constraint_ ? checkConstraints(j, depth, label, normal, current) : true;
 
                         dist = computeDistance(j, 
                                                 depth,
+                                                label,
                                                 normal,
                                                 current);
 
@@ -805,12 +766,13 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         /* Clear the center values. */
         for (size_t j = 0; j < centers_.size(); j++) 
         {
-            centers_[j][0] = 0; // x
-            centers_[j][1] = 0; // y
+            centers_[j][0] = 0; // u
+            centers_[j][1] = 0; // v
             centers_[j][2] = 0; // depth
-            centers_[j][3] = 0; // normal x
-            centers_[j][4] = 0; // normal y
-            centers_[j][5] = 0; // normal z
+            centers_[j][3] = 0; // label
+            centers_[j][4] = 0; // normal x
+            centers_[j][5] = 0; // normal y
+            centers_[j][6] = 0; // normal z
             center_counts_[j] = 0;
         }
 
@@ -827,14 +789,16 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 if (cluster_id != -1) 
                 {
                     float depth = depth_image.at<float>(r, c);
+                    uint8_t label = label_image.at<uint8_t>(r, c);
                     cv::Vec3f normal = normal_image.at<cv::Vec3f>(r, c);
 
                     centers_[cluster_id][0] += c;
                     centers_[cluster_id][1] += r;
                     centers_[cluster_id][2] += depth;
-                    centers_[cluster_id][3] += normal.val[0];
-                    centers_[cluster_id][4] += normal.val[1];
-                    centers_[cluster_id][5] += normal.val[2];
+                    centers_[cluster_id][3] += label;
+                    centers_[cluster_id][4] += normal.val[0];
+                    centers_[cluster_id][5] += normal.val[1];
+                    centers_[cluster_id][6] += normal.val[2];
                     
                     center_counts_[cluster_id] += 1; 
 
@@ -862,17 +826,21 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             centers_[j][3] /= center_counts_[j];
             centers_[j][4] /= center_counts_[j];
             centers_[j][5] /= center_counts_[j];
+            centers_[j][6] /= center_counts_[j];
 
             // Round pixel
             centers_[j][0] = int(round(centers_[j][0]));
             centers_[j][1] = int(round(centers_[j][1]));
 
+            // Round label
+            centers_[j][3] = int(round(centers_[j][3]));
+
             // Re-normalize
-            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+            cv::Vec3f normal = cv::Vec3f(centers_[j][4], centers_[j][5], centers_[j][6]);
             cv::Vec3f re_normal = normal / cv::norm(normal);
-            centers_[j][3] = re_normal.val[0];
-            centers_[j][4] = re_normal.val[1];
-            centers_[j][5] = re_normal.val[2];
+            centers_[j][4] = re_normal.val[0];
+            centers_[j][5] = re_normal.val[1];
+            centers_[j][6] = re_normal.val[2];
         }
 
         /* Snap clusters to nearest pixel */
@@ -893,13 +861,15 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 center = cv::Point(centers_[j][0], centers_[j][1]);
                 new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
                 depth = depth_image.at<float>(new_center.y, new_center.x);
+                label = label_image.at<uint8_t>(new_center.y, new_center.x);
                 normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
                 centers_[j][0] = new_center.x;
                 centers_[j][1] = new_center.y;
                 centers_[j][2] = depth;
-                centers_[j][3] = normal.val[0];
-                centers_[j][4] = normal.val[1];
-                centers_[j][5] = normal.val[2];
+                centers_[j][3] = label;
+                centers_[j][4] = normal.val[0];
+                centers_[j][5] = normal.val[1];
+                centers_[j][6] = normal.val[2];
             }
 
             if (params_.ransac_)
@@ -910,13 +880,13 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
                 
-                cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+                cv::Vec3f normal = cv::Vec3f(centers_[j][4], centers_[j][5], centers_[j][6]);
                 candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
-                centers_[j][3] = candidate_normal.val[0];
-                centers_[j][4] = candidate_normal.val[1];
-                centers_[j][5] = candidate_normal.val[2];
+                centers_[j][4] = candidate_normal.val[0];
+                centers_[j][5] = candidate_normal.val[1];
+                centers_[j][6] = candidate_normal.val[2];
             }
         }
     }
@@ -935,14 +905,14 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
 bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx, 
                                                 const float & depth,
-                                                // const uint8_t & label,
+                                                const uint8_t & label,
                                                 const cv::Vec3f & normal,
                                                 const cv::Point & pixel)
 {
     cv::Point center_pixel = cv::Point(centers_[center_idx][0], centers_[center_idx][1]);
     float center_depth = centers_[center_idx][2];
-    // uint8_t center_label = centers_[center_idx][3];
-    cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][3], centers_[center_idx][4], centers_[center_idx][5]);
+    uint8_t center_label = centers_[center_idx][3];
+    cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
     cv::Vec3f egocanPt;
     pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
@@ -959,7 +929,7 @@ bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx,
 
 double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
                                                     const float & depth,
-                                                    // const uint8_t & label,
+                                                    const uint8_t & label,
                                                     const cv::Vec3f & normal,
                                                     const cv::Point & pixel)
 {
@@ -967,8 +937,8 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     cv::Point center_pixel = cv::Point(centers_[center_idx][0], centers_[center_idx][1]);
     float center_depth = centers_[center_idx][2];
-    // uint8_t center_label = centers_[center_idx][3];
-    cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][3], centers_[center_idx][4], centers_[center_idx][5]);
+    uint8_t center_label = centers_[center_idx][3];
+    cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][4], centers_[center_idx][5], centers_[center_idx][6]);
 
     cv::Vec3f egocanPt;
     pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);

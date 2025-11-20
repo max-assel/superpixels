@@ -67,8 +67,10 @@ void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
         cv::Vec3f centerEgocanPt;
         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
+        uint8_t center_label = centers[i][3];
+
         Eigen::Vector3d center(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
-        Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
+        Eigen::Vector3d normal(centers[i][4], centers[i][5], centers[i][6]);
 
         // RCLCPP_INFO_STREAM(logger_, "       center (egocan frame): " << center.transpose());
         // RCLCPP_INFO_STREAM(logger_, "       normal (egocan frame): " << normal.transpose());
