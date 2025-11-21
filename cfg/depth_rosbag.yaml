@@ -1,8 +1,9 @@
 superpixel_depth_segmentation_node:
   ros__parameters:
-    use_sim_time: false
+    use_sim_time: true
 
     depth_image_topic: /floor_image
+    label_image_topic: /floor_labels
     normal_image_topic: /floor_normals
 
     k_c: 256
@@ -20,8 +21,9 @@ superpixel_depth_segmentation_node:
     snapping: false
 
     w_normal: 25.0
-    w_pos: 100.0
-    w_compact: 1.0
+    w_plane_dist: 100.0
+    w_world_dist: 25.0
+    w_compact: 0.0
 
     ransac_K: 10
     ransac_N: 25

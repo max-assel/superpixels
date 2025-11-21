@@ -138,7 +138,8 @@ inline bool isLabeledPixelValid(const cv::Mat & depth_image,
                                 const cv::Mat & label_image,
                                 const cv::Mat & normal_image,
                                 const cv::Point & pixel,
-                                const int & k_c)
+                                const int & k_c,
+                                const bool & include_all_normals = true)
 {
     //////////////////
     // IMAGE BOUNDS //
@@ -192,12 +193,15 @@ inline bool isLabeledPixelValid(const cv::Mat & depth_image,
         return false;
     }
 
-    // only considering normals pointing upwards
-    cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
-    if ( std::abs( normal.dot(ideal_normal) ) < 0.875 )
+    if (!include_all_normals)
     {
-        // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
-        return false;
+        // only considering normals pointing upwards
+        cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
+        if ( std::abs( normal.dot(ideal_normal) ) < 0.875 )
+        {
+            // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
+            return false;
+        }
     }
 
     return true;

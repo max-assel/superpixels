@@ -14,8 +14,9 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
     fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    // fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
-    // fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
+    fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    fin_label_img_colored_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
     fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -72,8 +73,10 @@ void Visualizer::setColors()
 }
 
 void Visualizer::visualize(const cv::Mat & depth_image,
+                            const cv::Mat & label_image,
                             const cv::Mat & normal_image,
                             const cv_bridge::CvImagePtr & raw_depth_img_ptr,
+                            const cv_bridge::CvImagePtr & raw_label_img_ptr,
                             const cv_bridge::CvImagePtr & raw_normal_img_ptr,
                             const std::vector<std::vector<double>> & centers,
                             const cv::Mat & clusters,
@@ -125,31 +128,72 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final label image");
-    // fin_label_img_ptr_->header = raw_label_img_ptr->header;
-    // fin_label_img_ptr_->encoding = raw_label_img_ptr->encoding;
-    // fin_label_img_ptr_->image = label_image;
-    // fin_label_img_pub_->publish(fin_label_img_ptr_->toImageMsg());
+    fin_label_img_ptr_->header = raw_label_img_ptr->header;
+    fin_label_img_ptr_->encoding = raw_label_img_ptr->encoding;
+    fin_label_img_ptr_->image = label_image;
+    // fin_label_img_pub_.publish(fin_label_img_ptr_->toImageMsg());
+
+    fin_label_img_colored_ptr_->header = fin_label_img_ptr_->header;
+    fin_label_img_colored_ptr_->encoding = "rgb8";
+    cv::Mat colored_label_image = cv::Mat(label_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    for (int r = 0; r < label_image.rows; r++)
+    {
+        for (int c = 0; c < label_image.cols; c++)
+        {
+            uint8_t label = label_image.at<uint8_t>(r, c);
+            if (label == 0)
+            {
+                // black for unlabeled
+                colored_label_image.at<cv::Vec3b>(r, c)[0] = 0;
+                colored_label_image.at<cv::Vec3b>(r, c)[1] = 0;
+                colored_label_image.at<cv::Vec3b>(r, c)[2] = 0;
+            } else if (label == 1)
+            {
+                colored_label_image.at<cv::Vec3b>(r, c)[0] = 255;
+                colored_label_image.at<cv::Vec3b>(r, c)[1] = 0;
+                colored_label_image.at<cv::Vec3b>(r, c)[2] = 0;
+            } else if (label == 2)
+            {
+                colored_label_image.at<cv::Vec3b>(r, c)[0] = 255;
+                colored_label_image.at<cv::Vec3b>(r, c)[1] = 255;
+                colored_label_image.at<cv::Vec3b>(r, c)[2] = 0;
+            } else if (label == 3)
+            {
+                colored_label_image.at<cv::Vec3b>(r, c)[0] = 0;
+                colored_label_image.at<cv::Vec3b>(r, c)[1] = 255;
+                colored_label_image.at<cv::Vec3b>(r, c)[2] = 0;
+            } else
+            {
+                // black for unlabeled
+                colored_label_image.at<cv::Vec3b>(r, c)[0] = 0;
+                colored_label_image.at<cv::Vec3b>(r, c)[1] = 0;
+                colored_label_image.at<cv::Vec3b>(r, c)[2] = 0;
+            }
+        }
+    }
+    fin_label_img_colored_ptr_->image = colored_label_image;
+    fin_label_img_pub_.publish(fin_label_img_colored_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final normal image");
-    // fin_normal_img_ptr_->header = raw_normal_img_ptr->header;
-    // fin_normal_img_ptr_->encoding = raw_normal_img_ptr->encoding;
-    // fin_normal_img_ptr_->image = normal_image;
+    fin_normal_img_ptr_->header = raw_normal_img_ptr->header;
+    fin_normal_img_ptr_->encoding = raw_normal_img_ptr->encoding;
+    fin_normal_img_ptr_->image = normal_image;
     // No publishing normal image
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
-    // fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
-    // fin_normal_img_colored_ptr_->encoding = "rgb8";
-    // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
-    // fin_normal_img_colored_ptr_->image = cv::abs(fin_normal_img_colored_ptr_->image);
-    // fin_normal_img_colored_ptr_->image.convertTo(fin_normal_img_colored_ptr_->image, CV_8UC3, 255.0);
-    // fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
+    fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
+    fin_normal_img_colored_ptr_->encoding = "rgb8";
+    fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
+    fin_normal_img_colored_ptr_->image = cv::abs(fin_normal_img_colored_ptr_->image);
+    fin_normal_img_colored_ptr_->image.convertTo(fin_normal_img_colored_ptr_->image, CV_8UC3, 255.0);
+    fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
-    // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-    // convertDepthImageToColor(color_depth_image, depth_image);
+    cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    convertDepthImageToColor(color_depth_image, depth_image);
 
     // overlayCenters(color_depth_image, centers);
 
-    // colorClusters(color_depth_image, clusters);
+    colorClusters(color_depth_image, clusters);
 
     colorClusterPointCloud(depth_image, clusters);
 
@@ -423,6 +467,10 @@ void Visualizer::colorClusters(const cv::Mat & color_depth_image,
                 cv::Scalar color = colors_[cluster_id];
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "       color: " << color);
                 color_cluster_image.at<cv::Vec3b>(r, c) = cv::Vec3b(color[0], color[1], color[2]);
+            } else
+            {
+                // black for invalid
+                color_cluster_image.at<cv::Vec3b>(r, c) = cv::Vec3b(0, 0, 0);
             }
         }
     }

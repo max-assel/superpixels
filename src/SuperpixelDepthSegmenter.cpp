@@ -428,8 +428,10 @@ void SuperpixelDepthSegmenter::run()
     // Visualize
     visBegin = std::chrono::steady_clock::now();
     visualizer_->visualize(preprocessed_depth_img, 
+                            preprocessed_label_img,
                             preprocessed_normal_img,
                             raw_depth_img_ptr_,
+                            raw_label_img_ptr_,
                             raw_normal_img_ptr_,
                             centers_,
                             clusters_,
@@ -739,7 +741,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 for (int c = centers_[j][0] - params_.step_; c < centers_[j][0] + params_.step_; c++) 
                 {                
                     current = cv::Point(c, r);
-                    if (isPixelValid(depth_image, normal_image, current, params_.k_c_)) 
+                    if (isLabeledPixelValid(depth_image, label_image, normal_image, current, params_.k_c_, false)) 
                     {
                         depth = depth_image.at<float>(r, c);
                         label = label_image.at<uint8_t>(r, c);

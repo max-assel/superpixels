@@ -24,7 +24,7 @@ def generate_launch_description():
     rviz = True
     terrain_receiver = False
     depth_image_topic = "/floor_image"
-    # label_image_topic = "/floor_labels"
+    label_image_topic = "/floor_labels"
     normal_image_topic = "/floor_normals"
 
     #######################
@@ -32,7 +32,7 @@ def generate_launch_description():
     #######################
 
     superpixels_path = get_package_share_directory("superpixels")
-    config_path = os.path.join(superpixels_path, "cfg", "depth_offline.yaml")
+    config_path = os.path.join(superpixels_path, "cfg", "depth_rosbag.yaml")
 
     ############################
     # Declare Launch Arguments #
@@ -49,12 +49,12 @@ def generate_launch_description():
         parameters=[config_path]
     )
 
-    rqt_node = Node(
-        package="rqt_reconfigure",
-        executable="rqt_reconfigure",
-        name="rqt_reconfigure",
-        output="screen"
-    )
+    # rqt_node = Node(
+    #     package="rqt_reconfigure",
+    #     executable="rqt_reconfigure",
+    #     name="rqt_reconfigure",
+    #     output="screen"
+    # )
 
     rviz_node = Node(
         package="rviz2",
