@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 
     // bool terrain_receiver = nodePtr->get_parameter("terrain_receiver").as_bool();
 
-    SuperpixelDepthSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nodePtr); // , config_path
+    SuperpixelDepthSegmenter superpixel_segmenter = SuperpixelDepthSegmenter(nodePtr); // , config_path
 
     // dynamic_reconfigure::Server<superpixels::ParametersConfig> server;
     // dynamic_reconfigure::Server<superpixels::ParametersConfig>::CallbackType serverCallback;
@@ -41,14 +41,15 @@ int main(int argc, char** argv)
     while (rclcpp::ok())
     {
         // Do something
-        superpixel_segmenter->run();
+        superpixel_segmenter.run();
 
         // Visualize outputs
-        // superpixel_segmenter->visualize();
+        superpixel_segmenter.visualize();
+
+        superpixel_segmenter.log();
 
         rclcpp::spin_some(nodePtr);
         loop_rate.sleep();
     }
-
     return 0;
 }

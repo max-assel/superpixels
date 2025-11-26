@@ -155,6 +155,8 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     // colorCentroids(centers, center_counts);
 
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing planar regions");
+
     // depth_image, 
     publishPlanarRegions(centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
