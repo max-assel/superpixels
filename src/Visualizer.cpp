@@ -487,7 +487,7 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
                 point.a = 255;
             } else
             {
-                point.a = 0;
+                point.a = 128;
             }
 
             idx = r * colored_cloud->width + c;
