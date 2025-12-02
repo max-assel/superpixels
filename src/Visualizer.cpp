@@ -121,7 +121,9 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr->encoding;
-    fin_depth_img_ptr_->image = depth_image;
+    cv::Mat flipped_depth_image;
+    cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
+    fin_depth_img_ptr_->image = flipped_depth_image;
     fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final label image");
@@ -137,12 +139,17 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // No publishing normal image
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
-    // fin_normal_img_colored_ptr_->header = fin_normal_img_ptr_->header;
-    // fin_normal_img_colored_ptr_->encoding = "rgb8";
+    fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
+    fin_normal_img_colored_ptr_->encoding = "rgb8";
+    cv::Mat colored_normal_image = normal_image;
     // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
-    // fin_normal_img_colored_ptr_->image = cv::abs(fin_normal_img_colored_ptr_->image);
-    // fin_normal_img_colored_ptr_->image.convertTo(fin_normal_img_colored_ptr_->image, CV_8UC3, 255.0);
-    // fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
+    cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
+    cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
+    scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
+    cv::Mat flipped_scaled_colored_normal_image;
+    cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
+    fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
+    fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
     // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
     // convertDepthImageToColor(color_depth_image, depth_image);
