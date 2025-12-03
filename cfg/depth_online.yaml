@@ -6,22 +6,23 @@ superpixel_depth_segmentation_node:
     normal_image_topic: /floor_normals
 
     k_c: 256
-    v_fov: 72.0
+    v_fov: 60.0
     v_offset: 0.0
 
     num_dilation_iterations: 0
     kernel_radius: 1
 
     num_iterations: 5
-    num_superpixels: 125
+    num_superpixels: 150
     warm_start: false
     constraint: false
     ransac: true
     snapping: false
 
-    w_normal: 1.0
-    w_pos: 1.0
-    w_compact: 10.0
+    w_normal: 25.0
+    w_plane_dist: 100.0
+    w_world_dist: 25.0
+    w_compact: 0.0
 
     ransac_K: 10
     ransac_N: 25

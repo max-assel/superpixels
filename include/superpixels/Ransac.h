@@ -1,6 +1,5 @@
 #pragma once
 
-#include <superpixels/SuperpixelParams.h>
 #include <superpixels/utils.h>
 
 class Ransac

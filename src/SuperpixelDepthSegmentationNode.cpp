@@ -12,14 +12,14 @@ int main(int argc, char** argv)
                                                                 .allow_undeclared_parameters(true)
                                                                 .automatically_declare_parameters_from_overrides(true));
 
-    // rclcpp::Rate loop_rate(30.0); // 30 Hz
+    rclcpp::Rate loop_rate(30.0); // 30 Hz
 
     // std::string config_path;
     // config_path = nodePtr->get_parameter("config_path").as_string();
 
     // bool terrain_receiver = nodePtr->get_parameter("terrain_receiver").as_bool();
 
-    SuperpixelDepthSegmenter * superpixel_segmenter = new SuperpixelDepthSegmenter(nodePtr); // , config_path
+    SuperpixelDepthSegmenter superpixel_segmenter = SuperpixelDepthSegmenter(nodePtr); // , config_path
 
     // dynamic_reconfigure::Server<superpixels::ParametersConfig> server;
     // dynamic_reconfigure::Server<superpixels::ParametersConfig>::CallbackType serverCallback;
@@ -38,18 +38,18 @@ int main(int argc, char** argv)
     //     RCLCPP_INFO_STREAM(nodePtr->get_logger(), "Terrain receiver is disabled. Will not visualize regions.");
     // }
 
-    // while (rclcpp::ok())
-    // {
-    //     // Do something
-    //     superpixel_segmenter->run();
+    while (rclcpp::ok())
+    {
+        // Do something
+        superpixel_segmenter.run();
 
-    //     // Visualize outputs
-    //     // superpixel_segmenter->visualize();
+        // Visualize outputs
+        superpixel_segmenter.visualize();
 
-    //     rclcpp::spin_some(nodePtr);
-    //     loop_rate.sleep();
-    // }
-    rclcpp::spin(nodePtr);
+        // superpixel_segmenter.log();
 
+        rclcpp::spin_some(nodePtr);
+        loop_rate.sleep();
+    }
     return 0;
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <superpixels/SuperpixelParams.h>
 #include <superpixels/utils.h>
 
 #include <cv_bridge/cv_bridge.h>
@@ -12,8 +11,9 @@ class ConvexHullifier
 
         void setParams(const SuperpixelParams & params);
 
-        void run(const std::vector<std::vector<double>> & centers,
-                    const std::vector<std::vector<cv::Point>> & superpixels,
+        void run(std::vector<std::vector<double>> & centers,
+                    std::vector<int> & center_counts,
+                    std::vector<std::vector<cv::Point>> & superpixels,
                     std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                     std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                     std::vector<Eigen::Matrix3d> & superpixel_rotations,
@@ -32,4 +32,6 @@ class ConvexHullifier
         Eigen::Vector3d projectPointOntoPlane(const Eigen::Vector3d & regionPt);
 
         SuperpixelParams params_;    
+
+        rclcpp::Logger logger_ = rclcpp::get_logger("ConvexHullifier");
 };

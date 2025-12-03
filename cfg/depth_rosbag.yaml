@@ -1,6 +1,6 @@
 superpixel_depth_segmentation_node:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: false
 
     depth_image_topic: /floor_image
     normal_image_topic: /floor_normals
@@ -13,15 +13,15 @@ superpixel_depth_segmentation_node:
     kernel_radius: 1
 
     num_iterations: 5
-    num_superpixels: 100
-    warm_start: true
+    num_superpixels: 150
+    warm_start: false
     constraint: false
     ransac: true
     snapping: false
 
-    w_normal: 1.0
-    w_pos: 1.0
-    w_compact: 3.0
+    w_normal: 25.0
+    w_pos: 100.0
+    w_compact: 1.0
 
     ransac_K: 10
     ransac_N: 25

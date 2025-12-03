@@ -21,20 +21,21 @@ Eigen::Vector3d ConvexHullifier::projectPointOntoPlane(const Eigen::Vector3d & r
     return projPt;
 }
 
-void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
-                            const std::vector<std::vector<cv::Point>> & superpixels,
+void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
+                            std::vector<int> & center_counts,
+                            std::vector<std::vector<cv::Point>> & superpixels,
                             std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                             std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                             std::vector<Eigen::Matrix3d> & egocan_to_region_rotations,
                             const cv::Mat & depth_img)
 {
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [ConvexHullifier::run]");
+    // RCLCPP_INFO_STREAM(logger_, "   [ConvexHullifier::run]");
 
-    std::vector<std::vector<double>>centers_lc = centers;
-    std::vector<std::vector<cv::Point>> superpixels_lc = superpixels;
-    superpixel_projections = std::vector<std::vector<Eigen::Vector2d>>(centers_lc.size());
-    superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers_lc.size());
-    egocan_to_region_rotations = std::vector<Eigen::Matrix3d>(centers_lc.size());
+    // std::vector<std::vector<double>> centers_lc = centers;
+    // std::vector<std::vector<cv::Point>> superpixels_lc = superpixels;
+    superpixel_projections = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
+    superpixel_convex_hulls = std::vector<std::vector<Eigen::Vector2d>>(centers.size());
+    egocan_to_region_rotations = std::vector<Eigen::Matrix3d>(centers.size());
 
     cv::Point center_pixel;
     float center_depth;
@@ -62,13 +63,15 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
     Eigen::Vector3d projPt;
 
     // Build convex hulls for each superpixel
-    for (int i = 0; i < (int) centers_lc.size(); i++)
+    for (int i = 0; i < (int) centers.size(); i++)
     {
-        if (superpixels_lc[i].size() < 10)
+        if (superpixels[i].size() < 10)
         {
+            // RCLCPP_INFO_STREAM(logger_, "       throwing out superpixel " << i << ": not enough points");
             // Not enough points to form a superpixel, delete.
-            centers_lc.erase(centers_lc.begin() + i);
-            superpixels_lc.erase(superpixels_lc.begin() + i);
+            centers.erase(centers.begin() + i);
+            center_counts.erase(center_counts.begin() + i);
+            superpixels.erase(superpixels.begin() + i);
             superpixel_projections.erase(superpixel_projections.begin() + i);
             superpixel_convex_hulls.erase(superpixel_convex_hulls.begin() + i);
             egocan_to_region_rotations.erase(egocan_to_region_rotations.begin() + i);
@@ -79,21 +82,21 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         // Check if points are colinear
 
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       center " << i << ":");
+        // RCLCPP_INFO_STREAM(logger_, "       center " << i << ":");
 
         //////////////////////////////////////////////////////////////
         // 1. Build transfrom from egocan frame to superpixel frame //
         //////////////////////////////////////////////////////////////
-        cv::Point center_pixel = cv::Point(centers_lc[i][0], centers_lc[i][1]);
-        float center_depth = centers_lc[i][2];
+        cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
+        float center_depth = centers[i][2];
         cv::Vec3f centerEgocanPt;
         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
         Eigen::Vector3d center(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
-        Eigen::Vector3d normal(centers_lc[i][3], centers_lc[i][4], centers_lc[i][5]);
+        Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       center (egocan frame): " << center.transpose());
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       normal (egocan frame): " << normal.transpose());
+        // RCLCPP_INFO_STREAM(logger_, "       center (egocan frame): " << center.transpose());
+        // RCLCPP_INFO_STREAM(logger_, "       normal (egocan frame): " << normal.transpose());
 
 
         // check here to make sure arbitraryVec is not parallel to normal
@@ -108,8 +111,8 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         e1 = normal.cross(e0);
         e1.normalize();
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       e0: " << e0.transpose());
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       e1: " << e1.transpose());
+        // RCLCPP_INFO_STREAM(logger_, "       e0: " << e0.transpose());
+        // RCLCPP_INFO_STREAM(logger_, "       e1: " << e1.transpose());
 
         // Egocan to region rotation matrix
         // almost positive this is correct
@@ -119,15 +122,15 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
 
         egocan_to_region_rotations[i] = egocanToRegionRotMat;
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       egocanToRegionRotMat: ");
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionRotMat.row(0));
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionRotMat.row(1));
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionRotMat.row(2));
+        // RCLCPP_INFO_STREAM(logger_, "       egocanToRegionRotMat: ");
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionRotMat.row(0));
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionRotMat.row(1));
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionRotMat.row(2));
 
         // Eigen::Quaterniond regionQuat(egocanToRegionRotMat);
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center: " << center.transpose());
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
+        // RCLCPP_INFO_STREAM(logger_, "               center: " << center.transpose());
+        // RCLCPP_INFO_STREAM(logger_, "               regionQuat: " << regionQuat.x() << ", " << regionQuat.y() << ", " << regionQuat.z() << ", " << regionQuat.w());
 
         // Eigen::VectorXd region_pose_world_frame = transformHelperPoseStamped(center, regionQuat, egocanFrameToWorldFrame);
 
@@ -156,25 +159,29 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
         egocanToRegionTransform << egocanToRegionRotMat, -egocanToRegionRotMat * center,
                                     0, 0, 0, 1;
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       egocanToRegionTransform: ");
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionTransform.row(0));
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionTransform.row(1));
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionTransform.row(2));
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "           " << egocanToRegionTransform.row(3));
+        // RCLCPP_INFO_STREAM(logger_, "       egocanToRegionTransform: ");
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionTransform.row(0));
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionTransform.row(1));
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionTransform.row(2));
+        // RCLCPP_INFO_STREAM(logger_, "           " << egocanToRegionTransform.row(3));
 
         ///////////////////////////////////////
         // 2. Transform points to superpixel //
         ///////////////////////////////////////
 
-        superpixel_projections[i].resize(superpixels_lc[i].size());
-        for (size_t j = 0; j < superpixels_lc[i].size(); j++)
+        superpixel_projections[i].resize(superpixels[i].size());
+        for (size_t j = 0; j < superpixels[i].size(); j++)
         {
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixel point " << j << ":");
+            // RCLCPP_INFO_STREAM(logger_, "               superpixel point " << j << ":");
 
             // Transform superpixel points into region frame
-            cv::Point pixel = superpixels_lc[i][j];
+            cv::Point pixel = superpixels[i][j];
             float depth = depth_img.at<float>(pixel.y, pixel.x);
 
+            // RCLCPP_INFO_STREAM(logger_, "               pixel: " << pixel.y << ", " << pixel.x);
+            // RCLCPP_INFO_STREAM(logger_, "               depth: " << depth);
+
+            cv::Vec3f egocanPt;
             pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
             if (egocanPt == centerEgocanPt)
@@ -183,46 +190,48 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
                 continue; 
             }
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
+            // RCLCPP_INFO_STREAM(logger_, "               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
 
             egocanPtHomog << egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0;
             regionPtHomog = egocanToRegionTransform * egocanPtHomog;
 
             regionPt = regionPtHomog.head(3);
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "               (region frame): " << regionPt.transpose());
+            // RCLCPP_INFO_STREAM(logger_, "               (region frame): " << regionPt.transpose());
 
             // project points onto plane
             projPt = projectPointOntoPlane(regionPt);
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "               projected (region frame): " << projPt.transpose());
+            // RCLCPP_INFO_STREAM(logger_, "               projected (region frame): " << projPt.transpose());
 
             // check projpt, should be coplanar with center and normal
 
             superpixel_projections[i][j] = projPt.head(2);
         }
 
+        // Split region (if needed)
+
         // Calculate convex hull and store
         convexHull(superpixel_projections[i], superpixel_convex_hulls[i]);
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       hull:");
+        // RCLCPP_INFO_STREAM(logger_, "       hull:");
         // for (int j = 0; j < superpixel_convex_hulls[i].size(); j++) // iterate through hull points
         // {
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
+            // RCLCPP_INFO_STREAM(logger_, "                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
 
             // if (superpixel_convex_hulls[i][j] == Eigen::Vector2d(0.0, 0.0)) // if a hull point is too close to origin
             // {
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [ConvexHullifier::run]");
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "       center " << i << ":");
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "       center (egocan frame): " << center.transpose());
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "       normal (egocan frame): " << normal.transpose());
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "           superpixel point " << j << ":");
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
-            //     RCLCPP_WARN_STREAM(node_->get_logger(), "           is too close to center");
+            //     RCLCPP_WARN_STREAM(logger_, "   [ConvexHullifier::run]");
+            //     RCLCPP_WARN_STREAM(logger_, "       center " << i << ":");
+            //     RCLCPP_WARN_STREAM(logger_, "       center (egocan frame): " << center.transpose());
+            //     RCLCPP_WARN_STREAM(logger_, "       normal (egocan frame): " << normal.transpose());
+            //     RCLCPP_WARN_STREAM(logger_, "           superpixel point " << j << ":");
+            //     RCLCPP_WARN_STREAM(logger_, "                   " << superpixel_convex_hulls[i][j][0] << ", " << superpixel_convex_hulls[i][j][1]);
+            //     RCLCPP_WARN_STREAM(logger_, "           is too close to center");
                 
             //     for (int k = 0; k < superpixels[i].size(); k++) // print out whole superpixel
             //     {
-            //         RCLCPP_WARN_STREAM(node_->get_logger(), "            superpixel point " << k << ":");
+            //         RCLCPP_WARN_STREAM(logger_, "            superpixel point " << k << ":");
             //         // Transform superpixel points into region frame
             //         cv::Point pixel = superpixels[i][k];
             //         float depth = depth_img.at<float>(pixel.y, pixel.x);
@@ -230,19 +239,19 @@ void ConvexHullifier::run(const std::vector<std::vector<double>> & centers,
             //         cv::Vec3f egocanPt;
             //         pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
 
-            //         RCLCPP_WARN_STREAM(node_->get_logger(), "               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
+            //         RCLCPP_WARN_STREAM(logger_, "               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
 
             //         Eigen::Vector4d egocanPtHomog(egocanPt.val[0], egocanPt.val[1], egocanPt.val[2], 1.0);
             //         Eigen::Vector4d regionPtHomog = egocanToRegionTransform * egocanPtHomog;
 
             //         Eigen::Vector3d regionPt = regionPtHomog.head(3);
 
-            //         RCLCPP_WARN_STREAM(node_->get_logger(), "               (region frame): " << regionPt.transpose());
+            //         RCLCPP_WARN_STREAM(logger_, "               (region frame): " << regionPt.transpose());
 
             //         // project points onto plane
             //         Eigen::Vector3d projPt = projectPointOntoPlane(regionPt);
 
-            //         RCLCPP_WARN_STREAM(node_->get_logger(), "               projected (region frame): " << projPt.transpose());
+            //         RCLCPP_WARN_STREAM(logger_, "               projected (region frame): " << projPt.transpose());
             //     }
 
             //     break;
@@ -297,42 +306,41 @@ bool ConvexHullifier::ccw(const Eigen::Vector2d & a, const Eigen::Vector2d & b, 
 void ConvexHullifier::grahamScan(const std::vector<Eigen::Vector2d> & superpixel_projections, 
                                     std::vector<Eigen::Vector2d> & convex_hull)
 {
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           [ConvexHullifier::grahamScan]");
+    // RCLCPP_INFO_STREAM(logger_, "           [ConvexHullifier::grahamScan]");
 
     if (superpixel_projections.size() < 3)
     {
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "               not enough points for convex hull.");
+        // RCLCPP_INFO_STREAM(logger_, "               not enough points for convex hull.");
         convex_hull = superpixel_projections;
         return;
     }
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "               finding lowest y-coordinate ... ");
+    // RCLCPP_INFO_STREAM(logger_, "               finding lowest y-coordinate ... ");
     // Find the point with the lowest y-coordinate
     Eigen::Vector2d lowest = superpixel_projections[0];
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "                   initial lowest: " << lowest[0] << ", " << lowest[1]);
-    Eigen::Vector2d current;
+    // RCLCPP_INFO_STREAM(logger_, "                   initial lowest: " << lowest[0] << ", " << lowest[1]);
     for (int i = 1; i < (int) superpixel_projections.size(); i++)
     {
-        current = superpixel_projections[i];
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "                   point " << i << ": " << current[0] << ", " << current[1]);
+        Eigen::Vector2d current = superpixel_projections[i];
+        // RCLCPP_INFO_STREAM(logger_, "                   point " << i << ": " << current[0] << ", " << current[1]);
         if (current[1] < lowest[1])
         {
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "                   new lowest: " << current[0] << ", " << current[1]);
+            // RCLCPP_INFO_STREAM(logger_, "                   new lowest: " << current[0] << ", " << current[1]);
             lowest = current;
         }
         else if (current[1] == lowest[1])
         {
             if (current[0] < lowest[0])
             {
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "                   new lowest: " << current[0] << ", " << current[1]);
+                // RCLCPP_INFO_STREAM(logger_, "                   new lowest: " << current[0] << ", " << current[1]);
                 lowest = current;
             }
         }
     }
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           lowest: " << lowest[0] << ", " << lowest[1]);
+    // RCLCPP_INFO_STREAM(logger_, "           lowest: " << lowest[0] << ", " << lowest[1]);
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           sorting ... ");
+    // RCLCPP_INFO_STREAM(logger_, "           sorting ... ");
 
     // Sort the points by polar angle with respect to the lowest point
     std::vector<Eigen::Vector2d> sorted = superpixel_projections;
@@ -342,14 +350,14 @@ void ConvexHullifier::grahamScan(const std::vector<Eigen::Vector2d> & superpixel
                                                         std::placeholders::_2, 
                                                         lowest)); 
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           sorted.");
+    // RCLCPP_INFO_STREAM(logger_, "           sorted.");
 
     // Perform the Graham scan
     std::vector<Eigen::Vector2d> hull;
     hull.push_back(sorted[0]);
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           added point 0: " << sorted[0][0] << ", " << sorted[0][1]);
+    // RCLCPP_INFO_STREAM(logger_, "           added point 0: " << sorted[0][0] << ", " << sorted[0][1]);
     hull.push_back(sorted[1]);
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "           added point 1: " << sorted[1][0] << ", " << sorted[1][1]);
+    // RCLCPP_INFO_STREAM(logger_, "           added point 1: " << sorted[1][0] << ", " << sorted[1][1]);
 
     for (int i = 2; i < (int) sorted.size(); i++)
     {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <superpixels/SuperpixelParams.h>
 #include <superpixels/utils.h>
 
 #include <opencv2/opencv.hpp>
@@ -39,7 +38,8 @@ class ImagePreprocessor
                             const cv::Mat & cleaned_normal_img,
                             const cv::Mat & visited,
                             cv::Mat & filled_depth_img,
-                            cv::Mat & filled_normal_img);
+                            cv::Mat & filled_normal_img,
+                            const double & default_height);
 
     private:
         SuperpixelParams params_;
