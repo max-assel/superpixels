@@ -90,7 +90,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
         return false;
     }
 
-    float min_acceptable_depth = 0.0;
+    float min_acceptable_depth = 0.50;
     float max_acceptable_depth = 1.0;
 
     if (depth < min_acceptable_depth || depth > max_acceptable_depth)
@@ -125,7 +125,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 
     // only considering normals pointing upwards
     cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
-    if ( std::abs( normal.dot(ideal_normal) ) < 0.50 )
+    if ( std::abs( normal.dot(ideal_normal) ) < 0.75 )
     {
         // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
         return false;
