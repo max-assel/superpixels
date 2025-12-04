@@ -146,6 +146,24 @@ def generate_launch_description():
         parameters=[egocylindrical_propagator_config]
     )
     
+    rviz2_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="screen",
+        arguments=[
+            "-d",
+            os.path.join(
+                superpixels_path, "rviz", "everything.rviz",
+            )
+        ],
+        parameters=[
+            {
+                "use_sim_time": LaunchConfiguration("use_sim_time"),
+            }
+        ]
+    )
+
     # floor_image_node = Node(
     #     package="egocylindrical",
     #     executable="floor_image_node",
@@ -184,9 +202,10 @@ def generate_launch_description():
             declare_use_sim_time,
             realsense_ld,
             depth_img_normal_estimation_node,
+            rviz2_node
             # odom_to_base_aligned_tf2_cmd,
             # odom_to_D435_depth_optical_frame_tf2_cmd,
-            egocylindrical_propagator_node,
+            # egocylindrical_propagator_node,
             # floor_image_node,
             # superpixels_node
         ]
