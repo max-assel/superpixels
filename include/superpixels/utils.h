@@ -88,6 +88,42 @@ inline bool isClusterCentroidValid(const std::vector<double> & center)
     return true;
 }
 
+
+inline bool isDepthValid(const cv::Mat & depth_image, 
+                            const cv::Point & pixel,
+                            const int & k_c)
+{
+    //////////////////
+    // IMAGE BOUNDS //
+    //////////////////
+
+    if (!isPixelInBounds(k_c, pixel))
+    {
+        return false;
+    }
+
+    ///////////
+    // DEPTH //
+    ///////////
+
+    float depth = depth_image.at<float>(pixel.y, pixel.x);
+
+    if (std::isnan(depth) || std::abs(depth) < 1e-6)
+    {
+        return false;
+    }
+
+    float min_acceptable_depth = 0.0;
+    float max_acceptable_depth = 1.0;
+
+    if (depth < min_acceptable_depth || depth > max_acceptable_depth)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 inline bool isPixelValid(const cv::Mat & depth_image, 
                             // const cv::Mat & label_image,
                             const cv::Mat & normal_image,
@@ -156,6 +192,41 @@ inline bool isPixelValid(const cv::Mat & depth_image,
     }
 
     return true;
+}
+
+/**
+* @brief Transform a 6D pose from world frame to base frame, 
+* performs rotation + translation, stores full pose
+* performs rotation + translation, stores full pose
+* 
+* @param source The 6D pose in world frame
+* @param worldToBaseTransform The transform from world to base frame
+* @return Eigen::VectorXd : The 6D pose in base frame
+*/
+inline Eigen::Vector3d transformHelperPointStamped(const Eigen::Vector3d & source_pos,
+                                                    const geometry_msgs::msg::TransformStamped & egocanFrameToWorldFrame)
+{
+    // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
+
+    // std::cout << "  worldFrameToBaseFrameTransform: " << worldToBaseTransform << std::endl;
+
+    geometry_msgs::msg::PointStamped sourceVector, destVector;
+
+    sourceVector.header.stamp = egocanFrameToWorldFrame.header.stamp;
+    sourceVector.header.frame_id = "egocan";
+    sourceVector.point.x = source_pos[0];
+    sourceVector.point.y = source_pos[1];
+    sourceVector.point.z = source_pos[2];
+
+    tf2::doTransform(sourceVector, destVector, egocanFrameToWorldFrame);
+
+    Eigen::Vector3d dest = Eigen::Vector3d::Zero(); // source.size()
+
+    dest[0] = destVector.point.x;
+    dest[1] = destVector.point.y;
+    dest[2] = destVector.point.z;
+
+    return dest;
 }
 
 /**

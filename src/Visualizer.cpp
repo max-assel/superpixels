@@ -37,6 +37,8 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     localRegionNormalPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_region_normals", 1);
     localRegionIDPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/ids", 1);
 
+    elevationMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>("/superpixels/elevation_map", 1);
+
     setColors();    
 
     // set up terrain publisher
@@ -165,7 +167,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing planar regions");
 
     // depth_image, 
-    publishPlanarRegions(centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
+    publishPlanarRegions(depth_image, normal_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
     // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 
@@ -174,7 +176,9 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
 
 // const cv::Mat & depth_img,
-void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & centers,
+void Visualizer::publishPlanarRegions(const cv::Mat & depth_image,
+                                        const cv::Mat & normal_image,
+                                        const std::vector<std::vector<double>> & centers,
                                         const std::vector<int> & center_counts,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                         const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
@@ -324,6 +328,105 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
         // RCLCPP_INFO_STREAM(node_->get_logger(), "   e1: " << e1.transpose());
         // RCLCPP_INFO_STREAM(node_->get_logger(), "   normal: " << normal.transpose());
     }    
+
+    /* Only compare to pixels in a 2 x step by 2 x step region. */
+    // grid_map::GridMap map({"elevation"});
+    // map.setFrameId("odom");
+    // map.setGeometry(grid_map::Length(1.2, 2.0), 0.03);
+
+    // rclcpp::Time time = node_->now();
+    // for (grid_map::GridMapIterator it(map); !it.isPastEnd(); ++it) 
+    // {
+    //   grid_map::Position position;
+    //   map.getPosition(*it, position);
+    //   map.at(
+    //     "elevation",
+    //     *it) = -0.04 + 0.2 * std::sin(3.0 * time.seconds() + 5.0 * position.y()) * position.x();
+    // }
+
+    // // Publish grid map.
+    // map.setTimestamp(time.nanoseconds());
+    // std::unique_ptr<grid_map_msgs::msg::GridMap> message;
+    // message = grid_map::GridMapRosConverter::toMessage(map);
+    // elevationMapPublisher_->publish(std::move(message));
+
+
+    grid_map::GridMap map({"elevation"});
+    map.setFrameId("odom");
+    map.setGeometry(grid_map::Length(10.0, 10.0), 0.03);    
+    cv::Vec3f egocanPt;
+    Eigen::Vector3d egocanEigenPt;
+    Eigen::Vector3d worldPt;
+    cv::Point current;
+    float depth;
+
+    rclcpp::Time time = node_->now();
+    for (int r = 0; r < depth_image.rows; r++) 
+    {
+        // #pragma omp parallel for
+        for (int c = 0; c < depth_image.cols; c++) 
+        {                
+            grid_map::Position map_position;
+
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       r: " << r << ", c: " << c);
+
+            current = cv::Point(c, r);
+            if (isDepthValid(depth_image, current, params_.k_c_)) 
+            {
+                depth = depth_image.at<float>(r, c);
+                pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
+                egocanEigenPt = Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]);
+
+                worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
+
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "   trying to add worldPt: " << worldPt.transpose());
+
+                map_position.x() = worldPt[0];
+                map_position.y() = worldPt[1];
+
+                map.atPosition("elevation", map_position) = worldPt[2];
+            } 
+            // else
+            // {
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "   invalid pixel at r: " << r << ", c: " << c);
+            // }
+        }
+    }
+
+    map.setTimestamp(time.nanoseconds());
+    std::unique_ptr<grid_map_msgs::msg::GridMap> message;
+    message = grid_map::GridMapRosConverter::toMessage(map);
+    elevationMapPublisher_->publish(std::move(message));
+
+    // const std::string elevationLayer{"elevation"};
+    // const std::string frameId = "egocan_stabilized"; // need to stabilized?
+    // const float resolution = 0.01; // what is this?
+    // const float heightScale = 0.01; // what is this?
+    // auto imageGridMap = convex_plane_decomposition::loadGridmapFromImage(depth_image, 
+    //                                                                         elevationLayer, 
+    //                                                                         frameId,
+    //                                                                         resolution, 
+    //                                                                         heightScale);
+    // grid_map_msgs::msg::GridMap image_grid_map_msg = *grid_map::GridMapRosConverter::toMessage(imageGridMap);
+    // elevationMapPublisher_->publish(image_grid_map_msg);
+
+    // const std::string ocs2_anymal = "/home/masselmeier3/ros2_ws/src/ocs2/ocs2_robotic_examples/ocs2_perceptive_quadruped/anymal/";
+    // const std::string terrainFolder = ocs2_anymal + "ocs2_anymal_loopshaping_mpc/data/";
+    // std::string terrainFile = "step.png";
+
+    // const std::string elevationLayer{"elevation"};
+    // const std::string frameId{"odom"};
+    // const float resolution = 0.04; // what is this?
+    // const float heightScale = 0.35; // what is this?
+    // auto gridMap = convex_plane_decomposition::loadGridmapFromImage(
+    //     terrainFolder + "/" + terrainFile, elevationLayer, frameId,
+    //     resolution, heightScale);
+    // gridMap.get(elevationLayer).array() -=
+    //     gridMap.atPosition(elevationLayer, {0., 0.});    
+
+    // grid_map_msgs::msg::GridMap elevationMapMessage =
+    //     *(grid_map::GridMapRosConverter::toMessage(gridMap));
+    // elevationMapPublisher_->publish(elevationMapMessage);
 
     // placeholder gridMap
     grid_map::GridMap grid_map;

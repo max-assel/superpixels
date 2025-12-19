@@ -29,6 +29,17 @@ def generate_launch_description():
         description="Use simulation (Gazebo) clock if true",
     )    
 
+    # grid_map_demos_dir = get_package_share_directory('grid_map_demos')
+
+    # visualization_config_file = LaunchConfiguration("visualization_config")
+
+    # declare_visualization_config_file_cmd = DeclareLaunchArgument(
+    #     'visualization_config',
+    #     default_value=os.path.join(
+    #         grid_map_demos_dir, 'config', 'simple_demo.yaml'),
+    #     description='Full path to the Gridmap visualization config file to use')
+
+
     set_use_sim_time = launch_ros.actions.SetParameter(name='use_sim_time', value=True)
 
 
@@ -79,6 +90,14 @@ def generate_launch_description():
         parameters=[config_path]
     )
 
+    # grid_map_visualization_node = Node(
+    #     package='grid_map_visualization',
+    #     executable='grid_map_visualization',
+    #     name='grid_map_visualization',
+    #     output='screen',
+    #     parameters=[visualization_config_file]
+    # )
+
     ###########################
     # Full Launch Description #
     ###########################
@@ -86,8 +105,10 @@ def generate_launch_description():
         [
             set_use_sim_time,
             declare_use_sim_time,
+            # declare_visualization_config_file_cmd,
             normal_estimation_ld,
             semantic_egocan_ld,
             superpixels_node,
+            # grid_map_visualization_node,
         ]
     )
