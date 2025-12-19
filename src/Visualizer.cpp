@@ -120,6 +120,9 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     //     return;
     // }
 
+    cv::Mat raw_depth_image = raw_depth_img_ptr->image;
+    cv::Mat raw_normal_image = raw_normal_img_ptr->image;
+
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr->encoding;
@@ -167,7 +170,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing planar regions");
 
     // depth_image, 
-    publishPlanarRegions(depth_image, normal_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
+    publishPlanarRegions(raw_depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
     // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 
@@ -176,8 +179,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
 
 // const cv::Mat & depth_img,
-void Visualizer::publishPlanarRegions(const cv::Mat & depth_image,
-                                        const cv::Mat & normal_image,
+void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
                                         const std::vector<std::vector<double>> & centers,
                                         const std::vector<int> & center_counts,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
@@ -201,6 +203,19 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_image,
         RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup failed: " << ex.what());
         return;
     }
+
+    // rclcpp::Duration timeout(3, 0); // 3 seconds
+    // geometry_msgs::msg::TransformStamped egocanFrameToEgocanStabilizedFrame;
+    // try
+    // {
+    //     egocanFrameToEgocanStabilizedFrame = tfBuffer_->lookupTransform("egocan_stabilized", egocan_frame, lookupTime); // , timeout
+    // }
+    // catch (tf2::TransformException & ex)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup failed: " << ex.what());
+    //     return;
+    // }
+
 
     double foot_radius = 0.02;
 
@@ -352,32 +367,38 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_image,
 
 
     grid_map::GridMap map({"elevation"});
-    map.setFrameId("odom");
-    map.setGeometry(grid_map::Length(10.0, 10.0), 0.03);    
+    map.setFrameId({"odom"}); // needs to be odom
+    // 1 x 1 too small
+    map.setGeometry(grid_map::Length(3.0, 3.0), 
+                    0.03, 
+                    grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
+    
     cv::Vec3f egocanPt;
     Eigen::Vector3d egocanEigenPt;
     Eigen::Vector3d worldPt;
+    // Eigen::Vector3d egocanStabilizedPt;
     cv::Point current;
     float depth;
 
     rclcpp::Time time = node_->now();
-    for (int r = 0; r < depth_image.rows; r++) 
+    for (int r = 0; r < raw_depth_image.rows; r++) 
     {
         // #pragma omp parallel for
-        for (int c = 0; c < depth_image.cols; c++) 
+        for (int c = 0; c < raw_depth_image.cols; c++) 
         {                
             grid_map::Position map_position;
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       r: " << r << ", c: " << c);
 
             current = cv::Point(c, r);
-            if (isDepthValid(depth_image, current, params_.k_c_)) 
+            if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
             {
-                depth = depth_image.at<float>(r, c);
+                depth = raw_depth_image.at<float>(r, c);
                 pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
                 egocanEigenPt = Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]);
 
                 worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
+                // egocanStabilizedPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToEgocanStabilizedFrame);
 
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "   trying to add worldPt: " << worldPt.transpose());
 
@@ -392,6 +413,16 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_image,
             // }
         }
     }
+
+    convex_plane_decomposition::PlaneDecompositionPipeline::Config perceptionConfig;
+
+    convex_plane_decomposition::GridMapPreprocessing preprocessing_(perceptionConfig.preprocessingParameters);
+
+    // preprocess layer
+    preprocessing_.preprocess(map, "elevation");
+
+    // add inpaint layer
+    // map.add("inpaint", 0.0);
 
     map.setTimestamp(time.nanoseconds());
     std::unique_ptr<grid_map_msgs::msg::GridMap> message;
@@ -429,19 +460,19 @@ void Visualizer::publishPlanarRegions(const cv::Mat & depth_image,
     // elevationMapPublisher_->publish(elevationMapMessage);
 
     // placeholder gridMap
-    grid_map::GridMap grid_map;
-    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    double grid_map_resolution = 0.1; // resolution [m]
-    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    grid_map.setGeometry(grid_map_dimensions, 
-                            grid_map_resolution, 
-                            grid_map_origin);
-    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    grid_map.setFrameId("odom");
+    // grid_map::GridMap grid_map;
+    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    // double grid_map_resolution = 0.1; // resolution [m]
+    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    // grid_map.setGeometry(grid_map_dimensions, 
+    //                         grid_map_resolution, 
+    //                         grid_map_origin);
+    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    // grid_map.setFrameId("odom");
 
-    grid_map_msgs::msg::GridMap grid_map_msg;
-    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
-    terrain_msg.gridmap = grid_map_msg; 
+    // grid_map_msgs::msg::GridMap grid_map_msg;
+    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+    terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
 
     terrainPub_->publish(terrain_msg);
 
