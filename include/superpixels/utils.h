@@ -64,6 +64,30 @@ inline bool isPixelInBounds(const int & k_c,
     return true;
 }
 
+inline bool isClusterCentroidValid(const std::vector<double> & center)
+{
+    cv::Point center_pixel = cv::Point(center[0], center[1]);
+    float center_depth = center[2];
+
+    float min_acceptable_depth = 0.0;
+    float max_acceptable_depth = 1.0;
+    if (center_depth < min_acceptable_depth || center_depth > max_acceptable_depth)
+    {
+        return false;
+    }
+
+    Eigen::Vector3d normal(center[3], center[4], center[5]);    
+
+    Eigen::Vector3d ideal_normal(0, -1.0, 0);
+    if ( std::abs( normal.dot(ideal_normal) ) < 0.90 )
+    {
+        // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
+        return false;
+    }
+
+    return true;
+}
+
 inline bool isPixelValid(const cv::Mat & depth_image, 
                             // const cv::Mat & label_image,
                             const cv::Mat & normal_image,
@@ -125,7 +149,7 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 
     // only considering normals pointing upwards
     cv::Vec3f ideal_normal = cv::Vec3f(0, -1.0, 0);
-    if ( std::abs( normal.dot(ideal_normal) ) < 0.75 )
+    if ( std::abs( normal.dot(ideal_normal) ) < 0.90 )
     {
         // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
         return false;

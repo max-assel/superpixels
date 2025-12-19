@@ -276,12 +276,14 @@ void Visualizer::publishPlanarRegions(const std::vector<std::vector<double>> & c
             double norm = convexHullPt.norm();
             convexHullDir = convexHullPt / norm;
 
-            if (norm > foot_radius)
+            if (norm > (2 * foot_radius) )
             {
-                inflatedConvexHullPt = convexHullPt - foot_radius * convexHullDir;
+                convexHullPt = convexHullPt - foot_radius * convexHullDir;
+                inflatedConvexHullPt = convexHullPt - 2 * foot_radius * convexHullDir;
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             } else
             {
+                convexHullPt = 0.75 * convexHullPt;
                 inflatedConvexHullPt = 0.5 * convexHullPt;
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
             }
