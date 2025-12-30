@@ -29,7 +29,7 @@ To run our perception pipeline, you need to compile the OCS2 toolbox.
 
 ## Building
 
-Now you can build the `go2_interface` package. 
+Now you can build the `superpixels` package. 
 
 ```
 MAKEFLAGS="-j 4" colcon build --symlink-install --executor sequential --mixin rel-with-deb-info --packages-up-to superpixels
