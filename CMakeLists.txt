@@ -11,7 +11,6 @@ endif()
 
 set(dependencies
     rclcpp
-    # roslib
     cv_bridge
     image_transport
     pcl_ros

@@ -35,7 +35,7 @@ Now you can build the `superpixels` package.
 MAKEFLAGS="-j 4" colcon build --symlink-install --executor sequential --mixin rel-with-deb-info --packages-up-to superpixels
 ```
 
-Building ocs2 can be quite computationally expensive, so `MAKEFLAGS="-j 4"` limits the number (4) of cores used during build, and `--executor sequential` makes sure packages are build sequentially, not in parallel. `--mixin rel-with-deb-info` builds the release version of the code, not the debugging version in order to get better performance, though this needs colcon mixin to be set up. Feel free to adjust these to your liking. I would also recommend that you export this alias into your bashrc so that you do not have to copy this in every time
+Building ocs2 can be quite computationally expensive, so `MAKEFLAGS="-j 4"` limits the number (4) of cores used during build, and `--executor sequential` makes sure packages are built sequentially, not in parallel. `--mixin rel-with-deb-info` builds the release version of the code, not the debugging version in order to get better performance, though this needs colcon mixin to be set up. Feel free to adjust these to your liking. I would also recommend that you export this alias into your bashrc so that you do not have to copy this in every time
 
 ```
 echo "alias buildros2='cd ~/ros2_ws && MAKEFLAGS="-j 4" colcon build --symlink-install --executor sequential --mixin rel-with-deb-info --packages-up-to'" >> ~/.bashrc  

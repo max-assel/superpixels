@@ -22,10 +22,6 @@ def generate_launch_description():
     # Launch Arguments #
     ####################
     rviz = True
-    terrain_receiver = False
-    depth_image_topic = "/floor_image"
-    # label_image_topic = "/floor_labels"
-    normal_image_topic = "/floor_normals"
 
     #######################
     # Package Directories #
