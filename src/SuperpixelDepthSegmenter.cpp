@@ -102,7 +102,6 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
-    // regionSplitter_ = new RegionSplitter(params_);
 
     callback_handle_ = node_->add_on_set_parameters_callback(
         std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
@@ -470,14 +469,6 @@ void SuperpixelDepthSegmenter::run()
     numberOfSuperpixelCalls++;
     // int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
     // double superpixel_total_time_sec = 1.0e-6 * superpixel_total_time;
-
-    // Split regions
-    // regionSplitBegin = std::chrono::steady_clock::now();
-    // regionSplitter_->run(centers_, superpixels_, superpixel_projections_, 
-    //                         egocan_to_region_rotations_, preprocessed_depth_img);
-    // regionSplitEnd = std::chrono::steady_clock::now();
-    // int64_t region_split_total_time = std::chrono::duration_cast<std::chrono::microseconds>(regionSplitEnd - regionSplitBegin).count();
-    // double region_split_total_time_sec = 1.0e-6 * region_split_total_time;
 
     // Calculate convex hulls
     convexHullBegin = std::chrono::steady_clock::now();
