@@ -1,5 +1,9 @@
 # Superpixels Oversegmentation
 
+<p>
+    <img align="center" width="750" src="./assets/superpixels_diagram.png" alt="empty"> 
+</p>
+
 ## Introduction
 This is a C++/ROS2 implementation of superpixels-based oversegmentation. We adapted the [SLIC](https://ieeexplore.ieee.org/document/6205760) algorithm for sparse depth images.
 
