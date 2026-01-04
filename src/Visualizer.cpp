@@ -428,6 +428,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     std::unique_ptr<grid_map_msgs::msg::GridMap> message;
     message = grid_map::GridMapRosConverter::toMessage(map);
     elevationMapPublisher_->publish(std::move(message));
+    terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
 
     // const std::string elevationLayer{"elevation"};
     // const std::string frameId = "egocan_stabilized"; // need to stabilized?
@@ -472,7 +473,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 
     // grid_map_msgs::msg::GridMap grid_map_msg;
     // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
-    terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
+    // terrain_msg.gridmap = grid_map_msg;
 
     terrainPub_->publish(terrain_msg);
 
