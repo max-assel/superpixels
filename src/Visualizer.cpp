@@ -369,8 +369,14 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     grid_map::GridMap map({"elevation"});
     map.setFrameId({"odom"}); // needs to be odom
     // 1 x 1 too small
-    map.setGeometry(grid_map::Length(3.0, 3.0), 
-                    0.03, 
+
+
+    float map_width = 3.0;
+    float map_length = 3.0;
+    float map_resolution = 0.03;
+
+    map.setGeometry(grid_map::Length(map_width, map_length), 
+                    map_resolution, 
                     grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
     
     cv::Vec3f egocanPt;
@@ -404,6 +410,12 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 
                 map_position.x() = worldPt[0];
                 map_position.y() = worldPt[1];
+
+                if (!map.isInside(map_position))
+                {
+                    // RCLCPP_INFO_STREAM(node_->get_logger(), "   position not inside map at r: " << r << ", c: " << c);
+                    continue;
+                }
 
                 map.atPosition("elevation", map_position) = worldPt[2];
             } 

@@ -79,7 +79,7 @@ inline bool isClusterCentroidValid(const std::vector<double> & center)
     Eigen::Vector3d normal(center[3], center[4], center[5]);    
 
     Eigen::Vector3d ideal_normal(0, -1.0, 0);
-    if ( std::abs( normal.dot(ideal_normal) ) < 0.90 )
+    if ( std::abs( normal.dot(ideal_normal) ) < 0.975 )
     {
         // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
         return false;
