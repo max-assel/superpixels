@@ -89,8 +89,8 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     // raw_label_img_sub_.subscribe(it, label_img_topic, 3);
     raw_normal_img_sub_.subscribe(node_.get(), normal_img_topic_, "raw", qos);// Not sure if this is right
 
-    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 3); // raw_label_img_sub_, 
-    msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, _1, _2)); // , _3
+    msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 3); // raw_label_img_sub_,
+    msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, std::placeholders::_1, std::placeholders::_2)); // , _3
 
     prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
     // prop_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);

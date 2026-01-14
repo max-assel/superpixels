@@ -25,7 +25,7 @@ def generate_launch_description():
 
     declare_use_sim_time = DeclareLaunchArgument(
         "use_sim_time",
-        default_value="true",
+        default_value="false",
         description="Use simulation (Gazebo) clock if true",
     )    
 
@@ -40,7 +40,7 @@ def generate_launch_description():
     #     description='Full path to the Gridmap visualization config file to use')
 
 
-    set_use_sim_time = launch_ros.actions.SetParameter(name='use_sim_time', value=True)
+    set_use_sim_time = launch_ros.actions.SetParameter(name='use_sim_time', value=False)
 
 
     #######################
@@ -50,7 +50,8 @@ def generate_launch_description():
     egocylindrical_path = get_package_share_directory("egocylindrical")
     depth_img_normal_estimation_path = get_package_share_directory("depth_img_normal_estimation")
     superpixels_path = get_package_share_directory("superpixels")
-    config_path = os.path.join(superpixels_path, "cfg", "depth_online.yaml")
+    realsense2_camera_path = get_package_share_directory("realsense2_camera")
+    config_path = os.path.join(superpixels_path, "cfg", "depth_hardware.yaml")
 
     ############################
     # Declare Launch Arguments #
@@ -59,10 +60,21 @@ def generate_launch_description():
     #################
     # Include Nodes #
     #################
+    realsense_ld = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    realsense2_camera_path, "launch", "rs_d435_launch.py",
+                )
+            ),
+            launch_arguments={
+                "use_sim_time": use_sim_time,
+            }.items()
+        )
+
     normal_estimation_ld = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
-                depth_img_normal_estimation_path, "launch", "normal_estimation_sim.launch.py",
+                depth_img_normal_estimation_path, "launch", "normal_estimation_hardware.launch.py",
             )
         ),
         launch_arguments={
@@ -104,6 +116,7 @@ def generate_launch_description():
         [
             set_use_sim_time,
             declare_use_sim_time,
+            realsense_ld,
             # declare_visualization_config_file_cmd,
             normal_estimation_ld,
             semantic_egocan_ld,
