@@ -11,7 +11,6 @@ endif()
 
 set(dependencies
     rclcpp
-    # roslib
     cv_bridge
     image_transport
     pcl_ros
@@ -54,7 +53,6 @@ add_library(${PROJECT_NAME}
         src/ConvexHullifier.cpp
         src/ImagePreprocessor.cpp
         src/Ransac.cpp
-        src/RegionSplitter.cpp
         src/SuperpixelDepthSegmenter.cpp
         src/Visualizer.cpp
 )

@@ -25,6 +25,9 @@
 #include <convex_plane_decomposition_msgs/msg/planar_terrain.hpp>
 #include <convex_plane_decomposition/PlanarRegion.h>
 #include <convex_plane_decomposition_ros/MessageConversion.h>
+// #include <convex_plane_decomposition/LoadGridmapFromImage.h>
+#include "convex_plane_decomposition/GridMapPreprocessing.h"
+#include <convex_plane_decomposition/PlaneDecompositionPipeline.h>
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
 
@@ -61,7 +64,8 @@ class Visualizer
 
     private:
         // const cv::Mat & depth_img, 
-        void publishPlanarRegions(const std::vector<std::vector<double>> & centers,
+        void publishPlanarRegions(const cv::Mat & raw_depth_image,
+                                    const std::vector<std::vector<double>> & centers,
                                     const std::vector<int> & center_counts,
                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                     const std::vector<Eigen::Matrix3d> & superpixel_rotations);  
@@ -113,6 +117,7 @@ class Visualizer
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionIDPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionNormalPublisher_;
+        rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapPublisher_;
         
         int priorPlanarRegionsSize = 0;
         int priorPlanarRegionsNormalSize = 0;

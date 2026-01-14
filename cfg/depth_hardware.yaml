@@ -5,7 +5,7 @@ superpixel_depth_segmentation_node:
 
     # Topic for incoming floor depth image
     depth_image_topic: /floor_image
-
+    
     # Topic for incoming floor normal image
     normal_image_topic: /floor_normals
 
@@ -43,16 +43,16 @@ superpixel_depth_segmentation_node:
     snapping: false
 
     # Weighting term for normal distance term
-    w_normal: 1.0
+    w_normal: 25.0
 
     # Weighting term for plane distance term
-    w_plane_dist: 1.0
+    w_plane_dist: 100.0
 
     # Weighting term for world distance term
-    w_world_dist: 1.0
+    w_world_dist: 25.0
 
     # Weighting term for pixel compactness term
-    w_compact: 3.0
+    w_compact: 0.0
 
     # RANSAC number of iterations
     ransac_K: 10

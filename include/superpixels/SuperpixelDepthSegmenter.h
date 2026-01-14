@@ -31,7 +31,6 @@
 #include <superpixels/ImagePreprocessor.h>
 #include <superpixels/Visualizer.h>
 #include <superpixels/Ransac.h>
-#include <superpixels/RegionSplitter.h>
 
 using namespace std::placeholders;
 
@@ -211,5 +210,4 @@ class SuperpixelDepthSegmenter
         Visualizer * visualizer_ = nullptr;
         Ransac * ransac_ = nullptr;
         ConvexHullifier * convexHullifier_ = nullptr;
-        // RegionSplitter * regionSplitter_ = nullptr;
 };
