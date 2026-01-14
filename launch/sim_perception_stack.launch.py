@@ -36,7 +36,6 @@ def generate_launch_description():
     # Package Directories #
     #######################
 
-    anymal_interface_path = get_package_share_directory("anymal_interface")
     egocylindrical_path = get_package_share_directory("egocylindrical")
     depth_img_normal_estimation_path = get_package_share_directory("depth_img_normal_estimation")
     superpixels_path = get_package_share_directory("superpixels")
