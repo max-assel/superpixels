@@ -77,15 +77,15 @@ def generate_launch_description():
         launch_arguments={
             "use_sim_time": use_sim_time,
         }.items(),
-    )    
+    )  
 
-    # superpixels_node = Node(
-    #     package="superpixels",
-    #     executable="superpixel_depth_segmentation_node",
-    #     name="superpixel_depth_segmentation_node",
-    #     output="screen",
-    #     parameters=[config_path]
-    # )
+    superpixels_node = Node(
+        package="superpixels",
+        executable="superpixel_depth_segmentation_node",
+        name="superpixel_depth_segmentation_node",
+        output="screen",
+        parameters=[config_path]
+    )
 
     ###########################
     # Full Launch Description #
@@ -97,6 +97,7 @@ def generate_launch_description():
             realsense_ld,
             normal_estimation_ld,
             semantic_egocan_ld,
-            # superpixels_node,
+            # rviz_node
+            superpixels_node,
         ]
     )
