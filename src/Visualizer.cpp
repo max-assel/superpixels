@@ -27,8 +27,6 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     colored_cluster_img_pub_ = it.advertise("/superpixels/colored_clusters", 1);
     colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    // colored_point_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/superpixels/colored_point_cloud", 1);
-    // colored_centroids_pub_ = nh.advertise<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
     colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
     colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
     terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
@@ -185,7 +183,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // colorClusters(color_depth_image, clusters);
 
     // std::cout << "coloring clustered point cloud" << std::endl;
-    colorClusterPointCloud(depth_image, clusters);
+    // colorClusterPointCloud(depth_image, clusters);
 
     // colorCentroids(centers, center_counts);
 
@@ -400,123 +398,95 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // elevationMapPublisher_->publish(std::move(message));
 
 
-    grid_map::GridMap map({"elevation"});
-    map.setFrameId({"odom"}); // needs to be odom
-    // 1 x 1 too small
-    float map_width = 3.0;
-    float map_length = 3.0;
-    float map_resolution = 0.03;
+    // grid_map::GridMap map({"elevation"});
+    // map.setFrameId({"odom"}); // needs to be odom
+    // // 1 x 1 too small
+    // float map_width = 3.0;
+    // float map_length = 3.0;
+    // float map_resolution = 0.03;
 
-    map.setGeometry(grid_map::Length(map_width, map_length), 
-                    map_resolution, 
-                    grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
+    // map.setGeometry(grid_map::Length(map_width, map_length), 
+    //                 map_resolution, 
+    //                 grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
     
-    cv::Vec3f egocanPt;
-    Eigen::Vector3d egocanEigenPt;
-    Eigen::Vector3d worldPt;
-    // Eigen::Vector3d egocanStabilizedPt;
-    cv::Point current;
-    float depth;
+    // cv::Vec3f egocanPt;
+    // Eigen::Vector3d egocanEigenPt;
+    // Eigen::Vector3d worldPt;
+    // // Eigen::Vector3d egocanStabilizedPt;
+    // cv::Point current;
+    // float depth;
 
-    rclcpp::Time time = node_->now();
-    for (int r = 0; r < raw_depth_image.rows; r++) 
-    {
-        // #pragma omp parallel for
-        for (int c = 0; c < raw_depth_image.cols; c++) 
-        {                
-            grid_map::Position map_position;
+    // rclcpp::Time time = node_->now();
+    // for (int r = 0; r < raw_depth_image.rows; r++) 
+    // {
+    //     // #pragma omp parallel for
+    //     for (int c = 0; c < raw_depth_image.cols; c++) 
+    //     {                
+    //         grid_map::Position map_position;
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       r: " << r << ", c: " << c);
+    //         // RCLCPP_INFO_STREAM(node_->get_logger(), "       r: " << r << ", c: " << c);
 
-            current = cv::Point(c, r);
-            if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
-            {
-                depth = raw_depth_image.at<float>(r, c);
-                pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
-                egocanEigenPt = Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]);
+    //         current = cv::Point(c, r);
+    //         if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
+    //         {
+    //             depth = raw_depth_image.at<float>(r, c);
+    //             pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
+    //             egocanEigenPt = Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]);
 
-                worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
-                // egocanStabilizedPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToEgocanStabilizedFrame);
+    //             worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
+    //             // egocanStabilizedPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToEgocanStabilizedFrame);
 
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "   trying to add worldPt: " << worldPt.transpose());
+    //             // RCLCPP_INFO_STREAM(node_->get_logger(), "   trying to add worldPt: " << worldPt.transpose());
 
-                map_position.x() = worldPt[0];
-                map_position.y() = worldPt[1];
+    //             map_position.x() = worldPt[0];
+    //             map_position.y() = worldPt[1];
 
-                if (!map.isInside(map_position))
-                {
-                    // RCLCPP_INFO_STREAM(node_->get_logger(), "   position not inside map at r: " << r << ", c: " << c);
-                    continue;
-                }
+    //             if (!map.isInside(map_position))
+    //             {
+    //                 // RCLCPP_INFO_STREAM(node_->get_logger(), "   position not inside map at r: " << r << ", c: " << c);
+    //                 continue;
+    //             }
 
-                map.atPosition("elevation", map_position) = worldPt[2];            
-            } 
-            // else
-            // {
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "   invalid pixel at r: " << r << ", c: " << c);
-            // }
-        }
-    }
+    //             map.atPosition("elevation", map_position) = worldPt[2];            
+    //         } 
+    //         // else
+    //         // {
+    //             // RCLCPP_INFO_STREAM(node_->get_logger(), "   invalid pixel at r: " << r << ", c: " << c);
+    //         // }
+    //     }
+    // }
 
-    convex_plane_decomposition::PlaneDecompositionPipeline::Config perceptionConfig;
+    // convex_plane_decomposition::PlaneDecompositionPipeline::Config perceptionConfig;
 
-    convex_plane_decomposition::GridMapPreprocessing preprocessing_(perceptionConfig.preprocessingParameters);
+    // convex_plane_decomposition::GridMapPreprocessing preprocessing_(perceptionConfig.preprocessingParameters);
 
-    // preprocess layer
-    preprocessing_.preprocess(map, "elevation");
+    // // preprocess layer
+    // preprocessing_.preprocess(map, "elevation");
 
-    // add inpaint layer
-    // map.add("inpaint", 0.0);
+    // // add inpaint layer
+    // // map.add("inpaint", 0.0);
 
-    map.setTimestamp(time.nanoseconds());
-    std::unique_ptr<grid_map_msgs::msg::GridMap> message;
-    message = grid_map::GridMapRosConverter::toMessage(map);
-    elevationMapPublisher_->publish(std::move(message));
-
-    // const std::string elevationLayer{"elevation"};
-    // const std::string frameId = "egocan_stabilized"; // need to stabilized?
-    // const float resolution = 0.01; // what is this?
-    // const float heightScale = 0.01; // what is this?
-    // auto imageGridMap = convex_plane_decomposition::loadGridmapFromImage(depth_image, 
-    //                                                                         elevationLayer, 
-    //                                                                         frameId,
-    //                                                                         resolution, 
-    //                                                                         heightScale);
-    // grid_map_msgs::msg::GridMap image_grid_map_msg = *grid_map::GridMapRosConverter::toMessage(imageGridMap);
-    // elevationMapPublisher_->publish(image_grid_map_msg);
-
-    // const std::string ocs2_anymal = "/home/masselmeier3/ros2_ws/src/ocs2/ocs2_robotic_examples/ocs2_perceptive_quadruped/anymal/";
-    // const std::string terrainFolder = ocs2_anymal + "ocs2_anymal_loopshaping_mpc/data/";
-    // std::string terrainFile = "step.png";
-
-    // const std::string elevationLayer{"elevation"};
-    // const std::string frameId{"odom"};
-    // const float resolution = 0.04; // what is this?
-    // const float heightScale = 0.35; // what is this?
-    // auto gridMap = convex_plane_decomposition::loadGridmapFromImage(
-    //     terrainFolder + "/" + terrainFile, elevationLayer, frameId,
-    //     resolution, heightScale);
-    // gridMap.get(elevationLayer).array() -=
-    //     gridMap.atPosition(elevationLayer, {0., 0.});    
-
-    // grid_map_msgs::msg::GridMap elevationMapMessage =
-    //     *(grid_map::GridMapRosConverter::toMessage(gridMap));
-    // elevationMapPublisher_->publish(elevationMapMessage);
+    // map.setTimestamp(time.nanoseconds());
+    // std::unique_ptr<grid_map_msgs::msg::GridMap> message;
+    // message = grid_map::GridMapRosConverter::toMessage(map);
+    // elevationMapPublisher_->publish(std::move(message));
 
     // placeholder gridMap
-    // grid_map::GridMap grid_map;
-    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    // double grid_map_resolution = 0.1; // resolution [m]
-    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    // grid_map.setGeometry(grid_map_dimensions, 
-    //                         grid_map_resolution, 
-    //                         grid_map_origin);
-    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    // grid_map.setFrameId("odom");
+    grid_map::GridMap grid_map;
+    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    double grid_map_resolution = 0.1; // resolution [m]
+    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    grid_map.setGeometry(grid_map_dimensions, 
+                            grid_map_resolution, 
+                            grid_map_origin);
+    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    grid_map.setFrameId("odom");
 
-    // grid_map_msgs::msg::GridMap grid_map_msg;
-    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
-    terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
+    grid_map_msgs::msg::GridMap grid_map_msg;
+    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+    terrain_msg.gridmap = grid_map_msg;
+
+    // terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
 
     terrainPub_->publish(terrain_msg);
 
