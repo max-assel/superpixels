@@ -50,7 +50,7 @@ class SuperpixelDepthSegmenter
         void visualize();
 
     private:
-        rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
+        // rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
 
         void reset_data(const cv::Mat & depth_image,
                         // const cv::Mat & label_image,
@@ -141,7 +141,7 @@ class SuperpixelDepthSegmenter
         std::shared_ptr<MsgSynchronizer> msg_sync_ = nullptr;
 
         // Callback handle for parameter changes
-        rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_ = nullptr;
+        // rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_ = nullptr;
 
         // Mutex
         // std::mutex img_mutex_;

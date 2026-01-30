@@ -105,8 +105,8 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
 
-    callback_handle_ = node_->add_on_set_parameters_callback(
-        std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
+    // callback_handle_ = node_->add_on_set_parameters_callback(
+    //     std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
 
     initTime = std::chrono::steady_clock::now();
 }
@@ -138,98 +138,98 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
     delete convexHullifier_;
 }
 
-rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCallback(const std::vector<rclcpp::Parameter> &parameters)
-{
-    rcl_interfaces::msg::SetParametersResult result;
-    result.successful = true;
-    result.reason = "success";
-    for (const auto &param: parameters)
-    {
-        // Floor image parameters
-        if (param.get_name() == "k_c")
-        {
-            params_.k_c_ = param.get_value<int>();
-        } else if (param.get_name() == "v_fov")
-        {
-            params_.v_fov_ = param.get_value<double>() * M_PI / 180.0; // Convert degrees to radians (just for reading in string)
-        } else if (param.get_name() == "v_offset")
-        {
-            params_.v_offset_ = param.get_value<double>();
-        }
-        params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
+// rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCallback(const std::vector<rclcpp::Parameter> &parameters)
+// {
+//     rcl_interfaces::msg::SetParametersResult result;
+//     result.successful = true;
+//     result.reason = "success";
+//     for (const auto &param: parameters)
+//     {
+//         // Floor image parameters
+//         if (param.get_name() == "k_c")
+//         {
+//             params_.k_c_ = param.get_value<int>();
+//         } else if (param.get_name() == "v_fov")
+//         {
+//             params_.v_fov_ = param.get_value<double>() * M_PI / 180.0; // Convert degrees to radians (just for reading in string)
+//         } else if (param.get_name() == "v_offset")
+//         {
+//             params_.v_offset_ = param.get_value<double>();
+//         }
+//         params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
         
-        // Dilation parameters
-        if (param.get_name() == "num_dilation_iterations")
-        {
-            params_.num_dilation_iterations_ = param.get_value<int>();
-        } else if (param.get_name() == "kernel_radius")
-        {
-            params_.kernel_radius_ = param.get_value<int>();
-        }
+//         // Dilation parameters
+//         if (param.get_name() == "num_dilation_iterations")
+//         {
+//             params_.num_dilation_iterations_ = param.get_value<int>();
+//         } else if (param.get_name() == "kernel_radius")
+//         {
+//             params_.kernel_radius_ = param.get_value<int>();
+//         }
         
-        // Superpixel algorithm parameters
-        if (param.get_name() == "num_iterations")
-        {
-            params_.num_iterations_ = param.get_value<int>();
-        } else if (param.get_name() == "num_superpixels")
-        {
-            params_.num_superpixels_ = param.get_value<int>();
-            int num_pixels = params_.k_c_ * params_.k_c_;
-            params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
-        } else if (param.get_name() == "warm_start")
-        {
-            params_.warm_start_ = param.get_value<bool>();
-        } else if (param.get_name() == "constraint")
-        {
-            params_.constraint_ = param.get_value<bool>();
-        } else if (param.get_name() == "ransac")
-        {
-            params_.ransac_ = param.get_value<bool>();
-        } else if (param.get_name() == "snapping")
-        {
-            params_.snapping_ = param.get_value<bool>();
-        }
+//         // Superpixel algorithm parameters
+//         if (param.get_name() == "num_iterations")
+//         {
+//             params_.num_iterations_ = param.get_value<int>();
+//         } else if (param.get_name() == "num_superpixels")
+//         {
+//             params_.num_superpixels_ = param.get_value<int>();
+//             int num_pixels = params_.k_c_ * params_.k_c_;
+//             params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+//         } else if (param.get_name() == "warm_start")
+//         {
+//             params_.warm_start_ = param.get_value<bool>();
+//         } else if (param.get_name() == "constraint")
+//         {
+//             params_.constraint_ = param.get_value<bool>();
+//         } else if (param.get_name() == "ransac")
+//         {
+//             params_.ransac_ = param.get_value<bool>();
+//         } else if (param.get_name() == "snapping")
+//         {
+//             params_.snapping_ = param.get_value<bool>();
+//         }
         
-        // Superpixel distance parameters
-        if (param.get_name() == "w_normal")
-        {
-            params_.w_normal_ = param.get_value<double>();
-        } else if (param.get_name() == "w_plane_dist")
-        {
-            params_.w_plane_dist_ = param.get_value<double>();
-        } else if (param.get_name() == "w_world_dist")
-        {
-            params_.w_world_dist_ = param.get_value<double>();
-        } else if (param.get_name() == "w_compact")
-        {
-            params_.w_compact_ = param.get_value<double>();
-        }
+//         // Superpixel distance parameters
+//         if (param.get_name() == "w_normal")
+//         {
+//             params_.w_normal_ = param.get_value<double>();
+//         } else if (param.get_name() == "w_plane_dist")
+//         {
+//             params_.w_plane_dist_ = param.get_value<double>();
+//         } else if (param.get_name() == "w_world_dist")
+//         {
+//             params_.w_world_dist_ = param.get_value<double>();
+//         } else if (param.get_name() == "w_compact")
+//         {
+//             params_.w_compact_ = param.get_value<double>();
+//         }
         
-        // RANSAC parameters
-        if (param.get_name() == "ransac_K")
-        {
-            params_.ransac_K = param.get_value<size_t>();
-        } else if (param.get_name() == "ransac_N")
-        {
-            params_.ransac_N = param.get_value<int>();
-        } else if (param.get_name() == "ransac_T")
-        {
-            params_.ransac_T = param.get_value<double>();
-        } 
-        // else
-        // {
-            // RCLCPP_WARN_STREAM(node_->get_logger(), "Unknown parameter: " << param.get_name());
-            // result.successful = false;
-            // result.reason = "Unknown parameter";
-        // }
-    }
+//         // RANSAC parameters
+//         if (param.get_name() == "ransac_K")
+//         {
+//             params_.ransac_K = param.get_value<size_t>();
+//         } else if (param.get_name() == "ransac_N")
+//         {
+//             params_.ransac_N = param.get_value<int>();
+//         } else if (param.get_name() == "ransac_T")
+//         {
+//             params_.ransac_T = param.get_value<double>();
+//         } 
+//         // else
+//         // {
+//             // RCLCPP_WARN_STREAM(node_->get_logger(), "Unknown parameter: " << param.get_name());
+//             // result.successful = false;
+//             // result.reason = "Unknown parameter";
+//         // }
+//     }
 
-    convexHullifier_->setParams(params_);
-    imagePreprocessor_->setParams(params_);
-    visualizer_->setParams(params_);
-    ransac_->setParams(params_);    
-    return result;
-}
+//     convexHullifier_->setParams(params_);
+//     imagePreprocessor_->setParams(params_);
+//     visualizer_->setParams(params_);
+//     ransac_->setParams(params_);    
+//     return result;
+// }
 
 // void SuperpixelDepthSegmenter::reconfigureCallback(superpixels::ParametersConfig &config, uint32_t level) 
 // {
@@ -355,6 +355,16 @@ void SuperpixelDepthSegmenter::run()
     try
     {
         egocanFrameToOdomFrame = tfBuffer_->lookupTransform("odom", egocan_frame, lookupTime); // , timeout
+
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup succeeded");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       egocanFrameToOdomFrame: ");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           translation: (" << egocanFrameToOdomFrame.transform.translation.x << ", " 
+        //                                                                     << egocanFrameToOdomFrame.transform.translation.y << ", " 
+        //                                                                     << egocanFrameToOdomFrame.transform.translation.z << ")");
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           rotation: (" << egocanFrameToOdomFrame.transform.rotation.x << ", " 
+        //                                                                     << egocanFrameToOdomFrame.transform.rotation.y << ", " 
+        //                                                                     << egocanFrameToOdomFrame.transform.rotation.z << ", " 
+        //                                                                     << egocanFrameToOdomFrame.transform.rotation.w << ")");
     }
     catch (tf2::TransformException & ex)
     {
