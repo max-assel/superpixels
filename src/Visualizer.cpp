@@ -11,31 +11,31 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     // Set up subscribers and publishers
     image_transport::ImageTransport it(node_);
 
-    fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
+    // fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
     fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    // fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
-    // fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // // fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
+    // // fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
-    fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    fin_normal_img_colored_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
+    // fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // fin_normal_img_colored_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    center_grid_img_pub_ = it.advertise("/superpixels/center_grid", 1);
-    center_grid_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // center_grid_img_pub_ = it.advertise("/superpixels/center_grid", 1);
+    // center_grid_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    colored_cluster_img_pub_ = it.advertise("/superpixels/colored_clusters", 1);
-    colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // colored_cluster_img_pub_ = it.advertise("/superpixels/colored_clusters", 1);
+    // colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
-    colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
+    // colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
+    // colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
     terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
 
     localRegionPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_regions", 1);
     localRegionNormalPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_region_normals", 1);
     localRegionIDPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/ids", 1);
 
-    elevationMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>("/superpixels/elevation_map", 1);
+    // elevationMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>("/superpixels/elevation_map", 1);
 
     setColors();    
 
@@ -107,29 +107,29 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     // WARNING: clusters IDs are wrong after removing superpixels, ID itself is invalid
 
-    if (centers.size() != center_counts.size())
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and center_counts size (" << center_counts.size() << ") do not match!");
-        return;
-    }
+    // if (centers.size() != center_counts.size())
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and center_counts size (" << center_counts.size() << ") do not match!");
+    //     return;
+    // }
 
-    if (centers.size() != superpixel_projections.size())
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_projections size (" << superpixel_projections.size() << ") do not match!");
-        return;
-    }
+    // if (centers.size() != superpixel_projections.size())
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_projections size (" << superpixel_projections.size() << ") do not match!");
+    //     return;
+    // }
 
-    if (centers.size() != superpixel_convex_hulls.size())
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_convex_hulls size (" << superpixel_convex_hulls.size() << ") do not match!");
-        return;
-    }
+    // if (centers.size() != superpixel_convex_hulls.size())
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_convex_hulls size (" << superpixel_convex_hulls.size() << ") do not match!");
+    //     return;
+    // }
 
-    if (centers.size() != egocan_to_region_rotations.size())
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and egocan_to_region_rotations size (" << egocan_to_region_rotations.size() << ") do not match!");
-        return;
-    }
+    // if (centers.size() != egocan_to_region_rotations.size())
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and egocan_to_region_rotations size (" << egocan_to_region_rotations.size() << ") do not match!");
+    //     return;
+    // }
 
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -140,15 +140,15 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // }
 
     cv::Mat raw_depth_image = raw_depth_img_ptr->image;
-    cv::Mat raw_normal_image = raw_normal_img_ptr->image;
+    // cv::Mat raw_normal_image = raw_normal_img_ptr->image;
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr->encoding;
-    cv::Mat flipped_depth_image;
-    cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
-    fin_depth_img_ptr_->image = flipped_depth_image;
-    fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
+    // cv::Mat flipped_depth_image;
+    // cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
+    // fin_depth_img_ptr_->image = flipped_depth_image;
+    // fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final label image");
     // fin_label_img_ptr_->header = raw_label_img_ptr->header;
@@ -163,17 +163,17 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // No publishing normal image
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
-    fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
-    fin_normal_img_colored_ptr_->encoding = "rgb8";
-    cv::Mat colored_normal_image = normal_image;
-    // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
-    cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
-    cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
-    scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
-    cv::Mat flipped_scaled_colored_normal_image;
-    cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
-    fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
-    fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
+    // fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
+    // fin_normal_img_colored_ptr_->encoding = "rgb8";
+    // cv::Mat colored_normal_image = normal_image;
+    // // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
+    // cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
+    // cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
+    // scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
+    // cv::Mat flipped_scaled_colored_normal_image;
+    // cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
+    // fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
+    // fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
     // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
     // convertDepthImageToColor(color_depth_image, depth_image);
@@ -472,19 +472,19 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // elevationMapPublisher_->publish(std::move(message));
 
     // placeholder gridMap
-    grid_map::GridMap grid_map;
-    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    double grid_map_resolution = 0.1; // resolution [m]
-    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    grid_map.setGeometry(grid_map_dimensions, 
-                            grid_map_resolution, 
-                            grid_map_origin);
-    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    grid_map.setFrameId("odom");
+    // grid_map::GridMap grid_map;
+    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    // double grid_map_resolution = 0.1; // resolution [m]
+    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    // grid_map.setGeometry(grid_map_dimensions, 
+    //                         grid_map_resolution, 
+    //                         grid_map_origin);
+    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    // grid_map.setFrameId("odom");
 
-    grid_map_msgs::msg::GridMap grid_map_msg;
-    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
-    terrain_msg.gridmap = grid_map_msg;
+    // grid_map_msgs::msg::GridMap grid_map_msg;
+    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+    // terrain_msg.gridmap = grid_map_msg;
 
     // terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
 
@@ -494,248 +494,248 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 }
 
 
-void Visualizer::overlayCenters(const cv::Mat & color_depth_image, const std::vector<std::vector<double>> & centers)
-{
-    // overlay center grid on color version of depth image
-    cv::Mat overlaid_image = color_depth_image.clone();
+// void Visualizer::overlayCenters(const cv::Mat & color_depth_image, const std::vector<std::vector<double>> & centers)
+// {
+//     // overlay center grid on color version of depth image
+//     cv::Mat overlaid_image = color_depth_image.clone();
 
-    cv::Vec3b color(255, 0, 255);
-    displayCenterGrid(overlaid_image, color, centers);
+//     cv::Vec3b color(255, 0, 255);
+//     displayCenterGrid(overlaid_image, color, centers);
 
-    center_grid_img_ptr_->header = fin_depth_img_ptr_->header;
-    // center_grid_img_ptr_->header.stamp = ros::Time::now();
-    center_grid_img_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
+//     center_grid_img_ptr_->header = fin_depth_img_ptr_->header;
+//     // center_grid_img_ptr_->header.stamp = ros::Time::now();
+//     center_grid_img_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
 
-    center_grid_img_ptr_->image = overlaid_image;
-    center_grid_img_pub_.publish(center_grid_img_ptr_->toImageMsg());
-}
+//     center_grid_img_ptr_->image = overlaid_image;
+//     center_grid_img_pub_.publish(center_grid_img_ptr_->toImageMsg());
+// }
 
-void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image)
-{
-    double min_depth = 0.0, max_depth = 0.0;
-    cv::minMaxLoc(depth_image, &min_depth, &max_depth);
+// void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image)
+// {
+//     double min_depth = 0.0, max_depth = 0.0;
+//     cv::minMaxLoc(depth_image, &min_depth, &max_depth);
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "Converting to 8UC3...");
+//     // RCLCPP_INFO_STREAM(node_->get_logger(), "Converting to 8UC3...");
 
-    for (int r = 0; r < color_depth_image.rows; r++)
-    {
-        for (int c = 0; c < color_depth_image.cols; c++)
-        {
-            float depth = depth_image.at<float>(r, c);
+//     for (int r = 0; r < color_depth_image.rows; r++)
+//     {
+//         for (int c = 0; c < color_depth_image.cols; c++)
+//         {
+//             float depth = depth_image.at<float>(r, c);
 
-            if (std::isnan(depth) || std::abs(depth) < 1e-6)
-            {
-                continue;
-            }
+//             if (std::isnan(depth) || std::abs(depth) < 1e-6)
+//             {
+//                 continue;
+//             }
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
+//             // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
+//             // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
 
-            int quantized_depth = (int) (depth * 255.0 / max_depth); // just scaling by max depth in image. If we do full max depth than image is really hard to see.
+//             int quantized_depth = (int) (depth * 255.0 / max_depth); // just scaling by max depth in image. If we do full max depth than image is really hard to see.
 
-            cv::Vec3b color = cv::Vec3b(quantized_depth, quantized_depth, quantized_depth);
-            color_depth_image.at<cv::Vec3b>(r, c) = color;
-        }
-    }    
-}
+//             cv::Vec3b color = cv::Vec3b(quantized_depth, quantized_depth, quantized_depth);
+//             color_depth_image.at<cv::Vec3b>(r, c) = color;
+//         }
+//     }    
+// }
 
-void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, const std::vector<std::vector<double>> & centers)
-{
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::displayCenterGrid]");
+// void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, const std::vector<std::vector<double>> & centers)
+// {
+//     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::displayCenterGrid]");
     
-    // Display center grid
-    for (int i = 0; i < (int) centers.size(); i++) 
-    {
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       center[" << i << "]: (" << centers[i][0] << ", " << centers[i][1] << ")");
-        cv::circle(image, cv::Point(centers[i][0], centers[i][1]), 2, color, -1);
-    }
+//     // Display center grid
+//     for (int i = 0; i < (int) centers.size(); i++) 
+//     {
+//         // RCLCPP_INFO_STREAM(node_->get_logger(), "       center[" << i << "]: (" << centers[i][0] << ", " << centers[i][1] << ")");
+//         cv::circle(image, cv::Point(centers[i][0], centers[i][1]), 2, color, -1);
+//     }
 
-    return;
-}
+//     return;
+// }
 
-void Visualizer::colorClusters(const cv::Mat & color_depth_image,
-                                const cv::Mat & clusters)
-{
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusters]");
-    // overlay center grid on color version of depth image
-    cv::Mat color_cluster_image = color_depth_image.clone();
+// void Visualizer::colorClusters(const cv::Mat & color_depth_image,
+//                                 const cv::Mat & clusters)
+// {
+//     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusters]");
+//     // overlay center grid on color version of depth image
+//     cv::Mat color_cluster_image = color_depth_image.clone();
 
-    // build ector of random colors for clusters
-    // std::vector<cv::Scalar> colors(centers.size());
-    // for (int i = 0; i < (int) colors.size(); i++)
-    // {
-    //     colors[i] = cv::Scalar(rand() % 256, rand() % 256, rand() % 256);
-    // }
+//     // build ector of random colors for clusters
+//     // std::vector<cv::Scalar> colors(centers.size());
+//     // for (int i = 0; i < (int) colors.size(); i++)
+//     // {
+//     //     colors[i] = cv::Scalar(rand() % 256, rand() % 256, rand() % 256);
+//     // }
 
-    // iterate through valid pixels and color
-    for (int r = 0; r < color_depth_image.rows; r++)
-    {
-        for (int c = 0; c < color_depth_image.cols; c++)
-        {    
-            // if (isPixelValid(depth_image, label_image, normal_image, current)) 
+//     // iterate through valid pixels and color
+//     for (int r = 0; r < color_depth_image.rows; r++)
+//     {
+//         for (int c = 0; c < color_depth_image.cols; c++)
+//         {    
+//             // if (isPixelValid(depth_image, label_image, normal_image, current)) 
 
-            int cluster_id = clusters.at<int>(r, c);
-            if (cluster_id != -1)
-            {
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "       cluster_id: " << cluster_id);
-                cv::Scalar color = colors_[cluster_id];
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "       color: " << color);
-                color_cluster_image.at<cv::Vec3b>(r, c) = cv::Vec3b(color[0], color[1], color[2]);
-            }
-        }
-    }
+//             int cluster_id = clusters.at<int>(r, c);
+//             if (cluster_id != -1)
+//             {
+//                 // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
+//                 // RCLCPP_INFO_STREAM(node_->get_logger(), "       cluster_id: " << cluster_id);
+//                 cv::Scalar color = colors_[cluster_id];
+//                 // RCLCPP_INFO_STREAM(node_->get_logger(), "       color: " << color);
+//                 color_cluster_image.at<cv::Vec3b>(r, c) = cv::Vec3b(color[0], color[1], color[2]);
+//             }
+//         }
+//     }
     
-    colored_cluster_img_ptr_->header = fin_depth_img_ptr_->header;
-    // colored_cluster_img_ptr_->header.stamp = ros::Time::now();
-    colored_cluster_img_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
+//     colored_cluster_img_ptr_->header = fin_depth_img_ptr_->header;
+//     // colored_cluster_img_ptr_->header.stamp = ros::Time::now();
+//     colored_cluster_img_ptr_->encoding = sensor_msgs::image_encodings::BGR8;
 
-    colored_cluster_img_ptr_->image = color_cluster_image;
-    colored_cluster_img_pub_.publish(colored_cluster_img_ptr_->toImageMsg());
+//     colored_cluster_img_ptr_->image = color_cluster_image;
+//     colored_cluster_img_pub_.publish(colored_cluster_img_ptr_->toImageMsg());
 
-}
+// }
 
-void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::Mat & clusters)
-{
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusterPointCloud]");
+// void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::Mat & clusters)
+// {
+//     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusterPointCloud]");
 
-    // std::lock_guard<std::mutex> lock(cloud_mutex_);
+//     // std::lock_guard<std::mutex> lock(cloud_mutex_);
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Coloring cluster point cloud ...");
+//     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Coloring cluster point cloud ...");
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+//     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-    // colored_cloud->header = fin_depth_img_ptr_->header;
-    // colored_cloud->header.stamp = ros::Time::now();
-    colored_cloud->width = depth_image.cols;
-    colored_cloud->height = depth_image.rows;
-    // colored_cloud->is_dense = cloud_ptr_->is_dense;
-    colored_cloud->points.resize(colored_cloud->width * colored_cloud->height);
+//     // colored_cloud->header = fin_depth_img_ptr_->header;
+//     // colored_cloud->header.stamp = ros::Time::now();
+//     colored_cloud->width = depth_image.cols;
+//     colored_cloud->height = depth_image.rows;
+//     // colored_cloud->is_dense = cloud_ptr_->is_dense;
+//     colored_cloud->points.resize(colored_cloud->width * colored_cloud->height);
 
-    // iterate through valid pixels and color
-    pcl::PointXYZRGBA point = pcl::PointXYZRGBA();
-    cv::Point pixel = cv::Point(0, 0);
-    cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
-    int cluster_id = -1;
-    cv::Scalar color = cv::Scalar(114, 0, 189);
-    int idx = 0;
-    for (int r = 0; r < depth_image.rows; r++)
-    {
-        for (int c = 0; c < depth_image.cols; c++)
-        {
-            pixel = cv::Point(c, r);
+//     // iterate through valid pixels and color
+//     pcl::PointXYZRGBA point = pcl::PointXYZRGBA();
+//     cv::Point pixel = cv::Point(0, 0);
+//     cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
+//     int cluster_id = -1;
+//     cv::Scalar color = cv::Scalar(114, 0, 189);
+//     int idx = 0;
+//     for (int r = 0; r < depth_image.rows; r++)
+//     {
+//         for (int c = 0; c < depth_image.cols; c++)
+//         {
+//             pixel = cv::Point(c, r);
 
-            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
+//             pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
 
-            point.x = egocanPt[0];
-            point.y = egocanPt[1];
-            point.z = egocanPt[2];
+//             point.x = egocanPt[0];
+//             point.y = egocanPt[1];
+//             point.z = egocanPt[2];
 
-            cluster_id = clusters.at<int>(r, c);
-            if (cluster_id != -1)
-            {
-                // color = colors_[cluster_id];
-                // point.r = color[2];
-                // point.g = color[1];
-                // point.b = color[0];
-                point.r = color[0];
-                point.g = color[1];
-                point.b = color[2];
-                point.a = 255;
-            } else
-            {
-                point.a = 128;
-            }
+//             cluster_id = clusters.at<int>(r, c);
+//             if (cluster_id != -1)
+//             {
+//                 // color = colors_[cluster_id];
+//                 // point.r = color[2];
+//                 // point.g = color[1];
+//                 // point.b = color[0];
+//                 point.r = color[0];
+//                 point.g = color[1];
+//                 point.b = color[2];
+//                 point.a = 255;
+//             } else
+//             {
+//                 point.a = 128;
+//             }
 
-            idx = r * colored_cloud->width + c;
-            colored_cloud->points[idx] = point;
-        }
-    }
+//             idx = r * colored_cloud->width + c;
+//             colored_cloud->points[idx] = point;
+//         }
+//     }
 
-    sensor_msgs::msg::PointCloud2 colored_cloud_msg;
-    pcl::toROSMsg(*colored_cloud, colored_cloud_msg);
-    colored_cloud_msg.header = fin_depth_img_ptr_->header;
+//     sensor_msgs::msg::PointCloud2 colored_cloud_msg;
+//     pcl::toROSMsg(*colored_cloud, colored_cloud_msg);
+//     colored_cloud_msg.header = fin_depth_img_ptr_->header;
 
-    colored_point_cloud_pub_->publish(colored_cloud_msg);
+//     colored_point_cloud_pub_->publish(colored_cloud_msg);
 
-    return;
-}
+//     return;
+// }
 
-void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers,
-                                const std::vector<int> & center_counts)
-{
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorCentroids]");
+// void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers,
+//                                 const std::vector<int> & center_counts)
+// {
+//     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorCentroids]");
 
-    // clear prior markers
-    visualization_msgs::msg::MarkerArray clear_marker_array;
-    visualization_msgs::msg::Marker clearMarker;
-    clearMarker.id = 0;
-    clearMarker.ns =  "clear";
-    clearMarker.action = visualization_msgs::msg::Marker::DELETEALL;
-    clear_marker_array.markers.push_back(clearMarker);    
-    colored_centroids_pub_->publish(clear_marker_array);
+//     // clear prior markers
+//     visualization_msgs::msg::MarkerArray clear_marker_array;
+//     visualization_msgs::msg::Marker clearMarker;
+//     clearMarker.id = 0;
+//     clearMarker.ns =  "clear";
+//     clearMarker.action = visualization_msgs::msg::Marker::DELETEALL;
+//     clear_marker_array.markers.push_back(clearMarker);    
+//     colored_centroids_pub_->publish(clear_marker_array);
 
-    visualization_msgs::msg::MarkerArray marker_array;
+//     visualization_msgs::msg::MarkerArray marker_array;
 
-    for (size_t i = 0; i < centers.size(); i++)
-    {
-        if (center_counts[i] == 0)
-        {
-            continue;
-        }
+//     for (size_t i = 0; i < centers.size(); i++)
+//     {
+//         if (center_counts[i] == 0)
+//         {
+//             continue;
+//         }
 
-        visualization_msgs::msg::Marker marker;
-        marker.header = fin_depth_img_ptr_->header;
-        marker.ns = "superpixel_centroids";
-        marker.id = i;
-        marker.type = visualization_msgs::msg::Marker::ARROW;
-        marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.pose.position.x = 0.0;
-        marker.pose.position.y = 0.0;
-        marker.pose.position.z = 0.0;
-        marker.pose.orientation.x = 0.0;
-        marker.pose.orientation.y = 0.0;
-        marker.pose.orientation.z = 0.0;
-        marker.pose.orientation.w = 1.0;
+//         visualization_msgs::msg::Marker marker;
+//         marker.header = fin_depth_img_ptr_->header;
+//         marker.ns = "superpixel_centroids";
+//         marker.id = i;
+//         marker.type = visualization_msgs::msg::Marker::ARROW;
+//         marker.action = visualization_msgs::msg::Marker::ADD;
+//         marker.pose.position.x = 0.0;
+//         marker.pose.position.y = 0.0;
+//         marker.pose.position.z = 0.0;
+//         marker.pose.orientation.x = 0.0;
+//         marker.pose.orientation.y = 0.0;
+//         marker.pose.orientation.z = 0.0;
+//         marker.pose.orientation.w = 1.0;
 
-        cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
-        float center_depth = centers[i][2];
-        cv::Vec3f center_normal = cv::Vec3f(centers[i][3], centers[i][4], centers[i][5]);
+//         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
+//         float center_depth = centers[i][2];
+//         cv::Vec3f center_normal = cv::Vec3f(centers[i][3], centers[i][4], centers[i][5]);
 
-        cv::Vec3f centerEgocanPt;
-        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+//         cv::Vec3f centerEgocanPt;
+//         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
-        marker.points.resize(2);
-        double scale = 0.1;
-        geometry_msgs::msg::Point p1, p2;
-        p1.x = centerEgocanPt[0];
-        p1.y = centerEgocanPt[1];
-        p1.z = centerEgocanPt[2];
-        p2.x = p1.x + scale * center_normal[0];
-        p2.y = p1.y + scale * center_normal[1];
-        p2.z = p1.z + scale * center_normal[2];
+//         marker.points.resize(2);
+//         double scale = 0.1;
+//         geometry_msgs::msg::Point p1, p2;
+//         p1.x = centerEgocanPt[0];
+//         p1.y = centerEgocanPt[1];
+//         p1.z = centerEgocanPt[2];
+//         p2.x = p1.x + scale * center_normal[0];
+//         p2.y = p1.y + scale * center_normal[1];
+//         p2.z = p1.z + scale * center_normal[2];
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Centroid " << i << ": (" << p1.x << ", " << p1.y << ", " << p1.z << ")");
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normal " << i << ": (" << centers[i][4] << ", " << centers[i][5] << ", " << centers[i][6] << ")");
+//         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Centroid " << i << ": (" << p1.x << ", " << p1.y << ", " << p1.z << ")");
+//         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normal " << i << ": (" << centers[i][4] << ", " << centers[i][5] << ", " << centers[i][6] << ")");
 
-        marker.points[0] = p1;
-        marker.points[1] = p2;
+//         marker.points[0] = p1;
+//         marker.points[1] = p2;
 
-        marker.scale.x = 0.01;
-        marker.scale.y = 0.02;
-        marker.scale.z = 0.0;
+//         marker.scale.x = 0.01;
+//         marker.scale.y = 0.02;
+//         marker.scale.z = 0.0;
 
-        marker.color.a = 1.0;
-        cv::Scalar color = colors_[i];
-        marker.color.r = color[2] / 255.0;
-        marker.color.g = color[1] / 255.0;
-        marker.color.b = color[0] / 255.0;
+//         marker.color.a = 1.0;
+//         cv::Scalar color = colors_[i];
+//         marker.color.r = color[2] / 255.0;
+//         marker.color.g = color[1] / 255.0;
+//         marker.color.b = color[0] / 255.0;
 
-        marker_array.markers.push_back(marker);
-    }
+//         marker_array.markers.push_back(marker);
+//     }
 
-    colored_centroids_pub_->publish(marker_array);
-}
+//     colored_centroids_pub_->publish(marker_array);
+// }
 
 void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections)

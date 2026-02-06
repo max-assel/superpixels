@@ -39,6 +39,12 @@ def generate_launch_description():
     realsense2_camera_path = get_package_share_directory("realsense2_camera")
     config_path = os.path.join(superpixels_path, "cfg", "depth_hardware.yaml")
 
+    go2_description_path = get_package_share_directory("go2_description")
+    go2_xacro_file_path = os.path.join(go2_description_path, "xacro", "robot_payload.xacro")
+
+    # Convert xacro to urdf and publish on /robot_description topic
+    robot_description_command = Command(["xacro ", go2_xacro_file_path])
+
     ############################
     # Declare Launch Arguments #
     ############################
@@ -79,18 +85,29 @@ def generate_launch_description():
         }.items(),
     )  
 
-    # superpixels_node = Node(
-    #     package="superpixels",
-    #     executable="superpixel_depth_segmentation_node",
-    #     name="superpixel_depth_segmentation_node",
-    #     output="screen",
-    #     parameters=[config_path]
-    # )
+    superpixels_node = Node(
+        package="superpixels",
+        executable="superpixel_depth_segmentation_node",
+        name="superpixel_depth_segmentation_node",
+        output="screen",
+        parameters=[config_path]
+    )
 
-    dummy_tf_node = launch_ros.actions.Node(
+    robot_state_publisher_node = launch_ros.actions.Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        parameters=[
+            {"robot_description": robot_description_command},
+            {"publish_frequency": 200.0},
+            {"ignore_timestamp": True},
+            {'use_sim_time': LaunchConfiguration("use_sim_time")},
+        ] # ,
+    )
+
+    odom_to_base_tf = launch_ros.actions.Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        name="odom_to_D435",
+        name="odom_to_base_static_transform_node",
         output="screen",
         arguments=[
             "0",
@@ -99,15 +116,15 @@ def generate_launch_description():
             "0",
             "0",
             "0",
-            "base",
-            "base_link"
+            "odom",
+            "base"
         ],
         parameters=[
             {
                 "use_sim_time": LaunchConfiguration("use_sim_time"),
             }
         ]
-    ),    
+    )    
 
     ###########################
     # Full Launch Description #
@@ -120,6 +137,8 @@ def generate_launch_description():
             normal_estimation_ld,
             semantic_egocan_ld,
             # rviz_node
-            # superpixels_node,
+            superpixels_node,
+            robot_state_publisher_node,
+            odom_to_base_tf
         ]
     )

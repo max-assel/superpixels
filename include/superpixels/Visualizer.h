@@ -71,24 +71,24 @@ class Visualizer
                                     const std::vector<Eigen::Matrix3d> & superpixel_rotations);  
 
 
-        void colorCentroids(const std::vector<std::vector<double>> & centers,
-                            const std::vector<int> & center_counts);
+        // void colorCentroids(const std::vector<std::vector<double>> & centers,
+        //                     const std::vector<int> & center_counts);
 
-        void colorClusters(const cv::Mat & color_depth_image,
-                            const cv::Mat & clusters);
+        // void colorClusters(const cv::Mat & color_depth_image,
+        //                     const cv::Mat & clusters);
 
-        void colorClusterPointCloud(const cv::Mat & depth_image, 
-                                    const cv::Mat & clusters);    
+        // void colorClusterPointCloud(const cv::Mat & depth_image, 
+        //                             const cv::Mat & clusters);    
 
-        void displayCenterGrid(cv::Mat & image, 
-                                const cv::Vec3b & color, 
-                                const std::vector<std::vector<double>> & centers);
+        // void displayCenterGrid(cv::Mat & image, 
+        //                         const cv::Vec3b & color, 
+        //                         const std::vector<std::vector<double>> & centers);
 
-        void convertDepthImageToColor(cv::Mat & color_depth_image, 
-                                        const cv::Mat & depth_image);
+        // void convertDepthImageToColor(cv::Mat & color_depth_image, 
+        //                                 const cv::Mat & depth_image);
 
-        void overlayCenters(const cv::Mat & color_depth_image, 
-                            const std::vector<std::vector<double>> & centers);
+        // void overlayCenters(const cv::Mat & color_depth_image, 
+        //                     const std::vector<std::vector<double>> & centers);
 
         void visualizePlanarRegions(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg);
         void visualizePlanarRegionBoundaries(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
@@ -102,35 +102,35 @@ class Visualizer
         rclcpp::Node::SharedPtr node_;
 
         // Publishers
-        image_transport::Publisher fin_depth_img_pub_;
+        // image_transport::Publisher fin_depth_img_pub_;
         // image_transport::Publisher fin_label_img_pub_;
-        image_transport::Publisher fin_normal_img_pub_;
-        image_transport::Publisher center_grid_img_pub_;
-        image_transport::Publisher colored_cluster_img_pub_;        
+        // image_transport::Publisher fin_normal_img_pub_;
+        // image_transport::Publisher center_grid_img_pub_;
+        // image_transport::Publisher colored_cluster_img_pub_;        
 
         // ros::Publisher colored_point_cloud_pub_;
         // ros::Publisher colored_centroids_pub_;
         // ros::Publisher terrainPub_;
-        rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr colored_point_cloud_pub_;
-        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr colored_centroids_pub_;
+        // rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr colored_point_cloud_pub_;
+        // rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr colored_centroids_pub_;
         rclcpp::Publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>::SharedPtr terrainPub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionIDPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionNormalPublisher_;
-        rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapPublisher_;
+        // rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapPublisher_;
         
         int priorPlanarRegionsSize = 0;
         int priorPlanarRegionsNormalSize = 0;
         int priorPlanarRegionsIDSize = 0;
 
         // cv_bridge::CvImagePtr cluster_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr colored_cluster_img_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr center_grid_img_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr colored_cluster_img_ptr_ = nullptr;
 
         cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
         // cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
-        cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
+        // cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
 
         std::vector<cv::Scalar> colors_;
 
