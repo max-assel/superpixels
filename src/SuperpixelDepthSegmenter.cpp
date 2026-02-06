@@ -1,6 +1,6 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
-using namespace std::chrono_literals;
+// using namespace std::chrono_literals;
 
 // , const std::string & config_path
 SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node)
@@ -94,9 +94,9 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 3); // raw_label_img_sub_, 
     msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, std::placeholders::_1, std::placeholders::_2)); // , _3
 
-    prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
     // prop_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    prop_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    // prop_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     visited_ = cv::Mat(params_.k_c_, params_.k_c_, CV_8UC1, cv::Scalar(0));
 
@@ -108,26 +108,26 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     // callback_handle_ = node_->add_on_set_parameters_callback(
     //     std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
 
-    initTime = std::chrono::steady_clock::now();
+    // initTime = std::chrono::steady_clock::now();
 }
 
-void SuperpixelDepthSegmenter::log()
-{
-    std::ofstream logFile;
-    logFile.open("/home/masselmeier3/Desktop/Research/quad_pips_experiments/timing/superpixels/superpixels/timing_log_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(initTime.time_since_epoch()).count()) + ".csv", std::ios::out);
+// void SuperpixelDepthSegmenter::log()
+// {
+//     std::ofstream logFile;
+//     logFile.open("/home/masselmeier3/Desktop/Research/quad_pips_experiments/timing/superpixels/superpixels/timing_log_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(initTime.time_since_epoch()).count()) + ".csv", std::ios::out);
 
-    float averageCleanTime = cleanTimeTaken * 1.0e-3 / static_cast<float>(numberOfCleanCalls);
-    float averageFillTime = fillTimeTaken * 1.0e-3 / static_cast<float>(numberOfFillCalls);
-    float averagePreprocessTime = preprocessTimeTaken * 1.0e-3 / static_cast<float>(numberOfPreprocessCalls);
-    float averageSuperpixelTime = superpixelTimeTaken * 1.0e-3 / static_cast<float>(numberOfSuperpixelCalls);
-    float averageRansacTime = ransacTimeTaken * 1.0e-3 / static_cast<float>(numberOfRansacCalls);
-    float averageConvexHullTime = convexHullTimeTaken * 1.0e-3 / static_cast<float>(numberOfConvexHullCalls);
-    float averageTotalTime = totalTimeTaken * 1.0e-3 / static_cast<float>(numberOfTotalCalls);
+//     float averageCleanTime = cleanTimeTaken * 1.0e-3 / static_cast<float>(numberOfCleanCalls);
+//     float averageFillTime = fillTimeTaken * 1.0e-3 / static_cast<float>(numberOfFillCalls);
+//     float averagePreprocessTime = preprocessTimeTaken * 1.0e-3 / static_cast<float>(numberOfPreprocessCalls);
+//     float averageSuperpixelTime = superpixelTimeTaken * 1.0e-3 / static_cast<float>(numberOfSuperpixelCalls);
+//     float averageRansacTime = ransacTimeTaken * 1.0e-3 / static_cast<float>(numberOfRansacCalls);
+//     float averageConvexHullTime = convexHullTimeTaken * 1.0e-3 / static_cast<float>(numberOfConvexHullCalls);
+//     float averageTotalTime = totalTimeTaken * 1.0e-3 / static_cast<float>(numberOfTotalCalls);
 
-    logFile << "avg clean time (ms), avg fill time (ms), avg preprocess time (ms), avg superpixel time (ms), avg ransac time (ms), avg convex hull time (ms), avg total time (ms), number of calls" << std::endl;
-    logFile << averageCleanTime << ", " << averageFillTime << ", " << averagePreprocessTime << ", " << averageSuperpixelTime << ", " << averageRansacTime << ", " << averageConvexHullTime << ", " << averageTotalTime << ", " << numberOfTotalCalls << std::endl;
-    logFile.close();      
-}
+//     logFile << "avg clean time (ms), avg fill time (ms), avg preprocess time (ms), avg superpixel time (ms), avg ransac time (ms), avg convex hull time (ms), avg total time (ms), number of calls" << std::endl;
+//     logFile << averageCleanTime << ", " << averageFillTime << ", " << averagePreprocessTime << ", " << averageSuperpixelTime << ", " << averageRansacTime << ", " << averageConvexHullTime << ", " << averageTotalTime << ", " << numberOfTotalCalls << std::endl;
+//     logFile.close();      
+// }
 
 SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 {  
@@ -315,7 +315,7 @@ void SuperpixelDepthSegmenter::run()
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "[SuperpixelDepthSegmenter::run]");
 
-    totalBegin = std::chrono::steady_clock::now();
+    // totalBegin = std::chrono::steady_clock::now();
 
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -343,13 +343,13 @@ void SuperpixelDepthSegmenter::run()
     // }
 
     // rclcpp::Duration timeout(3, 0); // 3 seconds
-    bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
+    // bool canTransform = tfBuffer_->canTransform("odom", egocan_frame, lookupTime);    
 
-    if (!canTransform)
-    {
-        RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom at time " << lookupTime.seconds());
-        return;
-    }
+    // if (!canTransform)
+    // {
+    //     RCLCPP_WARN_STREAM(node_->get_logger(), "Cannot transform from " << egocan_frame << " to odom at time " << lookupTime.seconds());
+    //     return;
+    // }
 
     geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame;
     try
@@ -386,11 +386,11 @@ void SuperpixelDepthSegmenter::run()
 
     // raw_depth_img_ptr_->image.size() != raw_label_img_ptr_->image.size() || 
     //  || raw_label_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()
-    if (raw_depth_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()) 
-    {
-        RCLCPP_ERROR(node_->get_logger(), "Image sizes do not match.");
-        return;
-    }
+    // if (raw_depth_img_ptr_->image.size() != raw_normal_img_ptr_->image.size()) 
+    // {
+    //     RCLCPP_ERROR(node_->get_logger(), "Image sizes do not match.");
+    //     return;
+    // }
 
     // cleanBegin = std::chrono::steady_clock::now();
 
@@ -413,9 +413,9 @@ void SuperpixelDepthSegmenter::run()
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after cleaning, (480, 480) is: " << cleaned_depth_img.at<float>(480, 480));
 
-    cleanEnd = std::chrono::steady_clock::now();
-    cleanTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
-    numberOfCleanCalls++;
+    // cleanEnd = std::chrono::steady_clock::now();
+    // cleanTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
+    // numberOfCleanCalls++;
 
     // int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
     // double clean_total_time_sec = 1.0e-6 * clean_total_time; 
@@ -435,9 +435,9 @@ void SuperpixelDepthSegmenter::run()
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after filling, (480, 480) is: " << filled_depth_img.at<float>(480, 480));
 
-    fillEnd = std::chrono::steady_clock::now();
-    fillTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(fillEnd - fillBegin).count();
-    numberOfFillCalls++;
+    // fillEnd = std::chrono::steady_clock::now();
+    // fillTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(fillEnd - fillBegin).count();
+    // numberOfFillCalls++;
 
     // int64_t fill_total_time = std::chrono::duration_cast<std::chrono::microseconds>(fillEnd - fillBegin).count();
     // double fill_total_time_sec = 1.0e-6 * fill_total_time;
@@ -455,11 +455,11 @@ void SuperpixelDepthSegmenter::run()
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), " after preprocessing, (480, 480) is: " << preprocessed_depth_img.at<float>(480, 480));
 
-    preprocessEnd = std::chrono::steady_clock::now();
-    // int64_t preprocess_total_time = std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
-    // double preprocess_total_time_sec = 1.0e-6 * preprocess_total_time;
-    preprocessTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
-    numberOfPreprocessCalls++;
+    // preprocessEnd = std::chrono::steady_clock::now();
+    // // int64_t preprocess_total_time = std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
+    // // double preprocess_total_time_sec = 1.0e-6 * preprocess_total_time;
+    // preprocessTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
+    // numberOfPreprocessCalls++;
 
     // Health check
     // healthCheck(preprocessed_depth_img, preprocessed_label_img, preprocessed_normal_img);
@@ -476,19 +476,19 @@ void SuperpixelDepthSegmenter::run()
     // Generate superpixels
     generateSuperpixels(preprocessed_depth_img, preprocessed_normal_img); // preprocessed_label_img, 
 
-    superpixelEnd = std::chrono::steady_clock::now();
-    superpixelTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
-    numberOfSuperpixelCalls++;
+    // superpixelEnd = std::chrono::steady_clock::now();
+    // superpixelTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
+    // numberOfSuperpixelCalls++;
     // int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
     // double superpixel_total_time_sec = 1.0e-6 * superpixel_total_time;
 
     // Calculate convex hulls
-    convexHullBegin = std::chrono::steady_clock::now();
+    // convexHullBegin = std::chrono::steady_clock::now();
     convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
                             superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
-    convexHullEnd = std::chrono::steady_clock::now();
-    convexHullTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
-    numberOfConvexHullCalls++;
+    // convexHullEnd = std::chrono::steady_clock::now();
+    // convexHullTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
+    // numberOfConvexHullCalls++;
     // int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     // double convex_hull_total_time_sec = 1.0e-6 * convex_hull_total_time;
 
@@ -503,9 +503,9 @@ void SuperpixelDepthSegmenter::run()
     //                             "   Total: " << clean_total_time_sec + fill_total_time_sec + preprocess_total_time_sec + superpixel_total_time_sec + convex_hull_total_time_sec << " seconds");
 
 
-    totalEnd = std::chrono::steady_clock::now();
-    totalTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(totalEnd - totalBegin).count();
-    numberOfTotalCalls++;
+    // totalEnd = std::chrono::steady_clock::now();
+    // totalTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(totalEnd - totalBegin).count();
+    // numberOfTotalCalls++;
     // RCLCPP_INFO_STREAM(node_->get_logger(),  "Loop done");
 
     return;
@@ -984,28 +984,28 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             //     centers_[j][5] = normal.val[2];
             // }
 
-            if (params_.ransac_)
-            {
+            // if (params_.ransac_)
+            // {
                 // refine normal via RANSAC
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
                 // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
                 
-                ransacBegin = std::chrono::steady_clock::now();
+                // ransacBegin = std::chrono::steady_clock::now();
 
-                cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
-                candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
+            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+            candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
-                centers_[j][3] = candidate_normal.val[0];
-                centers_[j][4] = candidate_normal.val[1];
-                centers_[j][5] = candidate_normal.val[2];
+            centers_[j][3] = candidate_normal.val[0];
+            centers_[j][4] = candidate_normal.val[1];
+            centers_[j][5] = candidate_normal.val[2];
 
-                ransacEnd = std::chrono::steady_clock::now();
-                ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
-                numberOfRansacCalls++;
-            }
+                // ransacEnd = std::chrono::steady_clock::now();
+                // ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
+                // numberOfRansacCalls++;
+            // }
         }
     }
 

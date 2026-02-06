@@ -28,8 +28,8 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
     // Normals
     cleaned_normal_img = cv::Mat(raw_normal_img.size(), CV_32FC3, cv::Scalar(0));
 
-    float depth = 0.0;
-    cv::Vec3f normal;
+    // float depth = 0.0;
+    // cv::Vec3f normal;
 
     // zero invalid depth pixels
     for (int r = 0; r < cleaned_depth_img.rows; r++)
@@ -39,20 +39,20 @@ void ImagePreprocessor::cleanImages(const cv::Mat & raw_depth_img,
             if (isPixelValid(raw_depth_img, raw_normal_img, cv::Point(c, r), params_.k_c_)) // raw_label_img, 
             {
 
-                depth = raw_depth_img.at<float>(r, c);
+                // depth = raw_depth_img.at<float>(r, c);
 
                 // bool valid_depth = (!std::isnan(depth) && std::abs(depth) > 1e-6 && depth > 0);
 
-                normal = raw_normal_img.at<cv::Vec3f>(r, c);
+                // normal = raw_normal_img.at<cv::Vec3f>(r, c);
 
                 // bool valid_normal = (!std::isnan(normal.val[0]) && !std::isnan(normal.val[1]) && !std::isnan(normal.val[2]) && 
                                         // cv::norm(normal) > DELTA);
 
                 // if (valid_depth && valid_label && valid_normal)
                 // {
-                cleaned_depth_img.at<float>(r, c) = depth;
+                cleaned_depth_img.at<float>(r, c) = raw_depth_img.at<float>(r, c);
                 // cleaned_label_img.at<uint8_t>(r, c) = label;
-                cleaned_normal_img.at<cv::Vec3f>(r, c) = normal;
+                cleaned_normal_img.at<cv::Vec3f>(r, c) = raw_normal_img.at<cv::Vec3f>(r, c);
                 visited.at<uint8_t>(r, c) = 1;
                 // } 
             } else

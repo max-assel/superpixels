@@ -737,25 +737,25 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 //     colored_centroids_pub_->publish(marker_array);
 // }
 
-void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-                                    const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections)
-{
-    rclcpp::Time time = raw_depth_img_ptr->header.stamp;
-    std::ofstream dat_file;
-    std::string dat_file_path = ament_index_cpp::get_package_share_directory("superpixels") + "/data/" + std::to_string(time.seconds()) + "_" + std::to_string(time.nanoseconds()) + ".dat";
-    dat_file.open(dat_file_path);
+// void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
+//                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections)
+// {
+//     rclcpp::Time time = raw_depth_img_ptr->header.stamp;
+//     std::ofstream dat_file;
+//     std::string dat_file_path = ament_index_cpp::get_package_share_directory("superpixels") + "/data/" + std::to_string(time.seconds()) + "_" + std::to_string(time.nanoseconds()) + ".dat";
+//     dat_file.open(dat_file_path);
 
-    for (size_t i = 0; i < superpixel_projections.size(); i++)
-    {
-        for (size_t j = 0; j < superpixel_projections[i].size(); j++)
-        {
-            dat_file << superpixel_projections[i][j][0] << " " << superpixel_projections[i][j][1] << " " << i << std::endl;
-        }
-        // dat_file << std::endl;
-    }
+//     for (size_t i = 0; i < superpixel_projections.size(); i++)
+//     {
+//         for (size_t j = 0; j < superpixel_projections[i].size(); j++)
+//         {
+//             dat_file << superpixel_projections[i][j][0] << " " << superpixel_projections[i][j][1] << " " << i << std::endl;
+//         }
+//         // dat_file << std::endl;
+//     }
 
-    dat_file.close();
-}
+//     dat_file.close();
+// }
 
 void Visualizer::visualizePlanarRegionBoundaries(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
                                                     const std::vector<convex_plane_decomposition::PlanarRegion> & planarRegions)
