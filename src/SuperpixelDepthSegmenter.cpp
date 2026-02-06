@@ -35,7 +35,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.num_iterations_ = node_->get_parameter("num_iterations").as_int();
     params_.num_superpixels_ = node_->get_parameter("num_superpixels").as_int();
     int num_pixels = params_.k_c_ * params_.k_c_;
-    params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+    params_.step_ = sqrt(num_pixels / (float) params_.num_superpixels_); // superpixel grid interval
     params_.warm_start_ = node_->get_parameter("warm_start").as_bool();
     params_.constraint_ = node_->get_parameter("constraint").as_bool();
     params_.ransac_ = node_->get_parameter("ransac").as_bool();
@@ -151,10 +151,10 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 //             params_.k_c_ = param.get_value<int>();
 //         } else if (param.get_name() == "v_fov")
 //         {
-//             params_.v_fov_ = param.get_value<double>() * M_PI / 180.0; // Convert degrees to radians (just for reading in string)
+//             params_.v_fov_ = param.get_value<float>() * M_PI / 180.0; // Convert degrees to radians (just for reading in string)
 //         } else if (param.get_name() == "v_offset")
 //         {
-//             params_.v_offset_ = param.get_value<double>();
+//             params_.v_offset_ = param.get_value<float>();
 //         }
 //         params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
         
@@ -175,7 +175,7 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 //         {
 //             params_.num_superpixels_ = param.get_value<int>();
 //             int num_pixels = params_.k_c_ * params_.k_c_;
-//             params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+//             params_.step_ = sqrt(num_pixels / (float) params_.num_superpixels_); // superpixel grid interval
 //         } else if (param.get_name() == "warm_start")
 //         {
 //             params_.warm_start_ = param.get_value<bool>();
@@ -193,16 +193,16 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 //         // Superpixel distance parameters
 //         if (param.get_name() == "w_normal")
 //         {
-//             params_.w_normal_ = param.get_value<double>();
+//             params_.w_normal_ = param.get_value<float>();
 //         } else if (param.get_name() == "w_plane_dist")
 //         {
-//             params_.w_plane_dist_ = param.get_value<double>();
+//             params_.w_plane_dist_ = param.get_value<float>();
 //         } else if (param.get_name() == "w_world_dist")
 //         {
-//             params_.w_world_dist_ = param.get_value<double>();
+//             params_.w_world_dist_ = param.get_value<float>();
 //         } else if (param.get_name() == "w_compact")
 //         {
-//             params_.w_compact_ = param.get_value<double>();
+//             params_.w_compact_ = param.get_value<float>();
 //         }
         
 //         // RANSAC parameters
@@ -214,7 +214,7 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 //             params_.ransac_N = param.get_value<int>();
 //         } else if (param.get_name() == "ransac_T")
 //         {
-//             params_.ransac_T = param.get_value<double>();
+//             params_.ransac_T = param.get_value<float>();
 //         } 
 //         // else
 //         // {
@@ -241,7 +241,7 @@ SuperpixelDepthSegmenter::~SuperpixelDepthSegmenter()
 //     params_.num_iterations_ = config.num_iterations;
 //     params_.num_superpixels_ = config.num_superpixels;
 //     int num_pixels = params_.k_c_ * params_.k_c_;
-//     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
+//     params_.step_ = sqrt(num_pixels / (float) params_.num_superpixels_); // superpixel grid interval
 //     params_.constraint_ = config.constraint;
 //     params_.ransac_ = config.ransac;
 //     params_.snapping_ = config.snapping;
@@ -418,14 +418,14 @@ void SuperpixelDepthSegmenter::run()
     // numberOfCleanCalls++;
 
     // int64_t clean_total_time = std::chrono::duration_cast<std::chrono::microseconds>(cleanEnd - cleanBegin).count();
-    // double clean_total_time_sec = 1.0e-6 * clean_total_time; 
+    // float clean_total_time_sec = 1.0e-6 * clean_total_time; 
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Filling images ...");
 
     // fillBegin = std::chrono::steady_clock::now();
 
-    double default_height = egocanFrameToOdomFrame.transform.translation.z; //   - 0.05
-    // double default_height = 0.575;
+    float default_height = egocanFrameToOdomFrame.transform.translation.z; //   - 0.05
+    // float default_height = 0.575;
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   Default height for filling: " << default_height);
 
@@ -440,7 +440,7 @@ void SuperpixelDepthSegmenter::run()
     // numberOfFillCalls++;
 
     // int64_t fill_total_time = std::chrono::duration_cast<std::chrono::microseconds>(fillEnd - fillBegin).count();
-    // double fill_total_time_sec = 1.0e-6 * fill_total_time;
+    // float fill_total_time_sec = 1.0e-6 * fill_total_time;
 
     // Health check
     // healthCheck(cleaned_depth_img, cleaned_label_img, cleaned_normal_img);
@@ -457,7 +457,7 @@ void SuperpixelDepthSegmenter::run()
 
     // preprocessEnd = std::chrono::steady_clock::now();
     // // int64_t preprocess_total_time = std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
-    // // double preprocess_total_time_sec = 1.0e-6 * preprocess_total_time;
+    // // float preprocess_total_time_sec = 1.0e-6 * preprocess_total_time;
     // preprocessTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(preprocessEnd - preprocessBegin).count();
     // numberOfPreprocessCalls++;
 
@@ -480,17 +480,17 @@ void SuperpixelDepthSegmenter::run()
     // superpixelTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
     // numberOfSuperpixelCalls++;
     // int64_t superpixel_total_time = std::chrono::duration_cast<std::chrono::microseconds>(superpixelEnd - superpixelBegin).count();
-    // double superpixel_total_time_sec = 1.0e-6 * superpixel_total_time;
+    // float superpixel_total_time_sec = 1.0e-6 * superpixel_total_time;
 
     // Calculate convex hulls
     // convexHullBegin = std::chrono::steady_clock::now();
-    convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
-                            superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
+    // convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
+    //                         superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
     // convexHullEnd = std::chrono::steady_clock::now();
     // convexHullTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     // numberOfConvexHullCalls++;
     // int64_t convex_hull_total_time = std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
-    // double convex_hull_total_time_sec = 1.0e-6 * convex_hull_total_time;
+    // float convex_hull_total_time_sec = 1.0e-6 * convex_hull_total_time;
 
     // RCLCPP_INFO_STREAM(node_->get_logger(),  "Timing ---- \n" << 
     //                             "   Image cleaning took: " << clean_total_time_sec << " seconds, \n" <<
@@ -553,7 +553,7 @@ void SuperpixelDepthSegmenter::visualize()
                             egocan_to_region_rotations_);
     // visEnd = std::chrono::steady_clock::now();
     // int64_t vis_total_time = std::chrono::duration_cast<std::chrono::microseconds>(visEnd - visBegin).count();
-    // double vis_total_time_sec = 1.0e-6 * vis_total_time;
+    // float vis_total_time_sec = 1.0e-6 * vis_total_time;
     // *node_->get_clock(), 3,
     // RCLCPP_INFO_STREAM(node_->get_logger(),  "Visualization done");
 
@@ -567,8 +567,8 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
     if (params_.warm_start_ && initialized_)
     {
         RCLCPP_INFO_STREAM(node_->get_logger(), "Resetting data ...");
-        clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+        clusters_ = cv::Mat(depth_image.size(), CV_8S, cv::Scalar(-1)); // 8-bit signed integer
+        distances_ = cv::Mat(depth_image.size(), CV_32F, cv::Scalar(std::numeric_limits<float>::max())); // 32-bit floating-point
 
         // Keep centers as is
 
@@ -609,13 +609,13 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::init_data]");
 
     /* Initialize the cluster and distance matrices. */
-    clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-    distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+    clusters_ = cv::Mat(depth_image.size(), CV_8S, cv::Scalar(-1)); // 8-bit signed integer
+    distances_ = cv::Mat(depth_image.size(), CV_32F, cv::Scalar(std::numeric_limits<float>::max())); // 32-bit floating-point
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "    clusters_.size: " << clusters_.size() << ", type: " << clusters_.type() << ", channels: " << clusters_.channels());
     // RCLCPP_INFO_STREAM(node_->get_logger(), "    distances_.size: " << distances_.size() << ", type: " << distances_.type() << ", channels: " << distances_.channels());
 
-    std::vector<double> center;
+    std::vector<float> center;
 
     cv::Point originalCenter;
     cv::Point localMinimum;
@@ -730,7 +730,7 @@ cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image,
 
     // find the valid pixel closest to the centroid
     cv::Point loc_min(-1, -1);
-    double min_dist = std::numeric_limits<double>::max();
+    float min_dist = std::numeric_limits<float>::max();
     for (int d = 0; d < delta; d++)
     {
         for (int r = og_center.y - delta; r <= og_center.y + delta; r++)
@@ -744,7 +744,7 @@ cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image,
                     continue;
                 } else
                 {
-                    double dist = sqrt(pow(current.x - centroid.x, 2) + pow(current.y - centroid.y, 2));
+                    float dist = sqrt(pow(current.x - centroid.x, 2) + pow(current.y - centroid.y, 2));
 
                     if (dist < min_dist)
                     {
@@ -769,7 +769,7 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
                                                         const cv::Mat & normal_image,
                                                         const cv::Point & og_center)
 {
-    // double min_grad = std::numeric_limits<double>::max();
+    // float min_grad = std::numeric_limits<float>::max();
     cv::Point loc_min(-1, -1);
     // const cv::Point og_center = loc_min; 
 
@@ -788,7 +788,7 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
                 //     continue;
                 // }
 
-                // double grad = sqrt(pow(color.val[0] - center_color.val[0], 2) +
+                // float grad = sqrt(pow(color.val[0] - center_color.val[0], 2) +
                 //                    pow(color.val[1] - center_color.val[1], 2) +
                 //                    pow(color.val[2] - center_color.val[2], 2));
 
@@ -839,9 +839,9 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
     cv::Vec3f candidate_normal;
 
     // bool check;
-    double dist;
+    float dist = 0.0f;
 
-    int cluster_id;
+    int cluster_id = -1;
 
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
@@ -849,7 +849,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Iteration: " << i);
 
         /* Reset distance and cluster values. */
-        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max()));
+        distances_ = cv::Mat(depth_image.size(), CV_32F, cv::Scalar(std::numeric_limits<float>::max()));
         // clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
         /* Update distances and clusters */
@@ -874,9 +874,9 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                 normal,
                                                 current);
 
-                        if (dist < distances_.at<double>(r, c)) // check && 
+                        if (dist < distances_.at<float>(r, c)) // check && 
                         {
-                            distances_.at<double>(r, c) = dist;
+                            distances_.at<float>(r, c) = dist;
                             clusters_.at<int>(r, c) = j;
                         }
                     }
@@ -884,129 +884,129 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             }
         }
 
-        /* Clear the center values. */
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            centers_[j][0] = 0; // x
-            centers_[j][1] = 0; // y
-            centers_[j][2] = 0; // depth
-            centers_[j][3] = 0; // normal x
-            centers_[j][4] = 0; // normal y
-            centers_[j][5] = 0; // normal z
-            center_counts_[j] = 0;
-        }
+        // /* Clear the center values. */
+        // for (size_t j = 0; j < centers_.size(); j++) 
+        // {
+        //     centers_[j][0] = 0; // x
+        //     centers_[j][1] = 0; // y
+        //     centers_[j][2] = 0; // depth
+        //     centers_[j][3] = 0; // normal x
+        //     centers_[j][4] = 0; // normal y
+        //     centers_[j][5] = 0; // normal z
+        //     center_counts_[j] = 0;
+        // }
 
-        superpixels_ = std::vector<std::vector<cv::Point>>(centers_.size());
-        /* Compute the new cluster centers. */
-        for (int r = 0; r < depth_image.rows; r++) 
-        {
-            for (int c = 0; c < depth_image.cols; c++) 
-            {            
-                current = cv::Point(c, r);
+        // superpixels_ = std::vector<std::vector<cv::Point>>(centers_.size());
+        // /* Compute the new cluster centers. */
+        // for (int r = 0; r < depth_image.rows; r++) 
+        // {
+        //     for (int c = 0; c < depth_image.cols; c++) 
+        //     {            
+        //         current = cv::Point(c, r);
                 
-                cluster_id = clusters_.at<int>(r, c);
+        //         cluster_id = clusters_.at<int>(r, c);
 
-                if (cluster_id != -1) 
-                {
-                    depth = depth_image.at<float>(r, c);
-                    normal = normal_image.at<cv::Vec3f>(r, c);
+        //         if (cluster_id != -1) 
+        //         {
+        //             depth = depth_image.at<float>(r, c);
+        //             normal = normal_image.at<cv::Vec3f>(r, c);
 
-                    centers_[cluster_id][0] += c;
-                    centers_[cluster_id][1] += r;
-                    centers_[cluster_id][2] += depth;
-                    centers_[cluster_id][3] += normal.val[0];
-                    centers_[cluster_id][4] += normal.val[1];
-                    centers_[cluster_id][5] += normal.val[2];
+        //             centers_[cluster_id][0] += c;
+        //             centers_[cluster_id][1] += r;
+        //             centers_[cluster_id][2] += depth;
+        //             centers_[cluster_id][3] += normal.val[0];
+        //             centers_[cluster_id][4] += normal.val[1];
+        //             centers_[cluster_id][5] += normal.val[2];
                     
-                    center_counts_[cluster_id] += 1; 
+        //             center_counts_[cluster_id] += 1; 
 
-                    superpixels_[cluster_id].push_back(current);
-                }
-            }
-        }     
+        //             superpixels_[cluster_id].push_back(current);
+        //         }
+        //     }
+        // }     
 
-        /* Normalize the clusters. */
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normalizing clusters ...");
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            if (center_counts_[j] == 0) 
-            {
-                RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << " is empty.");
-                continue;
-            }
+        // /* Normalize the clusters. */
+        // // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normalizing clusters ...");
+        // for (size_t j = 0; j < centers_.size(); j++) 
+        // {
+        //     if (center_counts_[j] == 0) 
+        //     {
+        //         RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << " is empty.");
+        //         continue;
+        //     }
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << ", count: " << center_counts_[j]);
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << ", count: " << center_counts_[j]);
 
-            // Average
-            centers_[j][0] /= center_counts_[j];
-            centers_[j][1] /= center_counts_[j];
-            centers_[j][2] /= center_counts_[j];
-            centers_[j][3] /= center_counts_[j];
-            centers_[j][4] /= center_counts_[j];
-            centers_[j][5] /= center_counts_[j];
+        //     // Average
+        //     centers_[j][0] /= center_counts_[j];
+        //     centers_[j][1] /= center_counts_[j];
+        //     centers_[j][2] /= center_counts_[j];
+        //     centers_[j][3] /= center_counts_[j];
+        //     centers_[j][4] /= center_counts_[j];
+        //     centers_[j][5] /= center_counts_[j];
 
-            // Round pixel
-            centers_[j][0] = int(round(centers_[j][0]));
-            centers_[j][1] = int(round(centers_[j][1]));
+        //     // Round pixel
+        //     centers_[j][0] = int(round(centers_[j][0]));
+        //     centers_[j][1] = int(round(centers_[j][1]));
 
-            // Re-normalize
-            init_normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
-            normal = init_normal / cv::norm(init_normal);
-            centers_[j][3] = normal.val[0];
-            centers_[j][4] = normal.val[1];
-            centers_[j][5] = normal.val[2];
-        }
+        //     // Re-normalize
+        //     init_normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+        //     normal = init_normal / cv::norm(init_normal);
+        //     centers_[j][3] = normal.val[0];
+        //     centers_[j][4] = normal.val[1];
+        //     centers_[j][5] = normal.val[2];
+        // }
 
-        /* Snap clusters to nearest pixel */
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            if (center_counts_[j] == 0) 
-            {
-                continue;
-            }
+        // /* Snap clusters to nearest pixel */
+        // // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
+        // for (size_t j = 0; j < centers_.size(); j++) 
+        // {
+        //     if (center_counts_[j] == 0) 
+        //     {
+        //         continue;
+        //     }
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
 
-            // if (params_.snapping_)
-            // {
-            //     center = cv::Point(centers_[j][0], centers_[j][1]);
-            //     new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
-            //     depth = depth_image.at<float>(new_center.y, new_center.x);
-            //     normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
-            //     centers_[j][0] = new_center.x;
-            //     centers_[j][1] = new_center.y;
-            //     centers_[j][2] = depth;
-            //     centers_[j][3] = normal.val[0];
-            //     centers_[j][4] = normal.val[1];
-            //     centers_[j][5] = normal.val[2];
-            // }
+        //     // if (params_.snapping_)
+        //     // {
+        //     //     center = cv::Point(centers_[j][0], centers_[j][1]);
+        //     //     new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
+        //     //     depth = depth_image.at<float>(new_center.y, new_center.x);
+        //     //     normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
+        //     //     centers_[j][0] = new_center.x;
+        //     //     centers_[j][1] = new_center.y;
+        //     //     centers_[j][2] = depth;
+        //     //     centers_[j][3] = normal.val[0];
+        //     //     centers_[j][4] = normal.val[1];
+        //     //     centers_[j][5] = normal.val[2];
+        //     // }
 
-            // if (params_.ransac_)
-            // {
-                // refine normal via RANSAC
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
+        //     // if (params_.ransac_)
+        //     // {
+        //         // refine normal via RANSAC
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
                 
-                // ransacBegin = std::chrono::steady_clock::now();
+        //         // ransacBegin = std::chrono::steady_clock::now();
 
-            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
-            candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
+        //     cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+        //     candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
-            centers_[j][3] = candidate_normal.val[0];
-            centers_[j][4] = candidate_normal.val[1];
-            centers_[j][5] = candidate_normal.val[2];
+        //     centers_[j][3] = candidate_normal.val[0];
+        //     centers_[j][4] = candidate_normal.val[1];
+        //     centers_[j][5] = candidate_normal.val[2];
 
-                // ransacEnd = std::chrono::steady_clock::now();
-                // ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
-                // numberOfRansacCalls++;
-            // }
-        }
+        //         // ransacEnd = std::chrono::steady_clock::now();
+        //         // ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
+        //         // numberOfRansacCalls++;
+        //     // }
+        // }
     }
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers:");
@@ -1045,7 +1045,7 @@ bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx,
     return normal_check && plane_distance_check;
 }
 
-double SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
+float SuperpixelDepthSegmenter::computeDistance(const int & center_idx, 
                                                     const float & depth,
                                                     // const uint8_t & label,
                                                     const cv::Vec3f & normal,
@@ -1079,14 +1079,14 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
 
     // Normal term
-    double d_normal = (1.0 - normal.dot(center_normal));
+    float d_normal = (1.0 - normal.dot(center_normal));
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << normal);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_normal: " << center_normal);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_normal: " << d_normal);
 
-    double max_d_normal = 2.0;
-    double weighted_d_normal = params_.w_normal_ * (d_normal / max_d_normal);
+    float max_d_normal = 2.0f;
+    float weighted_d_normal = params_.w_normal_ * (d_normal / max_d_normal);
 
     // if (d_normal > max_d_normal)
     // {
@@ -1097,26 +1097,26 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
 
     // Plane distance term
 
-    double d_plane = std::abs( (egocanPt - centerEgocanPt).dot(center_normal) );
+    float d_plane = std::abs( (egocanPt - centerEgocanPt).dot(center_normal) );
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           egocanPt: " << egocanPt);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           centerEgocanPt: " << centerEgocanPt);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_plane: " << d_plane);
-    double max_d_plane = params_.v_fov_;
-    double weighted_d_plane = params_.w_plane_dist_ * (d_plane / max_d_plane);
+    float max_d_plane = params_.v_fov_;
+    float weighted_d_plane = params_.w_plane_dist_ * (d_plane / max_d_plane);
 
     // if (d_plane > max_d_plane)
     // {
     //     RCLCPP_WARN_STREAM(node_->get_logger(), "       d_plane exceeds max, d_plane: " << d_plane << ", max_d_plane: " << max_d_plane);
     // }
 
-    double d_world = cv::norm(egocanPt - centerEgocanPt);
+    float d_world = cv::norm(egocanPt - centerEgocanPt);
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           egocanPt: " << egocanPt);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           centerEgocanPt: " << centerEgocanPt);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_world: " << d_world);
-    double max_d_world = params_.v_fov_;
-    double weighted_d_world = params_.w_world_dist_ * (d_world / max_d_world);
+    float max_d_world = params_.v_fov_;
+    float weighted_d_world = params_.w_world_dist_ * (d_world / max_d_world);
 
     // if (d_world > max_d_world)
     // {
@@ -1124,14 +1124,14 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     // }
 
     // Compactness term
-    double d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
+    float d_compact = sqrt(pow(center_pixel.x - pixel.x, 2) + pow(center_pixel.y - pixel.y, 2));
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: (r: " << pixel.y << ", c: " << pixel.x << ")");
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           d_compact: " << d_compact);
 
-    double max_compact_dist = sqrt(pow(params_.step_, 2) + pow(params_.step_, 2));
-    double weighted_d_compact = params_.w_compact_ * (d_compact / max_compact_dist);
+    float max_compact_dist = sqrt(pow(params_.step_, 2) + pow(params_.step_, 2));
+    float weighted_d_compact = params_.w_compact_ * (d_compact / max_compact_dist);
 
     // if (d_compact > max_compact_dist)
     // {

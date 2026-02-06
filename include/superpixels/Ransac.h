@@ -21,19 +21,19 @@ class Ransac
         void fit(const std::vector<cv::Point> & sample, 
                     const cv::Mat & depth_image,
                     const int & num_samples,
-                    Eigen::VectorXd & x);
+                    Eigen::VectorXf & x);
 
         void compute_inliers(const std::vector<cv::Point> & pixels,
                                 const cv::Mat & depth_image,
                                 std::vector<cv::Point> & inliers,
-                                const Eigen::VectorXd & x);
+                                const Eigen::VectorXf & x);
 
         SuperpixelParams params_;   
 
         std::vector<cv::Point> samples;
         std::vector<int> indices;  
         std::vector<cv::Point> inliers;
-        Eigen::VectorXd x;
-        Eigen::VectorXd x_best;
+        Eigen::VectorXf x;
+        Eigen::VectorXf x_best;
         cv::Vec3f normal_best;         
 };

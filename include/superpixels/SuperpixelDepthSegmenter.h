@@ -75,7 +75,7 @@ class SuperpixelDepthSegmenter
                                 const cv::Vec3f & normal,
                                 const cv::Point & pixel);
 
-        double computeDistance(const int & center_idx, 
+        float computeDistance(const int & center_idx, 
                                 const float & depth,
                                 // const uint8_t & label,
                                 const cv::Vec3f & normal,
@@ -156,12 +156,12 @@ class SuperpixelDepthSegmenter
         // Superpixel matrices and vector
         cv::Mat clusters_ = cv::Mat(); // per-pixel cluster assignments
         cv::Mat distances_ = cv::Mat(); // per-pixel distances to cluster center
-        std::vector<std::vector<double>> centers_ = {}; // LAB/xy cluster centers
+        std::vector<std::vector<float>> centers_ = {}; // LAB/xy cluster centers
         std::vector<int> center_counts_ = {}; // Number of occurrences of each center
         std::vector<std::vector<cv::Point>> superpixels_ = {}; // Superpixel pixel locations
-        std::vector<std::vector<Eigen::Vector2d>> superpixel_projections_ = {}; // Superpixel projections
-        std::vector<std::vector<Eigen::Vector2d>> superpixel_convex_hulls_ = {}; // Superpixel convex hulls
-        std::vector<Eigen::Matrix3d> egocan_to_region_rotations_ = {}; // Superpixel rotations
+        std::vector<std::vector<Eigen::Vector2f>> superpixel_projections_ = {}; // Superpixel projections
+        std::vector<std::vector<Eigen::Vector2f>> superpixel_convex_hulls_ = {}; // Superpixel convex hulls
+        std::vector<Eigen::Matrix3f> egocan_to_region_rotations_ = {}; // Superpixel rotations
 
         cv::Mat preprocessed_depth_img = cv::Mat();
         cv::Mat preprocessed_normal_img = cv::Mat(); // preprocessed_label_img, 

@@ -42,7 +42,7 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     // placeholder gridMap
     grid_map::GridMap grid_map;
     grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    double grid_map_resolution = 0.1; // resolution [m]
+    float grid_map_resolution = 0.1; // resolution [m]
     grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
     grid_map.setGeometry(grid_map_dimensions, 
                             grid_map_resolution, 
@@ -96,12 +96,12 @@ void Visualizer::visualize(const cv::Mat & depth_image,
                             const cv::Mat & normal_image,
                             const cv_bridge::CvImagePtr & raw_depth_img_ptr,
                             const cv_bridge::CvImagePtr & raw_normal_img_ptr,
-                            const std::vector<std::vector<double>> & centers,
+                            const std::vector<std::vector<float>> & centers,
                             const cv::Mat & clusters,
                             const std::vector<int> & center_counts,
-                            const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
-                            const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                            const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
+                            const std::vector<std::vector<Eigen::Vector2f>> & superpixel_projections,
+                            const std::vector<std::vector<Eigen::Vector2f>> & superpixel_convex_hulls,
+                            const std::vector<Eigen::Matrix3f> & egocan_to_region_rotations)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::visualize]");
 
@@ -202,10 +202,10 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
 // const cv::Mat & depth_img,
 void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
-                                        const std::vector<std::vector<double>> & centers,
+                                        const std::vector<std::vector<float>> & centers,
                                         const std::vector<int> & center_counts,
-                                        const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                                        const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
+                                        const std::vector<std::vector<Eigen::Vector2f>> & superpixel_convex_hulls,
+                                        const std::vector<Eigen::Matrix3f> & egocan_to_region_rotations)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions]");
 
@@ -241,7 +241,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // }
 
 
-    double foot_radius = 0.02;
+    float foot_radius = 0.02;
 
     convex_plane_decomposition::PlanarRegion region;
     convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
@@ -256,13 +256,13 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     cv::Point center_pixel;
     float center_depth;
     cv::Vec3f centerEgocanCvPt;
-    Eigen::Matrix3d regionToEgocanRotMat;
-    Eigen::Quaterniond regionToEgocanQuat;
-    Eigen::Matrix3d egocanToWorldRotMat;
+    Eigen::Matrix3f regionToEgocanRotMat;
+    Eigen::Quaternionf regionToEgocanQuat;
+    Eigen::Matrix3f egocanToWorldRotMat;
 
-    Eigen::VectorXd centerWorldPose;
+    Eigen::VectorXf centerWorldPose;
 
-    Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
+    Eigen::Vector2f convexHullPt, convexHullDir, inflatedConvexHullPt;
 
     std_msgs::msg::ColorRGBA region_color;
     // region_color.r = color[2] / 255.0;
@@ -275,8 +275,8 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 
     // std::cout << "starting loop" << std::endl;
 
-    Eigen::Vector3d centerEgocanPt;
-    double norm = 0.0;
+    Eigen::Vector3f centerEgocanPt;
+    float norm = 0.0;
 
     terrain_msg.planar_regions.clear();
 
@@ -304,15 +304,16 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               normal (egocan frame): " << centers[i][3] << ", " << centers[i][4] << ", " << centers[i][5]);
 
         regionToEgocanRotMat = egocan_to_region_rotations[i].transpose();
-        regionToEgocanQuat = Eigen::Quaterniond(regionToEgocanRotMat);
+        regionToEgocanQuat = Eigen::Quaternionf(regionToEgocanRotMat);
 
         centerWorldPose = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToOdomFrame);
+        
 
         // get rotation matrix
         egocanToWorldRotMat = calculateRotationMatrix(centerWorldPose[3], centerWorldPose[4], centerWorldPose[5]);
 
-        region.transformPlaneToWorld.translation() = centerWorldPose.head(3);
-        region.transformPlaneToWorld.linear() = egocanToWorldRotMat;
+        region.transformPlaneToWorld.translation() = centerWorldPose.head(3).cast<double>();
+        region.transformPlaneToWorld.linear() = egocanToWorldRotMat.cast<double>();
 
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               translation: " << region.transformPlaneToWorld.translation().transpose());
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               rotation: " << region.transformPlaneToWorld.linear().row(0));
@@ -410,9 +411,9 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     //                 grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
     
     // cv::Vec3f egocanPt;
-    // Eigen::Vector3d egocanEigenPt;
-    // Eigen::Vector3d worldPt;
-    // // Eigen::Vector3d egocanStabilizedPt;
+    // Eigen::Vector3f egocanEigenPt;
+    // Eigen::Vector3f worldPt;
+    // // Eigen::Vector3f egocanStabilizedPt;
     // cv::Point current;
     // float depth;
 
@@ -431,7 +432,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     //         {
     //             depth = raw_depth_image.at<float>(r, c);
     //             pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
-    //             egocanEigenPt = Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]);
+    //             egocanEigenPt = Eigen::Vector3f(egocanPt[0], egocanPt[1], egocanPt[2]);
 
     //             worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
     //             // egocanStabilizedPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToEgocanStabilizedFrame);
@@ -474,7 +475,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // placeholder gridMap
     // grid_map::GridMap grid_map;
     // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    // double grid_map_resolution = 0.1; // resolution [m]
+    // float grid_map_resolution = 0.1; // resolution [m]
     // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
     // grid_map.setGeometry(grid_map_dimensions, 
     //                         grid_map_resolution, 
@@ -494,7 +495,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 }
 
 
-// void Visualizer::overlayCenters(const cv::Mat & color_depth_image, const std::vector<std::vector<double>> & centers)
+// void Visualizer::overlayCenters(const cv::Mat & color_depth_image, const std::vector<std::vector<float>> & centers)
 // {
 //     // overlay center grid on color version of depth image
 //     cv::Mat overlaid_image = color_depth_image.clone();
@@ -512,7 +513,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 
 // void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image)
 // {
-//     double min_depth = 0.0, max_depth = 0.0;
+//     float min_depth = 0.0, max_depth = 0.0;
 //     cv::minMaxLoc(depth_image, &min_depth, &max_depth);
 
 //     // RCLCPP_INFO_STREAM(node_->get_logger(), "Converting to 8UC3...");
@@ -539,7 +540,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 //     }    
 // }
 
-// void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, const std::vector<std::vector<double>> & centers)
+// void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, const std::vector<std::vector<float>> & centers)
 // {
 //     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelColorSegmenter::displayCenterGrid]");
     
@@ -661,7 +662,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 //     return;
 // }
 
-// void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers,
+// void Visualizer::colorCentroids(const std::vector<std::vector<float>> & centers,
 //                                 const std::vector<int> & center_counts)
 // {
 //     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorCentroids]");
@@ -706,7 +707,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 //         pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
 //         marker.points.resize(2);
-//         double scale = 0.1;
+//         float scale = 0.1;
 //         geometry_msgs::msg::Point p1, p2;
 //         p1.x = centerEgocanPt[0];
 //         p1.y = centerEgocanPt[1];
@@ -738,7 +739,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 // }
 
 // void Visualizer::outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-//                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections)
+//                                     const std::vector<std::vector<Eigen::Vector2f>> & superpixel_projections)
 // {
 //     rclcpp::Time time = raw_depth_img_ptr->header.stamp;
 //     std::ofstream dat_file;
@@ -882,9 +883,9 @@ void Visualizer::visualizePlanarRegionNormals(const std::unique_ptr<switched_mod
         regionNormalMarker.scale.y = 0.02;
         regionNormalMarker.scale.z = 0.06;
         regionNormalMarker.points.reserve(2);
-        double normalLength = 0.1;
-        const Eigen::Vector3d surfaceNormal = normalLength * surfaceNormalInWorld(convexTerrain.plane);
-        const Eigen::Vector3d startPointVec = convexTerrain.plane.positionInWorld;
+        float normalLength = 0.1;
+        const Eigen::Vector3f surfaceNormal = normalLength * surfaceNormalInWorld(convexTerrain.plane).cast<float>();
+        const Eigen::Vector3f startPointVec = convexTerrain.plane.positionInWorld.cast<float>();
         geometry_msgs::msg::Point startPoint;
         startPoint.x = startPointVec.x();
         startPoint.y = startPointVec.y();

@@ -39,7 +39,7 @@ class ImagePreprocessor
                             const cv::Mat & visited,
                             cv::Mat & filled_depth_img,
                             cv::Mat & filled_normal_img,
-                            const double & default_height);
+                            const float & default_height);
 
     private:
         SuperpixelParams params_;
