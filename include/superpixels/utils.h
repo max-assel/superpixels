@@ -67,7 +67,7 @@ inline bool isPixelInBounds(const int & k_c,
 
 inline bool isClusterCentroidValid(const std::vector<float> & center)
 {
-    cv::Point center_pixel = cv::Point(center[0], center[1]);
+    // cv::Point center_pixel = cv::Point(center[0], center[1]);
     float center_depth = center[2];
 
     float min_acceptable_depth = 0.0;
