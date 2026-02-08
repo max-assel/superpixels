@@ -17,13 +17,17 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
 
     // Floor image parameters
     params_.k_c_ = node_->get_parameter("k_c").as_int();
+    params_.half_k_c_ = 0.5 * params_.k_c_;
     params_.v_fov_ = node_->get_parameter("v_fov").as_double() * M_PI / 180.0; // Convert degrees to radians
     params_.v_offset_ = node_->get_parameter("v_offset").as_double();
     params_.h_ = (params_.v_fov_ / 2.0) - params_.v_offset_;
+    params_.two_over_h_times_k_c_ = 2 / (params_.h_ * params_.k_c_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       k_c_: " << params_.k_c_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       half_k_c_: " << params_.half_k_c_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       v_fov_: " << params_.v_fov_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       v_offset_: " << params_.v_offset_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       h_: " << params_.h_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       two_over_h_times_k_c_: " << params_.two_over_h_times_k_c_);
 
     // Dilation parameters
     params_.num_dilation_iterations_ = node_->get_parameter("num_dilation_iterations").as_int();
@@ -1077,10 +1081,10 @@ bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx,
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][3], centers_[center_idx][4], centers_[center_idx][5]);
 
     cv::Vec3f egocanPt;
-    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(egocanPt, pixel, depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
     cv::Vec3f centerEgocanPt;
-    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
     bool normal_check = normal.dot(center_normal) > 0.75;
 
@@ -1103,10 +1107,10 @@ float SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][3], centers_[center_idx][4], centers_[center_idx][5]);
 
     cv::Vec3f egocanPt;
-    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(egocanPt, pixel, depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
     cv::Vec3f centerEgocanPt;
-    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_idx: " << center_idx);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");

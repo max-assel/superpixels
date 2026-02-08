@@ -294,7 +294,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         center_depth = centers[i][2];
 
-        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
         centerEgocanPt << centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2];
 

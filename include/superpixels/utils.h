@@ -18,9 +18,12 @@ struct SuperpixelParams
 {
     // Floor image parameters
     int k_c_ = 512; // Floor width (pixels)
+    int half_k_c_ = 0.5 * k_c_;
     float v_fov_ = M_PI / 2.0; // Vertical field of view (radians)
     float v_offset_ = 0.0;
     float h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
+
+    float two_over_h_times_k_c_ = 2 / (h_ * k_c_);
 
     // Dilation parameters
     int num_dilation_iterations_ = 0; // Number of dilation iterations
@@ -50,9 +53,9 @@ struct SuperpixelParams
 inline bool isPixelInBounds(const int & k_c, 
                             const cv::Point & pixel)
 {
-    cv::Point center = cv::Point(k_c / 2, k_c / 2);
+    cv::Point center = cv::Point(0.5 * k_c, 0.5 * k_c);
 
-    if (cv::norm(center - pixel) > k_c / 2)
+    if (cv::norm(center - pixel) > 0.5 * k_c)
     {
         return false;
     }
@@ -323,10 +326,10 @@ inline Eigen::Matrix3f calculateRotationMatrix(const float & roll,
 inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
                                 const cv::Point & pixel,
                                 const float & depth,
-                                const int & k_c,
-                                const float & h)
+                                const int & half_k_c,
+                                const float & two_over_h_times_k_c)
 {
-    egocanPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
+    egocanPt[0] = (pixel.x - half_k_c) * (depth * two_over_h_times_k_c);
     egocanPt[1] = depth;
-    egocanPt[2] = (pixel.y - (k_c / 2)) * (depth * 2 / (h * k_c));
+    egocanPt[2] = (pixel.y - half_k_c) * (depth * two_over_h_times_k_c);
 }
