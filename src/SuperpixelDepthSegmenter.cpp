@@ -654,7 +654,6 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             //     continue;
             // }
 
-            center = {};
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       Finding local minimum ...");
             /* Find the local minimum (gradient-wise). */
@@ -685,6 +684,8 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       Valid local minimum found, pushing back");
+            center = {};
+
             /* Generate the center vector. */
             center.push_back(localMinimum.x);
             center.push_back(localMinimum.y);
@@ -735,15 +736,17 @@ cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image,
             }
         }
 
-        if (count > 0)
-        {
-            centroid.x /= count;
-            centroid.y /= count;
-        } else
-        {
-            return cv::Point(-1, -1);
-        }
     }
+
+    // Compute average
+    if (count > 0)
+    {
+        centroid.x /= count;
+        centroid.y /= count;
+    } else
+    {
+        return cv::Point(-1, -1);
+    }    
 
     // find the valid pixel closest to the centroid
     cv::Point loc_min(-1, -1);
