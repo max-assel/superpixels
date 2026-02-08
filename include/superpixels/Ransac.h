@@ -20,7 +20,7 @@ class Ransac
 
         void fit(const std::vector<cv::Point> & sample, 
                     const cv::Mat & depth_image,
-                    const int & num_samples,
+                    const uint8_t & num_samples,
                     Eigen::VectorXf & x);
 
         void compute_inliers(const std::vector<cv::Point> & pixels,

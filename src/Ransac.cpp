@@ -20,10 +20,10 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
 
     cv::Vec3f normal = og_normal;
 
-    if (pixels.size() < params_.ransac_K)
+    if ((uint8_t) pixels.size() < params_.ransac_K)
         return normal;
 
-    int max_inliers = 0;
+    uint8_t max_inliers = 0;
 
     for (uint8_t n = 0; n < params_.ransac_N; n++)
     {
@@ -50,7 +50,7 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
         // update
         if (inliers.size() > max_inliers)
         {
-            max_inliers = inliers.size();
+            max_inliers = (uint8_t) inliers.size();
 
             // update normal
             fit(inliers, depth_image, max_inliers, x_best);
@@ -71,7 +71,7 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
 {
     int idx = -1;
 
-    for (int i = 0; i < params_.ransac_K; i++)
+    for (uint8_t i = 0; i < params_.ransac_K; i++)
     {
         idx = -1;
         while (idx == -1 || std::find(indices.begin(), indices.end(), idx) != indices.end())
@@ -87,7 +87,7 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
 
 void Ransac::fit(const std::vector<cv::Point> & samples,
                     const cv::Mat & depth_image,
-                    const int & num_samples,
+                    const uint8_t & num_samples,
                     Eigen::VectorXf & x)
 {
     Eigen::MatrixXf A(num_samples, 3);
@@ -96,7 +96,7 @@ void Ransac::fit(const std::vector<cv::Point> & samples,
     cv::Point pixel;
     cv::Vec3f egocanPt;
 
-    for (int i = 0; i < num_samples; i++)
+    for (uint8_t i = 0; i < num_samples; i++)
     {
         pixel = samples[i];
         
