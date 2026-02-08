@@ -46,7 +46,7 @@ struct SuperpixelParams
 
     // RANSAC parameters
     int ransac_K = 10; // number of points to sample
-    int ransac_N = 25; // number of iterations
+    uint8_t ransac_N = 25; // number of iterations
     float ransac_T = 0.01; // threshold    
 };
 

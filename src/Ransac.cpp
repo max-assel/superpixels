@@ -25,7 +25,7 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
 
     int max_inliers = 0;
 
-    for (int n = 0; n < params_.ransac_N; n++)
+    for (uint8_t n = 0; n < params_.ransac_N; n++)
     {
         samples = std::vector<cv::Point>(params_.ransac_K);
         indices = std::vector<int>(params_.ransac_K);
