@@ -489,8 +489,8 @@ void SuperpixelDepthSegmenter::run()
     // Calculate convex hulls
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Convexifying ...");
     // convexHullBegin = std::chrono::steady_clock::now();
-    // convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
-    //                         superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
+    convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
+                            superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
     // convexHullEnd = std::chrono::steady_clock::now();
     // convexHullTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     // numberOfConvexHullCalls++;
