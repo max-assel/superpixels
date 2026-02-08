@@ -55,11 +55,12 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
             // update normal
             fit(inliers, depth_image, max_inliers, x_best);
 
-            normal_best = cv::Vec3f(x_best(0), -1.0, x_best(2));
-
-            normal = normal_best / cv::norm(normal_best);
         }
     }
+
+    normal_best = cv::Vec3f(x_best(0), -1.0, x_best(2));
+
+    normal = normal_best / cv::norm(normal_best);
 
     return normal;    
 }
@@ -68,9 +69,11 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
                     std::vector<cv::Point> & samples,
                     std::vector<int> & indices)
 {
+    int idx = -1;
+
     for (int i = 0; i < params_.ransac_K; i++)
     {
-        int idx = -1;
+        idx = -1;
         while (idx == -1 || std::find(indices.begin(), indices.end(), idx) != indices.end())
         {
             int rand_idx = rand();
@@ -90,10 +93,13 @@ void Ransac::fit(const std::vector<cv::Point> & samples,
     Eigen::MatrixXf A(num_samples, 3);
     Eigen::VectorXf b(num_samples);
 
+    cv::Point pixel;
+    cv::Vec3f egocanPt;
+
     for (int i = 0; i < num_samples; i++)
     {
-        cv::Point pixel = samples[i];
-        cv::Vec3f egocanPt;
+        pixel = samples[i];
+        
         pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
         A(i, 0) = egocanPt.val[0];
@@ -110,14 +116,18 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
                                 std::vector<cv::Point> & inliers,
                                 const Eigen::VectorXf & x)
 {
+    cv::Point pixel;
+    cv::Vec3f egocanPt;
+    float y_hat;
+    float error;
+
     for (size_t i = 0; i < pixels.size(); i++)
     {
-        cv::Point pixel = pixels[i];
-        cv::Vec3f egocanPt;
+        pixel = pixels[i];
         pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
-        float y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
-        float error = std::abs(egocanPt.val[1] - y_hat);
+        y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
+        error = std::abs(egocanPt.val[1] - y_hat);
         if (error < params_.ransac_T)
             inliers.push_back(pixel);
     }    

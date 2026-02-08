@@ -485,8 +485,8 @@ void SuperpixelDepthSegmenter::run()
     // Calculate convex hulls
     // RCLCPP_INFO_STREAM(node_->get_logger(), "Convexifying ...");
     // convexHullBegin = std::chrono::steady_clock::now();
-    convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
-                            superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
+    // convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
+    //                         superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
     // convexHullEnd = std::chrono::steady_clock::now();
     // convexHullTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     // numberOfConvexHullCalls++;
@@ -954,13 +954,15 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << ", count: " << center_counts_[j]);
 
+            float invCount = 1.0 / center_counts_[j];
+
             // Average
-            centers_[j][0] /= center_counts_[j];
-            centers_[j][1] /= center_counts_[j];
-            centers_[j][2] /= center_counts_[j];
-            centers_[j][3] /= center_counts_[j];
-            centers_[j][4] /= center_counts_[j];
-            centers_[j][5] /= center_counts_[j];
+            centers_[j][0] *= invCount;
+            centers_[j][1] *= invCount;
+            centers_[j][2] *= invCount;
+            centers_[j][3] *= invCount;
+            centers_[j][4] *= invCount;
+            centers_[j][5] *= invCount;
 
             // Round pixel
             centers_[j][0] = int(round(centers_[j][0]));
@@ -972,37 +974,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             centers_[j][3] = normal.val[0];
             centers_[j][4] = normal.val[1];
             centers_[j][5] = normal.val[2];
-        }
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       RANSACing...");
-
-        /* Snap clusters to nearest pixel */
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            if (center_counts_[j] == 0) 
-            {
-                continue;
-            }
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
-
-            // if (params_.snapping_)
-            // {
-            //     center = cv::Point(centers_[j][0], centers_[j][1]);
-            //     new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
-            //     depth = depth_image.at<float>(new_center.y, new_center.x);
-            //     normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
-            //     centers_[j][0] = new_center.x;
-            //     centers_[j][1] = new_center.y;
-            //     centers_[j][2] = depth;
-            //     centers_[j][3] = normal.val[0];
-            //     centers_[j][4] = normal.val[1];
-            //     centers_[j][5] = normal.val[2];
-            // }
-
+            // RANSAC
             // if (params_.ransac_)
             // {
                 // refine normal via RANSAC
@@ -1013,7 +986,6 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 
                 // ransacBegin = std::chrono::steady_clock::now();
 
-            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
             candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
 
@@ -1024,8 +996,61 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                 // ransacEnd = std::chrono::steady_clock::now();
                 // ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
                 // numberOfRansacCalls++;
-            // }
+            // }            
         }
+
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       RANSACing...");
+
+        // /* Snap clusters to nearest pixel */
+        // // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
+        // for (size_t j = 0; j < centers_.size(); j++) 
+        // {
+        //     if (center_counts_[j] == 0) 
+        //     {
+        //         continue;
+        //     }
+
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
+
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
+
+        //     // if (params_.snapping_)
+        //     // {
+        //     //     center = cv::Point(centers_[j][0], centers_[j][1]);
+        //     //     new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
+        //     //     depth = depth_image.at<float>(new_center.y, new_center.x);
+        //     //     normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
+        //     //     centers_[j][0] = new_center.x;
+        //     //     centers_[j][1] = new_center.y;
+        //     //     centers_[j][2] = depth;
+        //     //     centers_[j][3] = normal.val[0];
+        //     //     centers_[j][4] = normal.val[1];
+        //     //     centers_[j][5] = normal.val[2];
+        //     // }
+
+        //     // if (params_.ransac_)
+        //     // {
+        //         // refine normal via RANSAC
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
+        //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
+                
+        //         // ransacBegin = std::chrono::steady_clock::now();
+
+        //     cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+        //     candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+        //     // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
+
+        //     centers_[j][3] = candidate_normal.val[0];
+        //     centers_[j][4] = candidate_normal.val[1];
+        //     centers_[j][5] = candidate_normal.val[2];
+
+        //         // ransacEnd = std::chrono::steady_clock::now();
+        //         // ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
+        //         // numberOfRansacCalls++;
+        //     // }
+        // }
     }
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers:");
