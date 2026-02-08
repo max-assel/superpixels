@@ -23,12 +23,12 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
     if (pixels.size() < params_.ransac_K)
         return normal;
 
-    size_t max_inliers = 0;    
+    int max_inliers = 0;
 
     for (int n = 0; n < params_.ransac_N; n++)
     {
-        samples.clear();
-        indices.clear();
+        samples = std::vector<cv::Point>(params_.ransac_K);
+        indices = std::vector<int>(params_.ransac_K);
         inliers.clear();
 
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       iteration: " << n);
@@ -80,8 +80,8 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
             idx = rand_idx % pixels.size();
             // RCLCPP_INFO_STREAM(node_->get_logger(), "           rand_idx: " << rand_idx << ", idx: " << idx);
         }
-        samples.push_back(pixels[idx]);
-        indices.push_back(idx);
+        samples[i] = pixels[idx];
+        indices[i] = idx;
     }
 }
 
@@ -121,13 +121,15 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
     float y_hat;
     float error;
 
-    for (size_t i = 0; i < pixels.size(); i++)
+    for (int i = 0; i < pixels.size(); i++)
     {
         pixel = pixels[i];
         pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.half_k_c_, params_.two_over_h_times_k_c_);
 
         y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
         error = std::abs(egocanPt.val[1] - y_hat);
+
+        // do not know size beforehand
         if (error < params_.ransac_T)
             inliers.push_back(pixel);
     }    

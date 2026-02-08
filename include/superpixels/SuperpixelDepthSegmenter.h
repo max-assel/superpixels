@@ -170,6 +170,18 @@ class SuperpixelDepthSegmenter
 
         geometry_msgs::msg::TransformStamped egocanFrameToOdomFrame = geometry_msgs::msg::TransformStamped();
 
+        float max_d_normal_ = 0.0f;
+        float inv_max_d_normal_ = 0.0f;
+
+        float max_d_plane_ = 0.0f;
+        float inv_max_d_plane_ = 0.0f;
+
+        float max_d_world_ = 0.0f;
+        float inv_max_d_world_ = 0.0f;
+
+        float max_compact_dist_ = 0.0f;
+        float inv_max_compact_dist_ = 0.0f;
+
         // std::chrono::steady_clock::time_point totalBegin, totalEnd;
         // float totalTimeTaken = 0.0;
         // int numberOfTotalCalls = 0;

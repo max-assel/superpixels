@@ -281,7 +281,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     terrain_msg.planar_regions.clear();
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
-    for (size_t i = 0; i < centers.size(); i++)
+    for (int i = 0; i < centers.size(); i++)
     {        
         // RCLCPP_INFO_STREAM(node_->get_logger(), "           i: " << i);
 
@@ -323,7 +323,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
         polygon.container().clear();
         inflated_polygon.container().clear();
-        for (size_t j = 0; j < superpixel_convex_hulls[i].size(); j++)
+        for (int j = 0; j < superpixel_convex_hulls[i].size(); j++)
         {
             convexHullPt = superpixel_convex_hulls[i][j];
 
@@ -819,7 +819,7 @@ void Visualizer::visualizePlanarRegionBoundaries(const std::unique_ptr<switched_
     if (planarRegions.size() < priorPlanarRegionsSize)
     {
         // Clear extra markers from prior visualization
-        for (size_t j = planarRegions.size(); j < priorPlanarRegionsSize; j++)
+        for (int j = planarRegions.size(); j < priorPlanarRegionsSize; j++)
         {
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
 
@@ -908,7 +908,7 @@ void Visualizer::visualizePlanarRegionNormals(const std::unique_ptr<switched_mod
     if (planarRegions.size() < priorPlanarRegionsIDSize)
     {
         // Clear extra markers from prior visualization
-        for (size_t j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
+        for (int j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
         {
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
 
@@ -989,7 +989,7 @@ void Visualizer::visualizePlanarRegionIDs(const std::unique_ptr<switched_model::
     if (planarRegions.size() < priorPlanarRegionsIDSize)
     {
         // Clear extra markers from prior visualization
-        for (size_t j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
+        for (int j = planarRegions.size(); j < priorPlanarRegionsIDSize; j++)
         {
             // RCLCPP_INFO_STREAM(node_->get_logger(), "       Filler region " << j );
 
