@@ -79,13 +79,13 @@ def generate_launch_description():
         }.items(),
     )  
 
-    # superpixels_node = Node(
-    #     package="superpixels",
-    #     executable="superpixel_depth_segmentation_node",
-    #     name="superpixel_depth_segmentation_node",
-    #     output="screen",
-    #     parameters=[config_path]
-    # )
+    superpixels_node = Node(
+        package="superpixels",
+        executable="superpixel_depth_segmentation_node",
+        name="superpixel_depth_segmentation_node",
+        output="screen",
+        parameters=[config_path]
+    )
 
     dummy_tf_node = launch_ros.actions.Node(
         package="tf2_ros",
@@ -119,7 +119,6 @@ def generate_launch_description():
             realsense_ld,
             normal_estimation_ld,
             semantic_egocan_ld,
-            # rviz_node
-            # superpixels_node,
+            superpixels_node,
         ]
     )
