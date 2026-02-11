@@ -27,7 +27,7 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     // colored_cluster_img_pub_ = it.advertise("/superpixels/colored_clusters", 1);
     // colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    // colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
+    colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
     // colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
     terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
 
@@ -183,7 +183,8 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // colorClusters(color_depth_image, clusters);
 
     // std::cout << "coloring clustered point cloud" << std::endl;
-    // colorClusterPointCloud(depth_image, clusters);
+    // Should be depth_image, need the infilled version
+    colorClusterPointCloud(depth_image, clusters);
 
     // colorCentroids(centers, center_counts);
 
@@ -596,71 +597,76 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 
 // }
 
-// void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::Mat & clusters)
-// {
-//     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusterPointCloud]");
+void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::Mat & clusters)
+{
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::colorClusterPointCloud]");
 
-//     // std::lock_guard<std::mutex> lock(cloud_mutex_);
+    // std::lock_guard<std::mutex> lock(cloud_mutex_);
 
-//     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Coloring cluster point cloud ...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Coloring cluster point cloud ...");
 
-//     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-//     // colored_cloud->header = fin_depth_img_ptr_->header;
-//     // colored_cloud->header.stamp = ros::Time::now();
-//     colored_cloud->width = depth_image.cols;
-//     colored_cloud->height = depth_image.rows;
-//     // colored_cloud->is_dense = cloud_ptr_->is_dense;
-//     colored_cloud->points.resize(colored_cloud->width * colored_cloud->height);
+    // colored_cloud->header = fin_depth_img_ptr_->header;
+    // colored_cloud->header.stamp = ros::Time::now();
+    colored_cloud->width = depth_image.cols;
+    colored_cloud->height = depth_image.rows;
+    // colored_cloud->is_dense = cloud_ptr_->is_dense;
+    colored_cloud->points.resize(colored_cloud->width * colored_cloud->height);
 
-//     // iterate through valid pixels and color
-//     pcl::PointXYZRGBA point = pcl::PointXYZRGBA();
-//     cv::Point pixel = cv::Point(0, 0);
-//     cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
-//     int cluster_id = -1;
-//     cv::Scalar color = cv::Scalar(114, 0, 189);
-//     int idx = 0;
-//     for (int r = 0; r < depth_image.rows; r++)
-//     {
-//         for (int c = 0; c < depth_image.cols; c++)
-//         {
-//             pixel = cv::Point(c, r);
+    // iterate through valid pixels and color
+    pcl::PointXYZRGBA point = pcl::PointXYZRGBA();
+    cv::Point pixel = cv::Point(0, 0);
+    cv::Vec3f egocanPt = cv::Vec3f(0.0, 0.0, 0.0);
+    int cluster_id = -1;
+    cv::Scalar color = cv::Scalar(0, 255, 128);
+    int idx = 0;
+    for (int r = 0; r < depth_image.rows; r++)
+    {
+        for (int c = 0; c < depth_image.cols; c++)
+        {
+            pixel = cv::Point(c, r);
 
-//             pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
+            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
 
-//             point.x = egocanPt[0];
-//             point.y = egocanPt[1];
-//             point.z = egocanPt[2];
+            point.x = egocanPt[0];
+            point.y = egocanPt[1];
+            point.z = egocanPt[2];
 
-//             cluster_id = clusters.at<int>(r, c);
-//             if (cluster_id != -1)
-//             {
-//                 // color = colors_[cluster_id];
-//                 // point.r = color[2];
-//                 // point.g = color[1];
-//                 // point.b = color[0];
-//                 point.r = color[0];
-//                 point.g = color[1];
-//                 point.b = color[2];
-//                 point.a = 255;
-//             } else
-//             {
-//                 point.a = 128;
-//             }
+            cluster_id = clusters.at<int>(r, c);
+            if (cluster_id != -1)
+            {
+                // color = colors_[cluster_id];
+                // point.r = color[2];
+                // point.g = color[1];
+                // point.b = color[0];
+                point.r = color[0];
+                point.g = color[1];
+                point.b = color[2];
+                point.a = 255;
+            } else
+            {
+                point.a = 128;
+            }
 
-//             idx = r * colored_cloud->width + c;
-//             colored_cloud->points[idx] = point;
-//         }
-//     }
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       cluster_id: " << cluster_id);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       point: (" << point.x << ", " << point.y << ", " << point.z << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       color: (" << (int) point.r << ", " << (int) point.g << ", " << (int) point.b << ", " << (int) point.a << ")");
 
-//     sensor_msgs::msg::PointCloud2 colored_cloud_msg;
-//     pcl::toROSMsg(*colored_cloud, colored_cloud_msg);
-//     colored_cloud_msg.header = fin_depth_img_ptr_->header;
+            idx = r * colored_cloud->width + c;
+            colored_cloud->points[idx] = point;
+        }
+    }
 
-//     colored_point_cloud_pub_->publish(colored_cloud_msg);
+    sensor_msgs::msg::PointCloud2 colored_cloud_msg;
+    pcl::toROSMsg(*colored_cloud, colored_cloud_msg);
+    colored_cloud_msg.header = fin_depth_img_ptr_->header;
 
-//     return;
-// }
+    colored_point_cloud_pub_->publish(colored_cloud_msg);
+
+    return;
+}
 
 // void Visualizer::colorCentroids(const std::vector<std::vector<float>> & centers,
 //                                 const std::vector<int> & center_counts)
@@ -808,8 +814,8 @@ void Visualizer::visualizePlanarRegionBoundaries(const std::unique_ptr<switched_
         regionMarker.scale.x = 0.02; // Line width
         regionMarker.color.a = 1.0; // Opacity
         regionMarker.color.r = 0.0; // Red
-        regionMarker.color.g = 0.4470; // Green
-        regionMarker.color.b = 0.7410; // Blue
+        regionMarker.color.g = 1.0; // Green
+        regionMarker.color.b = 0.0; // Blue
         regionMarker.points = boundary;
         regionMarker.pose.orientation.w = 1.0; // No rotation
         regionMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
@@ -898,8 +904,8 @@ void Visualizer::visualizePlanarRegionNormals(const std::unique_ptr<switched_mod
         regionNormalMarker.points.push_back(endPoint);
         regionNormalMarker.color.a = 1.0; // transparency
         regionNormalMarker.color.r = 0.0; // red
-        regionNormalMarker.color.g = 0.4470; // green
-        regionNormalMarker.color.b = 0.7410; // blue
+        regionNormalMarker.color.g = 1.0; // green
+        regionNormalMarker.color.b = 0.0; // blue
         regionNormalMarker.lifetime = rclcpp::Duration::from_seconds(0.0); // Lifetime of the marker
         regionNormalMarker.pose.orientation.w = 1.0; // No rotation
         planarRegionNormalMarkerArray.markers.push_back(regionNormalMarker);

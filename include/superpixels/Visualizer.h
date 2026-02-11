@@ -77,8 +77,8 @@ class Visualizer
         // void colorClusters(const cv::Mat & color_depth_image,
         //                     const cv::Mat & clusters);
 
-        // void colorClusterPointCloud(const cv::Mat & depth_image, 
-        //                             const cv::Mat & clusters);    
+        void colorClusterPointCloud(const cv::Mat & depth_image, 
+                                    const cv::Mat & clusters);    
 
         // void displayCenterGrid(cv::Mat & image, 
         //                         const cv::Vec3b & color, 
@@ -108,10 +108,7 @@ class Visualizer
         // image_transport::Publisher center_grid_img_pub_;
         // image_transport::Publisher colored_cluster_img_pub_;        
 
-        // ros::Publisher colored_point_cloud_pub_;
-        // ros::Publisher colored_centroids_pub_;
-        // ros::Publisher terrainPub_;
-        // rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr colored_point_cloud_pub_;
+        rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr colored_point_cloud_pub_;
         // rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr colored_centroids_pub_;
         rclcpp::Publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>::SharedPtr terrainPub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
