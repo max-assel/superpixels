@@ -10,7 +10,7 @@ superpixel_depth_segmentation_node:
     normal_image_topic: /floor_normals
 
     # Width and height of incoming floor images
-    k_c: 128
+    k_c: 256
 
     # Vertical FOV for egocan 
     v_fov: 60.0

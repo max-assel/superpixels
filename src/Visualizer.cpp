@@ -11,15 +11,12 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     // Set up subscribers and publishers
     image_transport::ImageTransport it(node_);
 
-    // fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
+    fin_depth_img_pub_ = it.advertise("/superpixels/process_depth", 1);
     fin_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
-    // // fin_label_img_pub_ = it.advertise("/superpixels/process_labels", 1);
-    // // fin_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-
-    // fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
-    // fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-    // fin_normal_img_colored_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    fin_normal_img_pub_ = it.advertise("/superpixels/process_normals", 1);
+    fin_normal_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
+    fin_normal_img_colored_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     // center_grid_img_pub_ = it.advertise("/superpixels/center_grid", 1);
     // center_grid_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -28,7 +25,7 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     // colored_cluster_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
 
     colored_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/superpixels/colored_point_cloud", 1);
-    // colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
+    colored_centroids_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/colored_centroids", 1);
     terrainPub_ = node_->create_publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>("/convex_plane_decomposition_ros/planar_terrain", 1);
 
     localRegionPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/planar_regions", 1);
@@ -107,29 +104,29 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
     // WARNING: clusters IDs are wrong after removing superpixels, ID itself is invalid
 
-    // if (centers.size() != center_counts.size())
-    // {
-    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and center_counts size (" << center_counts.size() << ") do not match!");
-    //     return;
-    // }
+    if (centers.size() != center_counts.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and center_counts size (" << center_counts.size() << ") do not match!");
+        return;
+    }
 
-    // if (centers.size() != superpixel_projections.size())
-    // {
-    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_projections size (" << superpixel_projections.size() << ") do not match!");
-    //     return;
-    // }
+    if (centers.size() != superpixel_projections.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_projections size (" << superpixel_projections.size() << ") do not match!");
+        return;
+    }
 
-    // if (centers.size() != superpixel_convex_hulls.size())
-    // {
-    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_convex_hulls size (" << superpixel_convex_hulls.size() << ") do not match!");
-    //     return;
-    // }
+    if (centers.size() != superpixel_convex_hulls.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and superpixel_convex_hulls size (" << superpixel_convex_hulls.size() << ") do not match!");
+        return;
+    }
 
-    // if (centers.size() != egocan_to_region_rotations.size())
-    // {
-    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and egocan_to_region_rotations size (" << egocan_to_region_rotations.size() << ") do not match!");
-    //     return;
-    // }
+    if (centers.size() != egocan_to_region_rotations.size())
+    {
+        RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::visualize] centers size (" << centers.size() << ") and egocan_to_region_rotations size (" << egocan_to_region_rotations.size() << ") do not match!");
+        return;
+    }
 
     // std::lock_guard<std::mutex> lock(img_mutex_);
 
@@ -140,15 +137,15 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // }
 
     cv::Mat raw_depth_image = raw_depth_img_ptr->image;
-    // cv::Mat raw_normal_image = raw_normal_img_ptr->image;
+    cv::Mat raw_normal_image = raw_normal_img_ptr->image;
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr->encoding;
-    // cv::Mat flipped_depth_image;
-    // cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
-    // fin_depth_img_ptr_->image = flipped_depth_image;
-    // fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
+    cv::Mat flipped_depth_image;
+    cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
+    fin_depth_img_ptr_->image = flipped_depth_image;
+    fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final label image");
     // fin_label_img_ptr_->header = raw_label_img_ptr->header;
@@ -163,17 +160,17 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // No publishing normal image
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
-    // fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
-    // fin_normal_img_colored_ptr_->encoding = "rgb8";
-    // cv::Mat colored_normal_image = normal_image;
-    // // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
-    // cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
-    // cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
-    // scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
-    // cv::Mat flipped_scaled_colored_normal_image;
-    // cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
-    // fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
-    // fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
+    fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
+    fin_normal_img_colored_ptr_->encoding = "rgb8";
+    cv::Mat colored_normal_image = normal_image;
+    // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
+    cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
+    cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
+    scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
+    cv::Mat flipped_scaled_colored_normal_image;
+    cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
+    fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
+    fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
     // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
     // convertDepthImageToColor(color_depth_image, depth_image);
@@ -191,7 +188,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing planar regions");
 
     // depth_image, 
-    publishPlanarRegions(depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
+    publishPlanarRegions(raw_depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
 
     // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 

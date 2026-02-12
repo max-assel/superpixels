@@ -102,14 +102,13 @@ class Visualizer
         rclcpp::Node::SharedPtr node_;
 
         // Publishers
-        // image_transport::Publisher fin_depth_img_pub_;
-        // image_transport::Publisher fin_label_img_pub_;
-        // image_transport::Publisher fin_normal_img_pub_;
+        image_transport::Publisher fin_depth_img_pub_;
+        image_transport::Publisher fin_normal_img_pub_;
         // image_transport::Publisher center_grid_img_pub_;
         // image_transport::Publisher colored_cluster_img_pub_;        
 
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr colored_point_cloud_pub_;
-        // rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr colored_centroids_pub_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr colored_centroids_pub_;
         rclcpp::Publisher<convex_plane_decomposition_msgs::msg::PlanarTerrain>::SharedPtr terrainPub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionIDPublisher_;
@@ -125,9 +124,8 @@ class Visualizer
         // cv_bridge::CvImagePtr colored_cluster_img_ptr_ = nullptr;
 
         cv_bridge::CvImagePtr fin_depth_img_ptr_ = nullptr;
-        // cv_bridge::CvImagePtr fin_label_img_ptr_ = nullptr;
-        // cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
-        // cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
+        cv_bridge::CvImagePtr fin_normal_img_ptr_ = nullptr;
+        cv_bridge::CvImagePtr fin_normal_img_colored_ptr_ = nullptr;
 
         std::vector<cv::Scalar> colors_;
 
