@@ -87,28 +87,6 @@ def generate_launch_description():
         parameters=[config_path]
     )
 
-    dummy_tf_node = launch_ros.actions.Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="odom_to_D435",
-        output="screen",
-        arguments=[
-            "0",
-            "0",
-            "0",
-            "0",
-            "0",
-            "0",
-            "base",
-            "base_link"
-        ],
-        parameters=[
-            {
-                "use_sim_time": LaunchConfiguration("use_sim_time"),
-            }
-        ]
-    ),    
-
     ###########################
     # Full Launch Description #
     ###########################

@@ -114,7 +114,7 @@ class Visualizer
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionIDPublisher_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr localRegionNormalPublisher_;
-        // rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapPublisher_;
+        rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapPublisher_;
         
         int priorPlanarRegionsSize = 0;
         int priorPlanarRegionsNormalSize = 0;
