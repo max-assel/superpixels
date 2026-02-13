@@ -36,24 +36,20 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
 
     setColors();    
 
-    // // placeholder gridMap
-    // grid_map::GridMap grid_map;
-    // grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
-    // float grid_map_resolution = 0.1; // resolution [m]
-    // grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
-    // grid_map.setGeometry(grid_map_dimensions, 
-    //                         grid_map_resolution, 
-    //                         grid_map_origin);
-    // grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
-    // grid_map.setFrameId("odom");
+    // placeholder gridMap
+    grid_map::GridMap grid_map;
+    grid_map::Length grid_map_dimensions(1.0, 1.0); // lengths in x,y directions [m]
+    float grid_map_resolution = 0.1; // resolution [m]
+    grid_map::Position grid_map_origin(0.0, 0.0); // origin [m]
+    grid_map.setGeometry(grid_map_dimensions, 
+                            grid_map_resolution, 
+                            grid_map_origin);
+    grid_map.add("elevation", 0.0); // add layer with value to initialize to everywhere'
+    grid_map.setFrameId("odom");
 
-    // grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
+    grid_map_msg = *grid_map::GridMapRosConverter::toMessage(grid_map);
 
-    // terrain_msg.gridmap = grid_map_msg; 
-
-    // set up terrain publisher
-    // terrainPub_ = nh.advertise<convex_plane_decomposition_msgs::PlanarTerrain>
-                                    // ("/convex_plane_decomposition_ros/planar_terrain", 1);
+    terrain_msg.gridmap = grid_map_msg; 
 }
 
 bool Visualizer::canTransform(const std::string & egocan_frame, const rclcpp::Time & lookupTime)
@@ -139,13 +135,13 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     cv::Mat raw_depth_image = raw_depth_img_ptr->image;
     cv::Mat raw_normal_image = raw_normal_img_ptr->image;
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
+    // // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final depth image");
     fin_depth_img_ptr_->header = raw_depth_img_ptr->header;
     fin_depth_img_ptr_->encoding = raw_depth_img_ptr->encoding;
-    cv::Mat flipped_depth_image;
-    cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
-    fin_depth_img_ptr_->image = flipped_depth_image;
-    fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
+    // cv::Mat flipped_depth_image;
+    // cv::flip(depth_image, flipped_depth_image, 1); // flip horizontally
+    // fin_depth_img_ptr_->image = flipped_depth_image;
+    // fin_depth_img_pub_.publish(fin_depth_img_ptr_->toImageMsg());
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Preparing final label image");
     // fin_label_img_ptr_->header = raw_label_img_ptr->header;
@@ -159,18 +155,18 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // fin_normal_img_ptr_->image = normal_image;
     // No publishing normal image
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
-    fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
-    fin_normal_img_colored_ptr_->encoding = "rgb8";
-    cv::Mat colored_normal_image = normal_image;
-    // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
-    cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
-    cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
-    scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
-    cv::Mat flipped_scaled_colored_normal_image;
-    cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
-    fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
-    fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
+    // // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing final colored normal image");
+    // fin_normal_img_colored_ptr_->header = raw_normal_img_ptr->header;
+    // fin_normal_img_colored_ptr_->encoding = "rgb8";
+    // cv::Mat colored_normal_image = normal_image;
+    // // fin_normal_img_colored_ptr_->image = fin_normal_img_ptr_->image;
+    // cv::Mat abs_colored_normal_image = cv::abs(colored_normal_image);
+    // cv::Mat scaled_colored_normal_image = abs_colored_normal_image;
+    // scaled_colored_normal_image.convertTo(scaled_colored_normal_image, CV_8UC3, 255.0);
+    // cv::Mat flipped_scaled_colored_normal_image;
+    // cv::flip(scaled_colored_normal_image, flipped_scaled_colored_normal_image, 1); // flip horizontally
+    // fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
+    // fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
     // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
     // convertDepthImageToColor(color_depth_image, depth_image);
@@ -226,154 +222,141 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         return;
     }
 
-    // rclcpp::Duration timeout(3, 0); // 3 seconds
-    // geometry_msgs::msg::TransformStamped egocanFrameToEgocanStabilizedFrame;
-    // try
-    // {
-    //     egocanFrameToEgocanStabilizedFrame = tfBuffer_->lookupTransform("egocan_stabilized", egocan_frame, lookupTime); // , timeout
-    // }
-    // catch (tf2::TransformException & ex)
-    // {
-    //     RCLCPP_WARN_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions] TF lookup failed: " << ex.what());
-    //     return;
-    // }
+    float foot_radius = 0.02;
 
+    convex_plane_decomposition::PlanarRegion region;
+    convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
+    convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
+    convex_plane_decomposition::CgalPolygon2d polygon;
+    convex_plane_decomposition::CgalPolygon2d inflated_polygon;
+    convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
+    convex_plane_decomposition_msgs::msg::PlanarRegion region_msg;
 
-    // float foot_radius = 0.02;
+    std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets(1);
 
-    // convex_plane_decomposition::PlanarRegion region;
-    // convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
-    // convex_plane_decomposition::CgalPolygonWithHoles2d polygonWithHoles;
-    // convex_plane_decomposition::CgalPolygon2d polygon;
-    // convex_plane_decomposition::CgalPolygon2d inflated_polygon;
-    // convex_plane_decomposition::CgalPolygonWithHoles2d inflated_polygon_with_holes;
-    // convex_plane_decomposition_msgs::msg::PlanarRegion region_msg;
+    cv::Point center_pixel;
+    float center_depth;
+    cv::Vec3f centerEgocanCvPt;
+    Eigen::Matrix3f regionToEgocanRotMat;
+    Eigen::Quaternionf regionToEgocanQuat;
+    Eigen::Matrix3f egocanToWorldRotMat;
 
-    // std::vector<convex_plane_decomposition::CgalPolygonWithHoles2d> insets(1);
+    Eigen::VectorXf centerWorldPose;
 
-    // cv::Point center_pixel;
-    // float center_depth;
-    // cv::Vec3f centerEgocanCvPt;
-    // Eigen::Matrix3f regionToEgocanRotMat;
-    // Eigen::Quaternionf regionToEgocanQuat;
-    // Eigen::Matrix3f egocanToWorldRotMat;
+    Eigen::Vector2f convexHullPt, convexHullDir, inflatedConvexHullPt;
 
-    // Eigen::VectorXf centerWorldPose;
+    std_msgs::msg::ColorRGBA region_color;
+    // region_color.r = color[2] / 255.0;
+    // region_color.g = color[1] / 255.0;
+    // region_color.b = color[0] / 255.0;
+    region_color.r = 0.0;
+    region_color.g = 0.0;
+    region_color.b = 0.0;
+    region_color.a = 1.0;
 
-    // Eigen::Vector2f convexHullPt, convexHullDir, inflatedConvexHullPt;
+    // std::cout << "starting loop" << std::endl;
 
-    // std_msgs::msg::ColorRGBA region_color;
-    // // region_color.r = color[2] / 255.0;
-    // // region_color.g = color[1] / 255.0;
-    // // region_color.b = color[0] / 255.0;
-    // region_color.r = 0.0;
-    // region_color.g = 0.0;
-    // region_color.b = 0.0;
-    // region_color.a = 1.0;
+    Eigen::Vector3f centerEgocanPt;
+    float norm = 0.0;
 
-    // // std::cout << "starting loop" << std::endl;
+    terrain_msg.planar_regions.clear();
 
-    // Eigen::Vector3f centerEgocanPt;
-    // float norm = 0.0;
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
+    for (size_t i = 0; i < centers.size(); i++)
+    {        
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           i: " << i);
 
-    // terrain_msg.planar_regions.clear();
+        if (center_counts[i] == 0)
+        {
+            RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has no points.");
+            continue;
+        }
 
-    // // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
-    // for (size_t i = 0; i < centers.size(); i++)
-    // {        
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "           i: " << i);
+        center_pixel = cv::Point(centers[i][0], centers[i][1]);
+        center_depth = centers[i][2];
 
-    //     if (center_counts[i] == 0)
-    //     {
-    //         RCLCPP_WARN_STREAM(node_->get_logger(), "           Region " << i << " has no points.");
-    //         continue;
-    //     }
+        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
 
-    //     center_pixel = cv::Point(centers[i][0], centers[i][1]);
-    //     center_depth = centers[i][2];
+        centerEgocanPt << centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2];
 
-    //     pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (pixel): " << centers[i][0] << ", " << centers[i][1]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (depth): " << centers[i][2]);
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (egocan frame): " << centerEgocanPt.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               normal (egocan frame): " << centers[i][3] << ", " << centers[i][4] << ", " << centers[i][5]);
 
-    //     centerEgocanPt << centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2];
+        regionToEgocanRotMat = egocan_to_region_rotations[i].transpose();
+        regionToEgocanQuat = Eigen::Quaternionf(regionToEgocanRotMat);
 
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (pixel): " << centers[i][0] << ", " << centers[i][1]);
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (depth): " << centers[i][2]);
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               center (egocan frame): " << centerEgocanPt.transpose());
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               normal (egocan frame): " << centers[i][3] << ", " << centers[i][4] << ", " << centers[i][5]);
-
-    //     regionToEgocanRotMat = egocan_to_region_rotations[i].transpose();
-    //     regionToEgocanQuat = Eigen::Quaternionf(regionToEgocanRotMat);
-
-    //     centerWorldPose = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToOdomFrame);
+        centerWorldPose = transformHelperPoseStamped(centerEgocanPt, regionToEgocanQuat, egocanFrameToOdomFrame);
         
 
-    //     // get rotation matrix
-    //     egocanToWorldRotMat = calculateRotationMatrix(centerWorldPose[3], centerWorldPose[4], centerWorldPose[5]);
+        // get rotation matrix
+        egocanToWorldRotMat = calculateRotationMatrix(centerWorldPose[3], centerWorldPose[4], centerWorldPose[5]);
 
-    //     region.transformPlaneToWorld.translation() = centerWorldPose.head(3).cast<double>();
-    //     region.transformPlaneToWorld.linear() = egocanToWorldRotMat.cast<double>();
+        region.transformPlaneToWorld.translation() = centerWorldPose.head(3).cast<double>();
+        region.transformPlaneToWorld.linear() = egocanToWorldRotMat.cast<double>();
 
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               translation: " << region.transformPlaneToWorld.translation().transpose());
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               rotation: " << region.transformPlaneToWorld.linear().row(0));
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(1));
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(2));
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               translation: " << region.transformPlaneToWorld.translation().transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               rotation: " << region.transformPlaneToWorld.linear().row(0));
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(1));
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(2));
 
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
-    //     polygon.container().clear();
-    //     inflated_polygon.container().clear();
-    //     for (size_t j = 0; j < superpixel_convex_hulls[i].size(); j++)
-    //     {
-    //         convexHullPt = superpixel_convex_hulls[i][j];
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
+        polygon.container().clear();
+        inflated_polygon.container().clear();
+        for (size_t j = 0; j < superpixel_convex_hulls[i].size(); j++)
+        {
+            convexHullPt = superpixel_convex_hulls[i][j];
 
-    //         // normal polygon
-    //         // polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
-    //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
+            // normal polygon
+            // polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
 
-    //         // inflated polygon
-    //         norm = convexHullPt.norm();
-    //         convexHullDir = convexHullPt / norm;
+            // inflated polygon
+            norm = convexHullPt.norm();
+            convexHullDir = convexHullPt / norm;
 
-    //         if (norm > (2 * foot_radius) )
-    //         {
-    //             convexHullPt = convexHullPt - foot_radius * convexHullDir;
-    //             inflatedConvexHullPt = convexHullPt - 2 * foot_radius * convexHullDir;
-    //             // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
-    //         } else
-    //         {
-    //             convexHullPt = 0.75 * convexHullPt;
-    //             inflatedConvexHullPt = 0.5 * convexHullPt;
-    //             // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
-    //         }
+            if (norm > (2 * foot_radius) )
+            {
+                // convexHullPt = convexHullPt - foot_radius * convexHullDir;
+                inflatedConvexHullPt = convexHullPt - foot_radius * convexHullDir;
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+            } else
+            {
+                // convexHullPt = 0.75 * convexHullPt;
+                inflatedConvexHullPt = 0.5 * convexHullPt;
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+            }
             
-    //         polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
-    //         inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
+            polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
+            inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
 
-    //         // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
-    //     }
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
+        }
 
-    //     polygonWithHoles.outer_boundary() = polygon; // inflated_polygon; // 
-    //     boundaryWithInset.boundary = polygonWithHoles;
+        polygonWithHoles.outer_boundary() = polygon; // inflated_polygon; // 
+        boundaryWithInset.boundary = polygonWithHoles;
 
-    //     inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
+        inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
 
-    //     insets[0] = inflated_polygon_with_holes;
+        insets[0] = inflated_polygon_with_holes;
 
-    //     boundaryWithInset.insets = insets;
+        boundaryWithInset.insets = insets;
 
-    //     region.boundaryWithInset = boundaryWithInset;
-    //     region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
+        region.boundaryWithInset = boundaryWithInset;
+        region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
-    //     region_msg = convex_plane_decomposition::toMessage(region);
-    //     // cv::Scalar color = colors_[i];
+        region_msg = convex_plane_decomposition::toMessage(region);
+        // cv::Scalar color = colors_[i];
 
-    //     region_msg.color = region_color;
+        region_msg.color = region_color;
 
-    //     terrain_msg.planar_regions.push_back(region_msg);
+        terrain_msg.planar_regions.push_back(region_msg);
 
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "   e0: " << e0.transpose());
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "   e1: " << e1.transpose());
-    //     // RCLCPP_INFO_STREAM(node_->get_logger(), "   normal: " << normal.transpose());
-    // }    
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   e0: " << e0.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   e1: " << e1.transpose());
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "   normal: " << normal.transpose());
+    }    
 
     /* Only compare to pixels in a 2 x step by 2 x step region. */
     // grid_map::GridMap map({"elevation"});
@@ -396,79 +379,79 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // message = grid_map::GridMapRosConverter::toMessage(map);
     // elevationMapPublisher_->publish(std::move(message));
 
-    const std::string elevationLayer = "elevation";
+    // const std::string elevationLayer = "elevation";
 
-    grid_map::GridMap map({elevationLayer});
-    map.setFrameId({"odom"}); // needs to be odom
-    // 1 x 1 too small
-    float map_width = 2.5;
-    float map_length = 2.5;
-    float map_resolution = 0.025;
+    // grid_map::GridMap map({elevationLayer});
+    // map.setFrameId({"odom"}); // needs to be odom
+    // // 1 x 1 too small
+    // float map_width = 2.5;
+    // float map_length = 2.5;
+    // float map_resolution = 0.025;
 
-    map.setGeometry(grid_map::Length(map_width, map_length), 
-                    map_resolution, 
-                    grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
+    // map.setGeometry(grid_map::Length(map_width, map_length), 
+    //                 map_resolution, 
+    //                 grid_map::Position(egocanFrameToOdomFrame.transform.translation.x, egocanFrameToOdomFrame.transform.translation.y));    
     
-    cv::Vec3f egocanPt;
-    Eigen::Vector3f egocanEigenPt;
-    Eigen::Vector3f worldPt;
-    // Eigen::Vector3f egocanStabilizedPt;
-    cv::Point current;
-    float depth;
+    // cv::Vec3f egocanPt;
+    // Eigen::Vector3f egocanEigenPt;
+    // Eigen::Vector3f worldPt;
+    // // Eigen::Vector3f egocanStabilizedPt;
+    // cv::Point current;
+    // float depth;
 
-    rclcpp::Time time = node_->now();
-    for (int r = 0; r < raw_depth_image.rows; r++) 
-    {
-        // #pragma omp parallel for
-        for (int c = 0; c < raw_depth_image.cols; c++) 
-        {                
-            grid_map::Position map_position;
+    // rclcpp::Time time = node_->now();
+    // for (int r = 0; r < raw_depth_image.rows; r++) 
+    // {
+    //     // #pragma omp parallel for
+    //     for (int c = 0; c < raw_depth_image.cols; c++) 
+    //     {                
+    //         grid_map::Position map_position;
 
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       r: " << r << ", c: " << c);
+    //         // RCLCPP_INFO_STREAM(node_->get_logger(), "       r: " << r << ", c: " << c);
 
-            current = cv::Point(c, r);
-            if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
-            {
-                depth = raw_depth_image.at<float>(r, c);
-                pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
-                egocanEigenPt = Eigen::Vector3f(egocanPt[0], egocanPt[1], egocanPt[2]);
+    //         current = cv::Point(c, r);
+    //         if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
+    //         {
+    //             depth = raw_depth_image.at<float>(r, c);
+    //             pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
+    //             egocanEigenPt = Eigen::Vector3f(egocanPt[0], egocanPt[1], egocanPt[2]);
 
-                worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
-                // egocanStabilizedPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToEgocanStabilizedFrame);
+    //             worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
+    //             // egocanStabilizedPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToEgocanStabilizedFrame);
 
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "   trying to add worldPt: " << worldPt.transpose());
+    //             // RCLCPP_INFO_STREAM(node_->get_logger(), "   trying to add worldPt: " << worldPt.transpose());
 
-                map_position.x() = worldPt[0];
-                map_position.y() = worldPt[1];
+    //             map_position.x() = worldPt[0];
+    //             map_position.y() = worldPt[1];
 
-                if (!map.isInside(map_position))
-                {
-                    // RCLCPP_INFO_STREAM(node_->get_logger(), "   position not inside map at r: " << r << ", c: " << c);
-                    continue;
-                }
+    //             if (!map.isInside(map_position))
+    //             {
+    //                 // RCLCPP_INFO_STREAM(node_->get_logger(), "   position not inside map at r: " << r << ", c: " << c);
+    //                 continue;
+    //             }
 
-                map.atPosition(elevationLayer, map_position) = worldPt[2];            
-            } 
-            // else
-            // {
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "   invalid pixel at r: " << r << ", c: " << c);
-            // }
-        }
-    }
+    //             map.atPosition(elevationLayer, map_position) = worldPt[2];            
+    //         } 
+    //         // else
+    //         // {
+    //             // RCLCPP_INFO_STREAM(node_->get_logger(), "   invalid pixel at r: " << r << ", c: " << c);
+    //         // }
+    //     }
+    // }
 
-    convex_plane_decomposition::PlaneDecompositionPipeline::Config perceptionConfig;
+    // convex_plane_decomposition::PlaneDecompositionPipeline::Config perceptionConfig;
 
-    convex_plane_decomposition::GridMapPreprocessing preprocessing_(perceptionConfig.preprocessingParameters);
+    // convex_plane_decomposition::GridMapPreprocessing preprocessing_(perceptionConfig.preprocessingParameters);
 
-    // preprocess layer
-    preprocessing_.preprocess(map, elevationLayer);
+    // // preprocess layer
+    // preprocessing_.preprocess(map, elevationLayer);
 
-    convex_plane_decomposition::PlaneDecompositionPipeline
-      planeDecompositionPipeline(perceptionConfig);
-    planeDecompositionPipeline.update(grid_map::GridMap(map), elevationLayer);
-    convex_plane_decomposition::PlanarTerrain planarTerrain = planeDecompositionPipeline.getPlanarTerrain();
+    // convex_plane_decomposition::PlaneDecompositionPipeline
+    //   planeDecompositionPipeline(perceptionConfig);
+    // planeDecompositionPipeline.update(grid_map::GridMap(map), elevationLayer);
+    // convex_plane_decomposition::PlanarTerrain planarTerrain = planeDecompositionPipeline.getPlanarTerrain();
 
-    terrain_msg = convex_plane_decomposition::toMessage(planarTerrain);
+    // terrain_msg = convex_plane_decomposition::toMessage(planarTerrain);
 
     // Publish
 
@@ -476,10 +459,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // add inpaint layer
     // map.add("inpaint", 0.0);
 
-    map.setTimestamp(time.nanoseconds());
-    std::unique_ptr<grid_map_msgs::msg::GridMap> message;
-    message = grid_map::GridMapRosConverter::toMessage(map);
-    elevationMapPublisher_->publish(std::move(message));
+    // map.setTimestamp(time.nanoseconds());
+    // std::unique_ptr<grid_map_msgs::msg::GridMap> message;
+    // message = grid_map::GridMapRosConverter::toMessage(map);
+    // elevationMapPublisher_->publish(std::move(message));
 
     // 
 
