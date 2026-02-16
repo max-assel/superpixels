@@ -16,7 +16,7 @@ This package has been tested on Ubuntu 22.04 / ROS2 Humble.
 
 2. Install the following ROS2 Humble packages:
     ```sh
-    sudo apt-get install ros2-humble-perception ros2-humble-perception-pcl
+    sudo apt-get install ros-humble-perception ros-humble-perception-pcl
     ```
 
 ### OCS2 Dependencies
