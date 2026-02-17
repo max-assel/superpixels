@@ -27,11 +27,11 @@ To run our perception pipeline, you need to compile the OCS2 toolbox.
 
 ### Perception Dependencies
 
-1. Install the egocylindrical ROS2 package on the `ros2_humble` branch <a href="https://github.com/ivaROS/egocylindrical/tree/ros2_humble">here</a>.
+1. Install the depth_img_normal_estimation ROS2 package on the `ros2_humble` branch <a href="https://github.com/max-assel/depth_img_normal_estimation/tree/ros2_humble">here</a>.
 
-1. Install the egocylindrical_msgs ROS2 package on the `ros2_humble` branch <a href="https://github.com/ivaROS/egocylindrical_msgs/tree/ros2_humble">here</a>.
+2. Install the egocylindrical ROS2 package on the `ros2_humble` branch <a href="https://github.com/ivaROS/egocylindrical/tree/ros2_humble">here</a>.
 
-2. Install the depth_img_normal_estimation ROS2 package on the `ros2_humble` branch <a href="https://github.com/max-assel/depth_img_normal_estimation/tree/ros2_humble">here</a>.
+3. Install the egocylindrical_msgs ROS2 package on the `ros2_humble` branch <a href="https://github.com/ivaROS/egocylindrical_msgs/tree/ros2_humble">here</a>.
 
 ## Building
 
