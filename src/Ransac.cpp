@@ -54,12 +54,12 @@ cv::Vec3f Ransac::run(const std::vector<cv::Point> & pixels,
 
             // update normal
             fit(inliers, depth_image, max_inliers, x_best);
-
-            normal_best = cv::Vec3f(x_best(0), -1.0, x_best(2));
-
-            normal = normal_best / cv::norm(normal_best);
         }
     }
+
+    normal_best = cv::Vec3f(x_best(0), -1.0, x_best(2));
+
+    normal = normal_best / cv::norm(normal_best);
 
     return normal;    
 }
@@ -94,7 +94,7 @@ void Ransac::fit(const std::vector<cv::Point> & samples,
     {
         cv::Point pixel = samples[i];
         cv::Vec3f egocanPt;
-        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.half_k_c_, params_.two_over_h_times_k_c_);
 
         A(i, 0) = egocanPt.val[0];
         A(i, 1) = 1.0;
@@ -114,7 +114,7 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
     {
         cv::Point pixel = pixels[i];
         cv::Vec3f egocanPt;
-        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.half_k_c_, params_.two_over_h_times_k_c_);
 
         float y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
         float error = std::abs(egocanPt.val[1] - y_hat);

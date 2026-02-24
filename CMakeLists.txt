@@ -54,7 +54,6 @@ add_library(${PROJECT_NAME}
         src/ConvexHullifier.cpp
         src/ImagePreprocessor.cpp
         src/Ransac.cpp
-        src/RegionSplitter.cpp
         src/SuperpixelDepthSegmenter.cpp
         src/Visualizer.cpp
 )

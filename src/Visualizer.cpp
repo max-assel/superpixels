@@ -254,7 +254,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         center_depth = centers[i][2];
 
-        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
         Eigen::Vector3f centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
 
@@ -400,7 +400,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
             if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
             {
                 depth = raw_depth_image.at<float>(r, c);
-                pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
+                pixelToEgocanFrame(egocanPt, current, depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
                 egocanEigenPt = Eigen::Vector3f(egocanPt[0], egocanPt[1], egocanPt[2]);
 
                 worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
@@ -624,7 +624,7 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
         {
             pixel = cv::Point(c, r);
 
-            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
+            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.half_k_c_, params_.two_over_h_times_k_c_);
 
             point.x = egocanPt[0];
             point.y = egocanPt[1];
@@ -702,7 +702,7 @@ void Visualizer::colorCentroids(const std::vector<std::vector<float>> & centers,
         cv::Vec3f center_normal = cv::Vec3f(centers[i][3], centers[i][4], centers[i][5]);
 
         cv::Vec3f centerEgocanPt;
-        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.half_k_c_, params_.two_over_h_times_k_c_);
 
         marker.points.resize(2);
         float scale = 0.1;

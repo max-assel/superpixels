@@ -46,7 +46,7 @@ int main(int argc, char** argv)
         // Visualize outputs
         superpixel_segmenter.visualize();
 
-        // superpixel_segmenter.log();
+        superpixel_segmenter.log();
 
         rclcpp::spin_some(nodePtr);
         loop_rate.sleep();
