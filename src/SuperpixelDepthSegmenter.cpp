@@ -574,7 +574,7 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
     {
         RCLCPP_INFO_STREAM(node_->get_logger(), "Resetting data ...");
         clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<float>::max())); // 64-bit floating-point
+        distances_ = cv::Mat(depth_image.size(), CV_32F, cv::Scalar(std::numeric_limits<float>::max())); // 64-bit floating-point
 
         // Keep centers as is
 
@@ -616,7 +616,7 @@ void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
 
     /* Initialize the cluster and distance matrices. */
     clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-    distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<float>::max())); // 64-bit floating-point
+    distances_ = cv::Mat(depth_image.size(), CV_32F, cv::Scalar(std::numeric_limits<float>::max())); // 32-bit floating-point
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "    clusters_.size: " << clusters_.size() << ", type: " << clusters_.type() << ", channels: " << clusters_.channels());
     // RCLCPP_INFO_STREAM(node_->get_logger(), "    distances_.size: " << distances_.size() << ", type: " << distances_.type() << ", channels: " << distances_.channels());
@@ -846,7 +846,7 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Iteration: " << i);
 
         /* Reset distance and cluster values. */
-        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<float>::max()));
+        distances_ = cv::Mat(depth_image.size(), CV_32F, cv::Scalar(std::numeric_limits<float>::max()));
         // clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
 
         /* Update distances and clusters */
