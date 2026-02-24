@@ -85,10 +85,10 @@ void Ransac::sample(const std::vector<cv::Point> & pixels,
 void Ransac::fit(const std::vector<cv::Point> & samples,
                     const cv::Mat & depth_image,
                     const int & num_samples,
-                    Eigen::VectorXd & x)
+                    Eigen::VectorXf & x)
 {
-    Eigen::MatrixXd A(num_samples, 3);
-    Eigen::VectorXd b(num_samples);
+    Eigen::MatrixXf A(num_samples, 3);
+    Eigen::VectorXf b(num_samples);
 
     for (int i = 0; i < num_samples; i++)
     {
@@ -108,7 +108,7 @@ void Ransac::fit(const std::vector<cv::Point> & samples,
 void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
                                 const cv::Mat & depth_image,
                                 std::vector<cv::Point> & inliers,
-                                const Eigen::VectorXd & x)
+                                const Eigen::VectorXf & x)
 {
     for (size_t i = 0; i < pixels.size(); i++)
     {
@@ -116,8 +116,8 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
         cv::Vec3f egocanPt;
         pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
 
-        double y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
-        double error = std::abs(egocanPt.val[1] - y_hat);
+        float y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
+        float error = std::abs(egocanPt.val[1] - y_hat);
         if (error < params_.ransac_T)
             inliers.push_back(pixel);
     }    

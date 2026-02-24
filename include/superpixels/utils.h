@@ -17,9 +17,9 @@ struct SuperpixelParams
 {
     // Floor image parameters
     int k_c_ = 512; // Floor width (pixels)
-    double v_fov_ = M_PI / 2.0; // Vertical field of view (radians)
-    double v_offset_ = 0.0;
-    double h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
+    float v_fov_ = M_PI / 2.0; // Vertical field of view (radians)
+    float v_offset_ = 0.0;
+    float h_ = (v_fov_ / 2) - v_offset_; // Vertical angle from camera to floor (radians)
 
     // Dilation parameters
     int num_dilation_iterations_ = 0; // Number of dilation iterations
@@ -35,15 +35,15 @@ struct SuperpixelParams
     bool snapping_ = false; // Snap clusters to nearest actual pixel
 
     // Superpixel distance parameters
-    double w_normal_ = 1.0; // Weighting parameter for normal similarity term
-    double w_plane_dist_ = 1.0; // Weighting parameter for plane - position distance term
-    double w_world_dist_ = 1.0; // Weighting parameter for world - position distance term
-    double w_compact_ = 3.0; // Weighting parameter for compactness term
+    float w_normal_ = 1.0; // Weighting parameter for normal similarity term
+    float w_plane_dist_ = 1.0; // Weighting parameter for plane - position distance term
+    float w_world_dist_ = 1.0; // Weighting parameter for world - position distance term
+    float w_compact_ = 3.0; // Weighting parameter for compactness term
 
     // RANSAC parameters
     size_t ransac_K = 10; // number of points to sample
     int ransac_N = 25; // number of iterations
-    double ransac_T = 0.01; // threshold    
+    float ransac_T = 0.01; // threshold    
 };
 
 inline bool isPixelInBounds(const int & k_c, 
@@ -64,7 +64,7 @@ inline bool isPixelInBounds(const int & k_c,
     return true;
 }
 
-inline bool isClusterCentroidValid(const std::vector<double> & center)
+inline bool isClusterCentroidValid(const std::vector<float> & center)
 {
     cv::Point center_pixel = cv::Point(center[0], center[1]);
     float center_depth = center[2];
@@ -76,9 +76,9 @@ inline bool isClusterCentroidValid(const std::vector<double> & center)
         return false;
     }
 
-    Eigen::Vector3d normal(center[3], center[4], center[5]);    
+    Eigen::Vector3f normal(center[3], center[4], center[5]);    
 
-    Eigen::Vector3d ideal_normal(0, -1.0, 0);
+    Eigen::Vector3f ideal_normal(0, -1.0, 0);
     if ( std::abs( normal.dot(ideal_normal) ) < 0.975 )
     {
         // RCLCPP_WARN_STREAM(node_->get_logger(), "Passing depth check but failing normal check.");
@@ -201,9 +201,9 @@ inline bool isPixelValid(const cv::Mat & depth_image,
 * 
 * @param source The 6D pose in world frame
 * @param worldToBaseTransform The transform from world to base frame
-* @return Eigen::VectorXd : The 6D pose in base frame
+* @return Eigen::VectorXf : The 6D pose in base frame
 */
-inline Eigen::Vector3d transformHelperPointStamped(const Eigen::Vector3d & source_pos,
+inline Eigen::Vector3f transformHelperPointStamped(const Eigen::Vector3f & source_pos,
                                                     const geometry_msgs::msg::TransformStamped & egocanFrameToWorldFrame)
 {
     // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
@@ -220,7 +220,7 @@ inline Eigen::Vector3d transformHelperPointStamped(const Eigen::Vector3d & sourc
 
     tf2::doTransform(sourceVector, destVector, egocanFrameToWorldFrame);
 
-    Eigen::Vector3d dest = Eigen::Vector3d::Zero(); // source.size()
+    Eigen::Vector3f dest = Eigen::Vector3f::Zero(); // source.size()
 
     dest[0] = destVector.point.x;
     dest[1] = destVector.point.y;
@@ -236,10 +236,10 @@ inline Eigen::Vector3d transformHelperPointStamped(const Eigen::Vector3d & sourc
 * 
 * @param source The 6D pose in world frame
 * @param worldToBaseTransform The transform from world to base frame
-* @return Eigen::VectorXd : The 6D pose in base frame
+* @return Eigen::VectorXf : The 6D pose in base frame
 */
-inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source_pos,
-                                                    const Eigen::Quaterniond & source_quat,
+inline Eigen::VectorXf transformHelperPoseStamped(const Eigen::Vector3f & source_pos,
+                                                    const Eigen::Quaternionf & source_quat,
                                                     const geometry_msgs::msg::TransformStamped & egocanFrameToWorldFrame)
 {
     // std::cout << "[transformHelperVector3Stamped()]" << std::endl;
@@ -255,7 +255,7 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
     sourceVector.pose.position.z = source_pos[2];
 
     // euler to quat
-    Eigen::Quaterniond q_source = source_quat;
+    Eigen::Quaternionf q_source = source_quat;
 
     sourceVector.pose.orientation.x = q_source.x();
     sourceVector.pose.orientation.y = q_source.y();
@@ -271,11 +271,12 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
                         destVector.pose.orientation.y,
                         destVector.pose.orientation.z,
                         destVector.pose.orientation.w);
+    tf2::Matrix3x3 mat(q);
 
-    double roll, pitch, yaw;
-    tf2::Matrix3x3(q).getEulerYPR(yaw, pitch, roll);
+    tf2Scalar roll, pitch, yaw;
+    mat.getEulerYPR(yaw, pitch, roll);
 
-    Eigen::VectorXd dest = Eigen::VectorXd::Zero(6); // source.size()
+    Eigen::VectorXf dest = Eigen::VectorXf::Zero(6); // source.size()
 
     dest[0] = destVector.pose.position.x;
     dest[1] = destVector.pose.position.y;
@@ -293,23 +294,23 @@ inline Eigen::VectorXd transformHelperPoseStamped(const Eigen::Vector3d & source
 * @param roll The roll angle
 * @param pitch The pitch angle
 * @param yaw The yaw angle
-* @return Eigen::Matrix3d : The rotation matrix
+* @return Eigen::Matrix3f : The rotation matrix
 */
-inline Eigen::Matrix3d calculateRotationMatrix(const double & roll, 
-                                                const double & pitch, 
-                                                const double & yaw)
+inline Eigen::Matrix3f calculateRotationMatrix(const float & roll, 
+                                                const float & pitch, 
+                                                const float & yaw)
 {
-    Eigen::Matrix3d rotMat;
+    Eigen::Matrix3f rotMat;
 
-    double R11 = std::cos(yaw)*std::cos(pitch);
-    double R12 = std::cos(yaw)*std::sin(pitch)*std::sin(roll)-std::sin(yaw)*std::cos(roll);
-    double R13 = std::cos(yaw)*std::sin(pitch)*std::cos(roll)+std::sin(yaw)*std::sin(roll);
-    double R21 = std::sin(yaw)*std::cos(pitch);
-    double R22 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)+std::cos(yaw)*std::cos(roll);
-    double R23 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)-std::cos(yaw)*std::sin(roll);
-    double R31 = -std::sin(pitch);
-    double R32 = std::cos(pitch)*std::sin(roll);
-    double R33 = std::cos(pitch)*std::cos(roll);
+    float R11 = std::cos(yaw)*std::cos(pitch);
+    float R12 = std::cos(yaw)*std::sin(pitch)*std::sin(roll)-std::sin(yaw)*std::cos(roll);
+    float R13 = std::cos(yaw)*std::sin(pitch)*std::cos(roll)+std::sin(yaw)*std::sin(roll);
+    float R21 = std::sin(yaw)*std::cos(pitch);
+    float R22 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)+std::cos(yaw)*std::cos(roll);
+    float R23 = std::sin(yaw)*std::sin(pitch)*std::sin(roll)-std::cos(yaw)*std::sin(roll);
+    float R31 = -std::sin(pitch);
+    float R32 = std::cos(pitch)*std::sin(roll);
+    float R33 = std::cos(pitch)*std::cos(roll);
 
     rotMat << R11, R12, R13,
               R21, R22, R23,
@@ -322,7 +323,7 @@ inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
                                 const cv::Point & pixel,
                                 const float & depth,
                                 const int & k_c,
-                                const double & h)
+                                const float & h)
 {
     egocanPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
     egocanPt[1] = depth;

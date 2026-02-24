@@ -361,14 +361,14 @@ void ImagePreprocessor::fillInImage(const cv::Mat & cleaned_depth_img,
                                     cv::Mat & filled_depth_img,
                                     // cv::Mat & filled_label_img,
                                     cv::Mat & filled_normal_img,
-                                    const double & default_height)
+                                    const float & default_height)
 {
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::fillInImage]");
 
-    // double default_height = 0.40;
+    // float default_height = 0.40;
 
     generator.seed(123456789);
-    std::normal_distribution<double> distribution(0.0, 0.00001);
+    std::normal_distribution<float> distribution(0.0, 0.00001);
 
   // generator.seed(std::hash<std::string>{}(regionID));
 

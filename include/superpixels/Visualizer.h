@@ -46,30 +46,30 @@ class Visualizer
                         const cv::Mat & normal_image,
                         const cv_bridge::CvImagePtr & raw_depth_img_ptr,
                         const cv_bridge::CvImagePtr & raw_normal_img_ptr,
-                        const std::vector<std::vector<double>> & centers,
+                        const std::vector<std::vector<float>> & centers,
                         const cv::Mat & clusters,
                         const std::vector<int> & center_counts,
-                        const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
-                        const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                        const std::vector<Eigen::Matrix3d> & superpixel_rotations);
+                        const std::vector<std::vector<Eigen::Vector2f>> & superpixel_projections,
+                        const std::vector<std::vector<Eigen::Vector2f>> & superpixel_convex_hulls,
+                        const std::vector<Eigen::Matrix3f> & superpixel_rotations);
 
         void setParams(const SuperpixelParams & params);
 
         void setColors();
 
         void outputToDatFile(const cv_bridge::CvImagePtr & raw_depth_img_ptr,
-                                const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls);
+                                const std::vector<std::vector<Eigen::Vector2f>> & superpixel_convex_hulls);
 
     private:
         // const cv::Mat & depth_img, 
         void publishPlanarRegions(const cv::Mat & raw_depth_image,
-                                    const std::vector<std::vector<double>> & centers,
+                                    const std::vector<std::vector<float>> & centers,
                                     const std::vector<int> & center_counts,
-                                    const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
-                                    const std::vector<Eigen::Matrix3d> & superpixel_rotations);  
+                                    const std::vector<std::vector<Eigen::Vector2f>> & superpixel_convex_hulls,
+                                    const std::vector<Eigen::Matrix3f> & superpixel_rotations);  
 
 
-        void colorCentroids(const std::vector<std::vector<double>> & centers,
+        void colorCentroids(const std::vector<std::vector<float>> & centers,
                             const std::vector<int> & center_counts);
 
         void colorClusters(const cv::Mat & color_depth_image,
@@ -80,13 +80,13 @@ class Visualizer
 
         void displayCenterGrid(cv::Mat & image, 
                                 const cv::Vec3b & color, 
-                                const std::vector<std::vector<double>> & centers);
+                                const std::vector<std::vector<float>> & centers);
 
-        void convertDepthImageToColor(cv::Mat & color_depth_image, 
-                                        const cv::Mat & depth_image);
+        // void convertDepthImageToColor(cv::Mat & color_depth_image, 
+        //                                 const cv::Mat & depth_image);
 
         void overlayCenters(const cv::Mat & color_depth_image, 
-                            const std::vector<std::vector<double>> & centers);
+                            const std::vector<std::vector<float>> & centers);
 
         void visualizePlanarRegions(const convex_plane_decomposition_msgs::msg::PlanarTerrain & terrain_msg);
         void visualizePlanarRegionBoundaries(const std::unique_ptr<switched_model::SegmentedPlanesTerrainModel> & terrainPtr,
