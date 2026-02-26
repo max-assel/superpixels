@@ -156,12 +156,12 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     fin_normal_img_colored_ptr_->image = flipped_scaled_colored_normal_image;
     fin_normal_img_pub_.publish(fin_normal_img_colored_ptr_->toImageMsg());
 
-    // cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-    // convertDepthImageToColor(color_depth_image, depth_image);
+    cv::Mat color_depth_image = cv::Mat(depth_image.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    convertDepthImageToColor(color_depth_image, depth_image);
 
     // overlayCenters(color_depth_image, centers);
 
-    // colorClusters(color_depth_image, clusters);
+    colorClusters(color_depth_image, clusters);
 
     colorClusterPointCloud(depth_image, clusters);
 
@@ -509,34 +509,34 @@ void Visualizer::overlayCenters(const cv::Mat & color_depth_image, const std::ve
     center_grid_img_pub_.publish(center_grid_img_ptr_->toImageMsg());
 }
 
-// void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image)
-// {
-//     float min_depth = 0.0, max_depth = 0.0;
-//     cv::minMaxLoc(depth_image, &min_depth, &max_depth);
+void Visualizer::convertDepthImageToColor(cv::Mat & color_depth_image, const cv::Mat & depth_image)
+{
+    double min_depth = 0.0, max_depth = 0.0;
+    cv::minMaxLoc(depth_image, &min_depth, &max_depth);
 
-//     // RCLCPP_INFO_STREAM(node_->get_logger(), "Converting to 8UC3...");
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "Converting to 8UC3...");
 
-//     for (int r = 0; r < color_depth_image.rows; r++)
-//     {
-//         for (int c = 0; c < color_depth_image.cols; c++)
-//         {
-//             float depth = depth_image.at<float>(r, c);
+    for (int r = 0; r < color_depth_image.rows; r++)
+    {
+        for (int c = 0; c < color_depth_image.cols; c++)
+        {
+            float depth = depth_image.at<float>(r, c);
 
-//             if (std::isnan(depth) || std::abs(depth) < 1e-6)
-//             {
-//                 continue;
-//             }
+            if (std::isnan(depth) || std::abs(depth) < 1e-6)
+            {
+                continue;
+            }
 
-//             // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
-//             // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "   (r, c): (" << r << ", " << c << ")");
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
 
-//             int quantized_depth = (int) (depth * 255.0 / max_depth); // just scaling by max depth in image. If we do full max depth than image is really hard to see.
+            int quantized_depth = (int) (depth * 255.0 / (float) max_depth); // just scaling by max depth in image. If we do full max depth than image is really hard to see.
 
-//             cv::Vec3b color = cv::Vec3b(quantized_depth, quantized_depth, quantized_depth);
-//             color_depth_image.at<cv::Vec3b>(r, c) = color;
-//         }
-//     }    
-// }
+            cv::Vec3b color = cv::Vec3b(quantized_depth, quantized_depth, quantized_depth);
+            color_depth_image.at<cv::Vec3b>(r, c) = color;
+        }
+    }    
+}
 
 void Visualizer::displayCenterGrid(cv::Mat & image, const cv::Vec3b & color, const std::vector<std::vector<float>> & centers)
 {

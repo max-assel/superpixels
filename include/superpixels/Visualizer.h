@@ -82,8 +82,8 @@ class Visualizer
                                 const cv::Vec3b & color, 
                                 const std::vector<std::vector<float>> & centers);
 
-        // void convertDepthImageToColor(cv::Mat & color_depth_image, 
-        //                                 const cv::Mat & depth_image);
+        void convertDepthImageToColor(cv::Mat & color_depth_image, 
+                                        const cv::Mat & depth_image);
 
         void overlayCenters(const cv::Mat & color_depth_image, 
                             const std::vector<std::vector<float>> & centers);
