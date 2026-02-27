@@ -49,7 +49,7 @@ def generate_launch_description():
     realsense_ld = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(
-                    realsense2_camera_path, "launch", "rs_d435_launch.py",
+                    realsense2_camera_path, "launch", "rs_d435_new_launch.py",
                 )
             ),
             launch_arguments={
