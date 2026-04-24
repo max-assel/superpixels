@@ -331,11 +331,11 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         // region_color.r = color[2] / 255.0;
         // region_color.g = color[1] / 255.0;
         // region_color.b = color[0] / 255.0;
-        region_color.r = 0.0;
-        region_color.g = 0.0;
-        region_color.b = 0.0;
-        region_color.a = 1.0;
-        region_msg.color = region_color;
+        // region_color.r = 0.0;
+        // region_color.g = 0.0;
+        // region_color.b = 0.0;
+        // region_color.a = 1.0;
+        // region_msg.color = region_color;
 
         terrain_msg.planar_regions.push_back(region_msg);
 
