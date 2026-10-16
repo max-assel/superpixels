@@ -69,6 +69,12 @@ class SuperpixelDepthSegmenter
                                     // const cv::Mat & label_image,
                                     const cv::Mat & normal_image);
 
+        // Recompute cluster centers (pixel, depth, normal) and pixel lists from clusters_.
+        void updateCenters(const cv::Mat & depth_image, const cv::Mat & normal_image);
+
+        // Split clusters into components connected in the image and in 3D; reattach or drop the rest.
+        void enforceConnectivity(const cv::Mat & depth_image);
+
         bool checkConstraints(const int & center_idx, 
                                 const float & depth,
                                 // const uint8_t & label,

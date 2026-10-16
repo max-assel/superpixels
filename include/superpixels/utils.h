@@ -36,6 +36,12 @@ struct SuperpixelParams
     bool snapping_ = false; // Snap clusters to nearest actual pixel
     bool publish_superpixel_array_ = false; // Publish SuperpixelArray tokens for the learned policy and evaluator
 
+    // Connectivity enforcement after the SLIC iterations
+    bool connectivity_ = false; // Split clusters into parts connected in the image and in 3D
+    double connectivity_max_edge_dist_ = 0.03; // Neighboring pixels further apart than this in 3D are not connected (m)
+    int connectivity_pixel_radius_ = 2; // Pixels this close in the image count as neighbors (bridges the sparse floor image)
+    double connectivity_min_fragment_frac_ = 0.25; // Unattached fragments smaller than this fraction of a nominal superpixel are dropped
+
     // Superpixel distance parameters
     double w_normal_ = 1.0; // Weighting parameter for normal similarity term
     double w_plane_dist_ = 1.0; // Weighting parameter for plane - position distance term

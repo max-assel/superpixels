@@ -58,6 +58,11 @@ def generate_launch_description():
     depth_img_normal_estimation_path = get_package_share_directory("depth_img_normal_estimation")
     superpixels_path = get_package_share_directory("superpixels")
     config_path = os.path.join(superpixels_path, "cfg", "depth_online.yaml")
+    declare_params_file = DeclareLaunchArgument(
+        "params_file",
+        default_value=config_path,
+        description="Extra superpixel parameters, applied on top of the package config",
+    )
 
     ############################
     # Declare Launch Arguments #
@@ -93,7 +98,7 @@ def generate_launch_description():
         executable="superpixel_depth_segmentation_node",
         name="superpixel_depth_segmentation_node",
         output="screen",
-        parameters=[config_path,
+        parameters=[config_path, LaunchConfiguration("params_file"),
                     {"publish_superpixel_array": ParameterValue(publish_superpixel_array, value_type=bool)}]
     )
 
@@ -113,6 +118,7 @@ def generate_launch_description():
             set_use_sim_time,
             declare_use_sim_time,
             declare_publish_superpixel_array,
+            declare_params_file,
             # declare_visualization_config_file_cmd,
             normal_estimation_ld,
             semantic_egocan_ld,

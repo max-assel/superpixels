@@ -1,5 +1,8 @@
 #include <superpixels/SuperpixelDepthSegmenter.h>
 
+#include <algorithm>
+#include <map>
+
 // , const std::string & config_path
 SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr & node)
 {
@@ -39,6 +42,14 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.ransac_ = node_->get_parameter("ransac").as_bool();
     params_.snapping_ = node_->get_parameter("snapping").as_bool();
     params_.publish_superpixel_array_ = node_->get_parameter_or<bool>("publish_superpixel_array", false);
+    params_.connectivity_ = node_->get_parameter_or<bool>("connectivity", false);
+    params_.connectivity_max_edge_dist_ = node_->get_parameter_or<double>("connectivity_max_edge_dist", 0.03);
+    params_.connectivity_min_fragment_frac_ = node_->get_parameter_or<double>("connectivity_min_fragment_frac", 0.25);
+    params_.connectivity_pixel_radius_ = node_->get_parameter_or<int>("connectivity_pixel_radius", 2);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       connectivity_: " << params_.connectivity_
+                       << " (pixel radius " << params_.connectivity_pixel_radius_
+                       << ", max edge " << params_.connectivity_max_edge_dist_
+                       << " m, min fragment " << params_.connectivity_min_fragment_frac_ << ")");
     RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       step_: " << params_.step_);
@@ -804,6 +815,254 @@ cv::Point SuperpixelDepthSegmenter::findLocalMinimum(const cv::Mat & depth_image
     return loc_min;
 }
 
+void SuperpixelDepthSegmenter::updateCenters(const cv::Mat & depth_image,
+                                             const cv::Mat & normal_image)
+{
+    cv::Point current, center, new_center;
+    float depth;
+    cv::Vec3f normal;
+    cv::Vec3f candidate_normal;
+    int cluster_id;
+
+    /* Clear the center values. */
+    for (size_t j = 0; j < centers_.size(); j++) 
+    {
+        centers_[j][0] = 0; // x
+        centers_[j][1] = 0; // y
+        centers_[j][2] = 0; // depth
+        centers_[j][3] = 0; // normal x
+        centers_[j][4] = 0; // normal y
+        centers_[j][5] = 0; // normal z
+        center_counts_[j] = 0;
+    }
+
+    superpixels_ = std::vector<std::vector<cv::Point>>(centers_.size());
+    /* Compute the new cluster centers. */
+    for (int r = 0; r < depth_image.rows; r++) 
+    {
+        for (int c = 0; c < depth_image.cols; c++) 
+        {            
+            current = cv::Point(c, r);
+            
+            cluster_id = clusters_.at<int>(r, c);
+
+            if (cluster_id != -1) 
+            {
+                float depth = depth_image.at<float>(r, c);
+                cv::Vec3f normal = normal_image.at<cv::Vec3f>(r, c);
+
+                centers_[cluster_id][0] += c;
+                centers_[cluster_id][1] += r;
+                centers_[cluster_id][2] += depth;
+                centers_[cluster_id][3] += normal.val[0];
+                centers_[cluster_id][4] += normal.val[1];
+                centers_[cluster_id][5] += normal.val[2];
+                
+                center_counts_[cluster_id] += 1; 
+
+                superpixels_[cluster_id].push_back(current);
+            }
+        }
+    }     
+
+    /* Normalize the clusters. */
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normalizing clusters ...");
+    for (size_t j = 0; j < centers_.size(); j++) 
+    {
+        if (center_counts_[j] == 0) 
+        {
+            RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << " is empty.");
+            continue;
+        }
+
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << ", count: " << center_counts_[j]);
+
+        // Average
+        centers_[j][0] /= center_counts_[j];
+        centers_[j][1] /= center_counts_[j];
+        centers_[j][2] /= center_counts_[j];
+        centers_[j][3] /= center_counts_[j];
+        centers_[j][4] /= center_counts_[j];
+        centers_[j][5] /= center_counts_[j];
+
+        // Round pixel
+        centers_[j][0] = int(round(centers_[j][0]));
+        centers_[j][1] = int(round(centers_[j][1]));
+
+        // Re-normalize
+        cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+        cv::Vec3f re_normal = normal / cv::norm(normal);
+        centers_[j][3] = re_normal.val[0];
+        centers_[j][4] = re_normal.val[1];
+        centers_[j][5] = re_normal.val[2];
+    }
+
+    /* Snap clusters to nearest pixel */
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
+    for (size_t j = 0; j < centers_.size(); j++) 
+    {
+        if (center_counts_[j] == 0) 
+        {
+            continue;
+        }
+
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
+
+        // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
+
+        if (params_.snapping_)
+        {
+            center = cv::Point(centers_[j][0], centers_[j][1]);
+            new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
+            depth = depth_image.at<float>(new_center.y, new_center.x);
+            normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
+            centers_[j][0] = new_center.x;
+            centers_[j][1] = new_center.y;
+            centers_[j][2] = depth;
+            centers_[j][3] = normal.val[0];
+            centers_[j][4] = normal.val[1];
+            centers_[j][5] = normal.val[2];
+        }
+
+        if (params_.ransac_)
+        {
+            // refine normal via RANSAC
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
+            
+            ransacBegin = std::chrono::steady_clock::now();
+
+            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
+            candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
+
+            centers_[j][3] = candidate_normal.val[0];
+            centers_[j][4] = candidate_normal.val[1];
+            centers_[j][5] = candidate_normal.val[2];
+
+            ransacEnd = std::chrono::steady_clock::now();
+            ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
+            numberOfRansacCalls++;
+        }
+    }
+}
+
+/*
+*   Split every cluster into components of pixels that are neighbors in the image (within
+*   connectivity_pixel_radius_, which bridges the empty pixels of the sparse floor image) and
+*   within connectivity_max_edge_dist_ in 3D, so a cluster can no longer span a gap or a step edge.
+*   Each cluster keeps its largest component. Other components (fragments) join the neighboring
+*   cluster they share the most 3D-close edges with; a fragment touching no cluster becomes a
+*   new cluster if it is large enough, and is dropped otherwise.
+*/
+void SuperpixelDepthSegmenter::enforceConnectivity(const cv::Mat & depth_image)
+{
+    const int rows = depth_image.rows, cols = depth_image.cols;
+    const double maxEdgeSq = params_.connectivity_max_edge_dist_ * params_.connectivity_max_edge_dist_;
+
+    // 3D point of every labeled pixel.
+    cv::Mat points(depth_image.size(), CV_32FC3, cv::Scalar(0, 0, 0));
+    for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+            if (clusters_.at<int>(r, c) != -1)
+                pixelToEgocanFrame(points.at<cv::Vec3f>(r, c), cv::Point(c, r), depth_image.at<float>(r, c),
+                                   params_.k_c_, params_.h_);
+    auto close = [&](int r1, int c1, int r2, int c2) {
+        const cv::Vec3f d = points.at<cv::Vec3f>(r1, c1) - points.at<cv::Vec3f>(r2, c2);
+        return d.dot(d) <= maxEdgeSq;
+    };
+    // Neighbor offsets within the pixel radius (a square window, excluding the pixel itself).
+    std::vector<cv::Point> offsets;
+    const int radius = std::max(1, params_.connectivity_pixel_radius_);
+    for (int dy = -radius; dy <= radius; dy++)
+        for (int dx = -radius; dx <= radius; dx++)
+            if (dx != 0 || dy != 0) offsets.emplace_back(dx, dy);
+
+    // Label components: same cluster, image neighbors, close in 3D.
+    cv::Mat component(depth_image.size(), CV_32S, cv::Scalar(-1));
+    std::vector<std::vector<cv::Point>> componentPixels;
+    std::vector<int> componentCluster;
+    for (int r = 0; r < rows; r++)
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            const int cluster = clusters_.at<int>(r, c);
+            if (cluster == -1 || component.at<int>(r, c) != -1) continue;
+            const int id = static_cast<int>(componentPixels.size());
+            componentPixels.emplace_back();
+            componentCluster.push_back(cluster);
+            std::vector<cv::Point> stack{cv::Point(c, r)};
+            component.at<int>(r, c) = id;
+            while (!stack.empty())
+            {
+                const cv::Point p = stack.back();
+                stack.pop_back();
+                componentPixels[id].push_back(p);
+                for (const cv::Point & o : offsets)
+                {
+                    const int nr = p.y + o.y, nc = p.x + o.x;
+                    if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+                    if (clusters_.at<int>(nr, nc) != cluster || component.at<int>(nr, nc) != -1) continue;
+                    if (!close(p.y, p.x, nr, nc)) continue;
+                    component.at<int>(nr, nc) = id;
+                    stack.push_back(cv::Point(nc, nr));
+                }
+            }
+        }
+    }
+
+    // Each cluster keeps its largest component.
+    std::vector<int> largest(centers_.size(), -1);
+    for (size_t id = 0; id < componentPixels.size(); id++)
+    {
+        int & best = largest[componentCluster[id]];
+        if (best == -1 || componentPixels[id].size() > componentPixels[best].size()) best = static_cast<int>(id);
+    }
+
+    const double minFragment = params_.connectivity_min_fragment_frac_ * params_.step_ * params_.step_;
+    int merged = 0, created = 0, dropped = 0;
+    for (size_t id = 0; id < componentPixels.size(); id++)
+    {
+        if (largest[componentCluster[id]] == static_cast<int>(id)) continue;
+        // Count 3D-close edges to each neighboring cluster.
+        std::map<int, int> edges;
+        for (const cv::Point & p : componentPixels[id])
+        {
+            for (const cv::Point & o : offsets)
+            {
+                const int nr = p.y + o.y, nc = p.x + o.x;
+                if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+                const int other = clusters_.at<int>(nr, nc);
+                if (other == -1 || other == componentCluster[id]) continue;
+                if (close(p.y, p.x, nr, nc)) edges[other]++;
+            }
+        }
+        int target = -1;
+        if (!edges.empty())
+        {
+            target = std::max_element(edges.begin(), edges.end(),
+                                      [](const auto & a, const auto & b) { return a.second < b.second; })->first;
+            merged++;
+        }
+        else if (componentPixels[id].size() >= minFragment)
+        {
+            target = static_cast<int>(centers_.size());
+            centers_.push_back(std::vector<double>(centers_[componentCluster[id]].size(), 0.0));
+            center_counts_.push_back(0);
+            created++;
+        }
+        else
+        {
+            dropped++;
+        }
+        for (const cv::Point & p : componentPixels[id]) clusters_.at<int>(p.y, p.x) = target;
+    }
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "connectivity: " << componentPixels.size() << " components, "
+                        << merged << " merged, " << created << " new clusters, " << dropped << " dropped");
+}
+
 void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
                                                     // const cv::Mat & label_image,
                                                     const cv::Mat & normal_image)
@@ -812,17 +1071,15 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
     srand(1);
 
-    cv::Point current, center, new_center;
+    cv::Point current;
 
     float depth;
     // uint8_t label;
     cv::Vec3f normal;
-    cv::Vec3f candidate_normal;
 
     bool check;
     double dist;
 
-    int cluster_id;
 
     // Generate superpixels
     for (int i = 0; i < params_.num_iterations_; i++)
@@ -865,129 +1122,13 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
             }
         }
 
-        /* Clear the center values. */
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            centers_[j][0] = 0; // x
-            centers_[j][1] = 0; // y
-            centers_[j][2] = 0; // depth
-            centers_[j][3] = 0; // normal x
-            centers_[j][4] = 0; // normal y
-            centers_[j][5] = 0; // normal z
-            center_counts_[j] = 0;
-        }
+        updateCenters(depth_image, normal_image);
+    }
 
-        superpixels_ = std::vector<std::vector<cv::Point>>(centers_.size());
-        /* Compute the new cluster centers. */
-        for (int r = 0; r < depth_image.rows; r++) 
-        {
-            for (int c = 0; c < depth_image.cols; c++) 
-            {            
-                current = cv::Point(c, r);
-                
-                cluster_id = clusters_.at<int>(r, c);
-
-                if (cluster_id != -1) 
-                {
-                    float depth = depth_image.at<float>(r, c);
-                    cv::Vec3f normal = normal_image.at<cv::Vec3f>(r, c);
-
-                    centers_[cluster_id][0] += c;
-                    centers_[cluster_id][1] += r;
-                    centers_[cluster_id][2] += depth;
-                    centers_[cluster_id][3] += normal.val[0];
-                    centers_[cluster_id][4] += normal.val[1];
-                    centers_[cluster_id][5] += normal.val[2];
-                    
-                    center_counts_[cluster_id] += 1; 
-
-                    superpixels_[cluster_id].push_back(current);
-                }
-            }
-        }     
-
-        /* Normalize the clusters. */
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Normalizing clusters ...");
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            if (center_counts_[j] == 0) 
-            {
-                RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << " is empty.");
-                continue;
-            }
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           Center " << j << ", count: " << center_counts_[j]);
-
-            // Average
-            centers_[j][0] /= center_counts_[j];
-            centers_[j][1] /= center_counts_[j];
-            centers_[j][2] /= center_counts_[j];
-            centers_[j][3] /= center_counts_[j];
-            centers_[j][4] /= center_counts_[j];
-            centers_[j][5] /= center_counts_[j];
-
-            // Round pixel
-            centers_[j][0] = int(round(centers_[j][0]));
-            centers_[j][1] = int(round(centers_[j][1]));
-
-            // Re-normalize
-            cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
-            cv::Vec3f re_normal = normal / cv::norm(normal);
-            centers_[j][3] = re_normal.val[0];
-            centers_[j][4] = re_normal.val[1];
-            centers_[j][5] = re_normal.val[2];
-        }
-
-        /* Snap clusters to nearest pixel */
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "       Refining via RANSAC ...");
-        for (size_t j = 0; j < centers_.size(); j++) 
-        {
-            if (center_counts_[j] == 0) 
-            {
-                continue;
-            }
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       [" << j << "]: ");
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           superpixels size: " << superpixels_[j].size());
-
-            if (params_.snapping_)
-            {
-                center = cv::Point(centers_[j][0], centers_[j][1]);
-                new_center = findClosestPixel(j, center, depth_image, normal_image); // label_image, 
-                depth = depth_image.at<float>(new_center.y, new_center.x);
-                normal = normal_image.at<cv::Vec3f>(new_center.y, new_center.x);
-                centers_[j][0] = new_center.x;
-                centers_[j][1] = new_center.y;
-                centers_[j][2] = depth;
-                centers_[j][3] = normal.val[0];
-                centers_[j][4] = normal.val[1];
-                centers_[j][5] = normal.val[2];
-            }
-
-            if (params_.ransac_)
-            {
-                // refine normal via RANSAC
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           pixel: " << centers_[j][0] << ", " << centers_[j][1]);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           depth: " << centers_[j][2]);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           normal: " << centers_[j][3] << ", " << centers_[j][4] << ", " << centers_[j][5]);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           counts: " << center_counts_[j]);
-                
-                ransacBegin = std::chrono::steady_clock::now();
-
-                cv::Vec3f normal = cv::Vec3f(centers_[j][3], centers_[j][4], centers_[j][5]);
-                candidate_normal = ransac_->run(superpixels_[j], depth_image, normal);
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           post-ransac normal: " << candidate_normal.val[0] << ", " << candidate_normal.val[1] << ", " << candidate_normal.val[2]);
-
-                centers_[j][3] = candidate_normal.val[0];
-                centers_[j][4] = candidate_normal.val[1];
-                centers_[j][5] = candidate_normal.val[2];
-
-                ransacEnd = std::chrono::steady_clock::now();
-                ransacTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(ransacEnd - ransacBegin).count();
-                numberOfRansacCalls++;
-            }
-        }
+    if (params_.connectivity_)
+    {
+        enforceConnectivity(depth_image);
+        updateCenters(depth_image, normal_image);
     }
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers:");

@@ -59,6 +59,11 @@ def generate_launch_description():
     superpixels_path = get_package_share_directory("superpixels")
     realsense2_camera_path = get_package_share_directory("realsense2_camera")
     config_path = os.path.join(superpixels_path, "cfg", "depth_hardware.yaml")
+    declare_params_file = DeclareLaunchArgument(
+        "params_file",
+        default_value=config_path,
+        description="Extra superpixel parameters, applied on top of the package config",
+    )
 
     ############################
     # Declare Launch Arguments #
@@ -105,7 +110,7 @@ def generate_launch_description():
         executable="superpixel_depth_segmentation_node",
         name="superpixel_depth_segmentation_node",
         output="screen",
-        parameters=[config_path,
+        parameters=[config_path, LaunchConfiguration("params_file"),
                     {"publish_superpixel_array": ParameterValue(publish_superpixel_array, value_type=bool)}]
     )
 
@@ -125,6 +130,7 @@ def generate_launch_description():
             set_use_sim_time,
             declare_use_sim_time,
             declare_publish_superpixel_array,
+            declare_params_file,
             realsense_ld,
             # declare_visualization_config_file_cmd,
             normal_estimation_ld,
