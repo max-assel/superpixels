@@ -38,6 +38,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.constraint_ = node_->get_parameter("constraint").as_bool();
     params_.ransac_ = node_->get_parameter("ransac").as_bool();
     params_.snapping_ = node_->get_parameter("snapping").as_bool();
+    params_.publish_superpixel_array_ = node_->get_parameter_or<bool>("publish_superpixel_array", false);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       num_superpixels_: " << params_.num_superpixels_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       num_iterations_: " << params_.num_iterations_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       step_: " << params_.step_);
@@ -45,6 +46,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     RCLCPP_INFO_STREAM(node_->get_logger(), "       constraint_: " << params_.constraint_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       ransac_: " << params_.ransac_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       snapping_: " << params_.snapping_);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       publish_superpixel_array_: " << params_.publish_superpixel_array_);
 
     // Superpixel distance parameters
     params_.w_normal_ = node_->get_parameter("w_normal").as_double();

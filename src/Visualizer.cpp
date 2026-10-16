@@ -38,6 +38,7 @@ Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::Shar
     localRegionIDPublisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>("/superpixels/ids", 1);
 
     elevationMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>("/superpixels/elevation_map", 1);
+    superpixelArrayPublisher_ = node_->create_publisher<go2_interface_msgs::msg::SuperpixelArray>("/perception/superpixels", 1);
 
     setColors();    
 
@@ -179,6 +180,38 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
 
 // const cv::Mat & depth_img,
+/*
+*   One superpixel token: plane and convex hull in the odom frame. Ids are cluster indices
+*   until warm-starting gives persistent ids; the plane-fit residual is not computed here yet.
+*/
+static go2_interface_msgs::msg::Superpixel toSuperpixelMsg(size_t id,
+                                                           const Eigen::Isometry3d & planeToWorld,
+                                                           const std::vector<Eigen::Vector2d> & hull,
+                                                           int numPoints)
+{
+    go2_interface_msgs::msg::Superpixel msg;
+    const Eigen::Vector3d origin = planeToWorld.translation();
+    const Eigen::Vector3d normal = planeToWorld.linear().col(2);
+    msg.id = static_cast<uint32_t>(id);
+    msg.centroid.x = origin.x(); msg.centroid.y = origin.y(); msg.centroid.z = origin.z();
+    msg.normal.x = normal.x(); msg.normal.y = normal.y(); msg.normal.z = normal.z();
+    msg.offset = -normal.dot(origin);
+    double twiceArea = 0.0;
+    for (size_t j = 0; j < hull.size(); j++)
+    {
+        const Eigen::Vector3d p = origin + planeToWorld.linear().leftCols<2>() * hull[j];
+        geometry_msgs::msg::Point pt;
+        pt.x = p.x(); pt.y = p.y(); pt.z = p.z();
+        msg.hull.push_back(pt);
+        const Eigen::Vector2d & next = hull[(j + 1) % hull.size()];
+        twiceArea += hull[j].x() * next.y() - next.x() * hull[j].y();
+    }
+    msg.area = 0.5 * std::abs(twiceArea);
+    msg.residual = std::numeric_limits<double>::quiet_NaN();
+    msg.num_points = static_cast<uint32_t>(std::max(numPoints, 0));
+    return msg;
+}
+
 void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
                                         const std::vector<std::vector<double>> & centers,
                                         const std::vector<int> & center_counts,
@@ -188,6 +221,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "   [Visualizer::publishPlanarRegions]");
 
     convex_plane_decomposition_msgs::msg::PlanarTerrain terrain_msg;
+    go2_interface_msgs::msg::SuperpixelArray superpixel_msg; // filled alongside terrain_msg, same regions
 
     rclcpp::Time lookupTime = fin_depth_img_ptr_->header.stamp;
     std::string egocan_frame = fin_depth_img_ptr_->header.frame_id;
@@ -326,6 +360,12 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
         region_msg = convex_plane_decomposition::toMessage(region);
+
+        if (params_.publish_superpixel_array_)
+        {
+            superpixel_msg.superpixels.push_back(
+                toSuperpixelMsg(i, region.transformPlaneToWorld, superpixel_convex_hulls[i], center_counts[i]));
+        }
         // cv::Scalar color = colors_[i];
         std_msgs::msg::ColorRGBA region_color;
         // region_color.r = color[2] / 255.0;
@@ -485,6 +525,12 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     terrain_msg.gridmap = *grid_map::GridMapRosConverter::toMessage(map);
 
     terrainPub_->publish(terrain_msg);
+    if (params_.publish_superpixel_array_)
+    {
+        superpixel_msg.header.frame_id = "odom";
+        superpixel_msg.header.stamp = lookupTime;
+        superpixelArrayPublisher_->publish(superpixel_msg);
+    }
 
     visualizePlanarRegions(terrain_msg);
 }

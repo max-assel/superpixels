@@ -34,6 +34,7 @@ struct SuperpixelParams
     bool constraint_ = true; // Use constraint
     bool ransac_ = true; // Refine normals via RANSAC
     bool snapping_ = false; // Snap clusters to nearest actual pixel
+    bool publish_superpixel_array_ = false; // Publish SuperpixelArray tokens for the learned policy and evaluator
 
     // Superpixel distance parameters
     double w_normal_ = 1.0; // Weighting parameter for normal similarity term

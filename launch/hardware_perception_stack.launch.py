@@ -13,6 +13,7 @@ from launch.actions import (
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 
@@ -22,6 +23,12 @@ def generate_launch_description():
     # Launch Arguments #
     ####################
     use_sim_time = LaunchConfiguration("use_sim_time")
+    publish_superpixel_array = LaunchConfiguration("publish_superpixel_array")
+    declare_publish_superpixel_array = DeclareLaunchArgument(
+        "publish_superpixel_array",
+        default_value="false",
+        description="Publish SuperpixelArray tokens on /perception/superpixels",
+    )
 
     declare_use_sim_time = DeclareLaunchArgument(
         "use_sim_time",
@@ -98,7 +105,8 @@ def generate_launch_description():
         executable="superpixel_depth_segmentation_node",
         name="superpixel_depth_segmentation_node",
         output="screen",
-        parameters=[config_path]
+        parameters=[config_path,
+                    {"publish_superpixel_array": ParameterValue(publish_superpixel_array, value_type=bool)}]
     )
 
     # grid_map_visualization_node = Node(
@@ -116,6 +124,7 @@ def generate_launch_description():
         [
             set_use_sim_time,
             declare_use_sim_time,
+            declare_publish_superpixel_array,
             realsense_ld,
             # declare_visualization_config_file_cmd,
             normal_estimation_ld,
