@@ -1,5 +1,78 @@
 #include <superpixels/ConvexHullifier.h>
 
+#include <algorithm>
+#include <cmath>
+#include <map>
+
+/*
+*   DBSCAN on 2D points: return the points (core and border) of the largest density-connected
+*   cluster. A core point has at least minPoints points (itself included) within eps. Sparse
+*   outliers, which stretch a convex hull over empty space, are left out. If no cluster has at
+*   least 3 points, the input is returned unchanged.
+*/
+static std::vector<Eigen::Vector2d> densestCluster(const std::vector<Eigen::Vector2d> & points,
+                                                   double eps, int minPoints)
+{
+    const size_t n = points.size();
+    if (n < 3 || eps <= 0.0) return points;
+
+    // Grid hash with cell size eps: neighbors lie in the 3x3 cells around a point.
+    auto cellOf = [eps](const Eigen::Vector2d & p) {
+        return std::make_pair(static_cast<long>(std::floor(p.x() / eps)), static_cast<long>(std::floor(p.y() / eps)));
+    };
+    std::map<std::pair<long, long>, std::vector<size_t>> grid;
+    for (size_t i = 0; i < n; i++) grid[cellOf(points[i])].push_back(i);
+    auto neighbors = [&](size_t i) {
+        std::vector<size_t> out;
+        const auto c = cellOf(points[i]);
+        for (long dx = -1; dx <= 1; dx++)
+            for (long dy = -1; dy <= 1; dy++)
+            {
+                auto it = grid.find({c.first + dx, c.second + dy});
+                if (it == grid.end()) continue;
+                for (size_t j : it->second)
+                    if ((points[j] - points[i]).squaredNorm() <= eps * eps) out.push_back(j);
+            }
+        return out;
+    };
+
+    std::vector<int> label(n, -1);  // -1 unvisited, -2 noise, >= 0 cluster id
+    std::vector<size_t> clusterSize;
+    for (size_t i = 0; i < n; i++)
+    {
+        if (label[i] != -1) continue;
+        std::vector<size_t> seeds = neighbors(i);
+        if (static_cast<int>(seeds.size()) < minPoints)
+        {
+            label[i] = -2;
+            continue;
+        }
+        const int id = static_cast<int>(clusterSize.size());
+        clusterSize.push_back(0);
+        label[i] = id;
+        for (size_t k = 0; k < seeds.size(); k++)
+        {
+            const size_t j = seeds[k];
+            if (label[j] == -2) label[j] = id;  // border point
+            if (label[j] != -1) continue;
+            label[j] = id;
+            std::vector<size_t> more = neighbors(j);
+            if (static_cast<int>(more.size()) >= minPoints) seeds.insert(seeds.end(), more.begin(), more.end());
+        }
+    }
+    for (size_t i = 0; i < n; i++)
+        if (label[i] >= 0) clusterSize[label[i]]++;
+    if (clusterSize.empty()) return points;
+    const int best = static_cast<int>(std::max_element(clusterSize.begin(), clusterSize.end()) - clusterSize.begin());
+    if (clusterSize[best] < 3) return points;
+
+    std::vector<Eigen::Vector2d> kept;
+    kept.reserve(clusterSize[best]);
+    for (size_t i = 0; i < n; i++)
+        if (label[i] == best) kept.push_back(points[i]);
+    return kept;
+}
+
 ConvexHullifier::ConvexHullifier(const SuperpixelParams & params)
 {
     params_ = params;
@@ -189,6 +262,11 @@ void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
         // Split region (if needed)
 
         // Calculate convex hull and store
+        if (params_.density_filter_)
+        {
+            superpixel_projections[i] = densestCluster(superpixel_projections[i], params_.density_eps_,
+                                                       params_.density_min_points_);
+        }
         convexHull(superpixel_projections[i], superpixel_convex_hulls[i]);
 
         // RCLCPP_INFO_STREAM(logger_, "       hull:");

@@ -42,6 +42,11 @@ struct SuperpixelParams
     int connectivity_pixel_radius_ = 2; // Pixels this close in the image count as neighbors (bridges the sparse floor image)
     double connectivity_min_fragment_frac_ = 0.25; // Unattached fragments smaller than this fraction of a nominal superpixel are dropped
 
+    // Density filtering of each cluster's points (in its plane) before the hull
+    bool density_filter_ = false; // Build hulls from the densest DBSCAN cluster only
+    double density_eps_ = 0.015; // DBSCAN neighborhood radius (m), about 2.5 floor-image pixels at standing height
+    int density_min_points_ = 4; // DBSCAN core-point threshold (neighbors within density_eps_, including itself)
+
     // Superpixel distance parameters
     double w_normal_ = 1.0; // Weighting parameter for normal similarity term
     double w_plane_dist_ = 1.0; // Weighting parameter for plane - position distance term

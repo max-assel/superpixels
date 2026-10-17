@@ -18,6 +18,7 @@ set(dependencies
     convex_plane_decomposition_ros
     convex_plane_decomposition_msgs
     go2_interface_msgs
+    diagnostic_msgs
     segmented_planes_terrain_model
     egocylindrical
     )

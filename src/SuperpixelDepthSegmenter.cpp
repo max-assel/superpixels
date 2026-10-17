@@ -46,6 +46,11 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.connectivity_max_edge_dist_ = node_->get_parameter_or<double>("connectivity_max_edge_dist", 0.03);
     params_.connectivity_min_fragment_frac_ = node_->get_parameter_or<double>("connectivity_min_fragment_frac", 0.25);
     params_.connectivity_pixel_radius_ = node_->get_parameter_or<int>("connectivity_pixel_radius", 2);
+    params_.density_filter_ = node_->get_parameter_or<bool>("density_filter", false);
+    params_.density_eps_ = node_->get_parameter_or<double>("density_eps", 0.015);
+    params_.density_min_points_ = node_->get_parameter_or<int>("density_min_points", 4);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       density_filter_: " << params_.density_filter_
+                       << " (eps " << params_.density_eps_ << " m, min points " << params_.density_min_points_ << ")");
     RCLCPP_INFO_STREAM(node_->get_logger(), "       connectivity_: " << params_.connectivity_
                        << " (pixel radius " << params_.connectivity_pixel_radius_
                        << ", max edge " << params_.connectivity_max_edge_dist_
@@ -115,6 +120,7 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     visualizer_ = new Visualizer(params_, node_);
     ransac_ = new Ransac(params_);
     convexHullifier_ = new ConvexHullifier(params_);
+    timingPub_ = node_->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("/perception/timing", 10);
 
     callback_handle_ = node_->add_on_set_parameters_callback(
         std::bind(&SuperpixelDepthSegmenter::parametersCallback, this, std::placeholders::_1));    
@@ -342,6 +348,8 @@ void SuperpixelDepthSegmenter::run()
  
     rclcpp::Time lookupTime = raw_depth_img_msg_->header.stamp;
     std::string egocan_frame = raw_depth_img_msg_->header.frame_id;
+    const float ransacBefore = ransacTimeTaken;
+    lastConnectivityMs_ = 0.0;
 
     // try
     // {
@@ -507,6 +515,19 @@ void SuperpixelDepthSegmenter::run()
     totalEnd = std::chrono::steady_clock::now();
     totalTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(totalEnd - totalBegin).count();
     numberOfTotalCalls++;
+
+    auto ms = [](auto begin, auto end) { return std::chrono::duration<double, std::milli>(end - begin).count(); };
+    const double ransacMs = (ransacTimeTaken - ransacBefore) * 1.0e-3;
+    const double superpixelMs = ms(superpixelBegin, superpixelEnd);
+    lastStageMs_ = {{"clean_ms", ms(cleanBegin, cleanEnd)},
+                    {"fill_ms", ms(fillBegin, fillEnd)},
+                    {"preprocess_ms", ms(preprocessBegin, preprocessEnd)},
+                    {"slic_ms", superpixelMs - ransacMs - lastConnectivityMs_},
+                    {"ransac_ms", ransacMs},
+                    {"connectivity_ms", lastConnectivityMs_},
+                    {"hull_ms", ms(convexHullBegin, convexHullEnd)},
+                    {"segment_total_ms", ms(totalBegin, totalEnd)}};
+    lastStamp_ = lookupTime;
     // RCLCPP_INFO_STREAM(node_->get_logger(),  "Loop done");
 
     return;
@@ -542,6 +563,7 @@ void SuperpixelDepthSegmenter::visualize()
 
     // Visualize
     // visBegin = std::chrono::steady_clock::now();
+    const auto publishBegin = std::chrono::steady_clock::now();
     visualizer_->visualize(preprocessed_depth_img, 
                             preprocessed_normal_img,
                             raw_depth_img_ptr_,
@@ -552,6 +574,25 @@ void SuperpixelDepthSegmenter::visualize()
                             superpixel_projections_,
                             superpixel_convex_hulls_,
                             egocan_to_region_rotations_);
+
+    // One timing record per published frame: the segmentation stages of the last run() plus publishing.
+    if (!lastStageMs_.empty())
+    {
+        diagnostic_msgs::msg::DiagnosticStatus timing;
+        timing.name = "superpixels";
+        timing.hardware_id = std::to_string(lastStamp_.nanoseconds());  // time of the data, for matching
+        auto stages = lastStageMs_;
+        stages["publish_ms"] = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - publishBegin).count();
+        stages["total_ms"] = stages["segment_total_ms"] + stages["publish_ms"];
+        for (const auto & [key, value] : stages)
+        {
+            diagnostic_msgs::msg::KeyValue kv;
+            kv.key = key;
+            kv.value = std::to_string(value);
+            timing.values.push_back(kv);
+        }
+        timingPub_->publish(timing);
+    }
     // visEnd = std::chrono::steady_clock::now();
     // int64_t vis_total_time = std::chrono::duration_cast<std::chrono::microseconds>(visEnd - visBegin).count();
     // double vis_total_time_sec = 1.0e-6 * vis_total_time;
@@ -1127,8 +1168,10 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
     if (params_.connectivity_)
     {
+        const auto connectivityBegin = std::chrono::steady_clock::now();
         enforceConnectivity(depth_image);
         updateCenters(depth_image, normal_image);
+        lastConnectivityMs_ = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - connectivityBegin).count();
     }
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers:");

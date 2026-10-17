@@ -1,5 +1,8 @@
 #pragma once
 
+#include <map>
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 
@@ -136,6 +139,12 @@ class SuperpixelDepthSegmenter
 
         // Image pointers
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
+
+        // Per-frame stage times (ms) of the last run(), published with the regions on /perception/timing
+        std::map<std::string, double> lastStageMs_;
+        rclcpp::Time lastStamp_{0, 0, RCL_ROS_TIME};
+        double lastConnectivityMs_ = 0.0;
+        rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr timingPub_;
         // cv_bridge::CvImagePtr raw_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr raw_normal_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr prop_depth_img_ptr_ = nullptr;

@@ -424,7 +424,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     cv::Point current;
     float depth;
 
-    rclcpp::Time time = node_->now();
+    rclcpp::Time time = lookupTime; // the image's time: the terrain describes that moment, not when it was processed
     for (int r = 0; r < raw_depth_image.rows; r++) 
     {
         // #pragma omp parallel for
