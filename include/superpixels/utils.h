@@ -337,7 +337,9 @@ inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
                                 const int & k_c,
                                 const double & h)
 {
-    egocanPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
+    // egocylindrical truncates floor indices to int, so pixel i holds points in [i, i + 1):
+    // back-project from the pixel center, not its corner (a half-pixel bias otherwise).
+    egocanPt[0] = (pixel.x + 0.5f - (k_c / 2)) * (depth * 2 / (h * k_c));
     egocanPt[1] = depth;
-    egocanPt[2] = (pixel.y - (k_c / 2)) * (depth * 2 / (h * k_c));
+    egocanPt[2] = (pixel.y + 0.5f - (k_c / 2)) * (depth * 2 / (h * k_c));
 }
