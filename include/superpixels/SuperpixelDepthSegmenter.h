@@ -128,6 +128,11 @@ class SuperpixelDepthSegmenter
         // image_transport::SubscriberFilter raw_label_img_sub_;
         image_transport::SubscriberFilter raw_normal_img_sub_;
 
+        // Egocan floor points by stamp (use_floor_points), matched to the floor image in run()
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr floor_points_sub_;
+        std::map<int64_t, sensor_msgs::msg::Image::ConstSharedPtr> floor_points_msgs_;
+        int floor_points_misses_ = 0;
+
         // Image message pointers
         sensor_msgs::msg::Image::ConstSharedPtr raw_depth_img_msg_ = nullptr;
         // sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;

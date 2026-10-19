@@ -49,6 +49,17 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.density_filter_ = node_->get_parameter_or<bool>("density_filter", false);
     params_.density_eps_ = node_->get_parameter_or<double>("density_eps", 0.015);
     params_.density_min_points_ = node_->get_parameter_or<int>("density_min_points", 4);
+    params_.use_floor_points_ = node_->get_parameter_or<bool>("use_floor_points", false);
+    params_.foot_radius_ = node_->get_parameter_or<double>("foot_radius", 0.02);
+    params_.footprint_regions_ = node_->get_parameter_or<bool>("footprint_regions", false);
+    params_.footprint_resolution_ = node_->get_parameter_or<double>("footprint_resolution", 0.005);
+    params_.footprint_close_radius_ = node_->get_parameter_or<double>("footprint_close_radius", 0.025);
+    params_.inset_vertices_ = node_->get_parameter_or<int>("inset_vertices", 16);
+    params_.inset_growth_factor_ = node_->get_parameter_or<double>("inset_growth_factor", 1.05);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       footprint_regions_: " << params_.footprint_regions_
+                       << " (resolution " << params_.footprint_resolution_ << " m, close " << params_.footprint_close_radius_
+                       << " m, foot radius " << params_.foot_radius_ << " m)");
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       use_floor_points_: " << params_.use_floor_points_);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       density_filter_: " << params_.density_filter_
                        << " (eps " << params_.density_eps_ << " m, min points " << params_.density_min_points_ << ")");
     RCLCPP_INFO_STREAM(node_->get_logger(), "       connectivity_: " << params_.connectivity_
@@ -109,6 +120,19 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
 
     msg_sync_ = std::make_shared<MsgSynchronizer>(raw_depth_img_sub_, raw_normal_img_sub_, 3); // raw_label_img_sub_,
     msg_sync_->registerCallback(std::bind(&SuperpixelDepthSegmenter::allImageCallback, this, std::placeholders::_1, std::placeholders::_2)); // , _3
+
+    if (params_.use_floor_points_)
+    {
+        const std::string floor_points_topic = node_->get_parameter_or<std::string>("floor_points_topic", "/floor_points");
+        floor_points_sub_ = node_->create_subscription<sensor_msgs::msg::Image>(floor_points_topic, rclcpp::QoS(3),
+            [this](sensor_msgs::msg::Image::ConstSharedPtr msg)
+            {
+                std::lock_guard<std::mutex> lock(img_mutex_);
+                floor_points_msgs_[rclcpp::Time(msg->header.stamp).nanoseconds()] = msg;
+                while (floor_points_msgs_.size() > 5)
+                    floor_points_msgs_.erase(floor_points_msgs_.begin());
+            });
+    }
 
     prop_depth_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
     // prop_label_img_ptr_ = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
@@ -349,6 +373,18 @@ void SuperpixelDepthSegmenter::run()
     rclcpp::Time lookupTime = raw_depth_img_msg_->header.stamp;
     std::string egocan_frame = raw_depth_img_msg_->header.frame_id;
     const float ransacBefore = ransacTimeTaken;
+
+    // The floor points of this exact frame, or pixel centers if they have not arrived.
+    *params_.floor_points_ = cv::Mat();
+    if (params_.use_floor_points_)
+    {
+        auto it = floor_points_msgs_.find(lookupTime.nanoseconds());
+        if (it != floor_points_msgs_.end())
+            *params_.floor_points_ = cv_bridge::toCvCopy(it->second, sensor_msgs::image_encodings::TYPE_32FC3)->image;
+        else if (++floor_points_misses_ % 50 == 1)
+            RCLCPP_WARN_STREAM(node_->get_logger(), "No floor points for this frame (" << floor_points_misses_
+                               << " so far); back-projecting to pixel centers");
+    }
     lastConnectivityMs_ = 0.0;
 
     // try
@@ -1008,8 +1044,7 @@ void SuperpixelDepthSegmenter::enforceConnectivity(const cv::Mat & depth_image)
     for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)
             if (clusters_.at<int>(r, c) != -1)
-                pixelToEgocanFrame(points.at<cv::Vec3f>(r, c), cv::Point(c, r), depth_image.at<float>(r, c),
-                                   params_.k_c_, params_.h_);
+                pixelToEgocanFrame(points.at<cv::Vec3f>(r, c), cv::Point(c, r), depth_image.at<float>(r, c), params_);
     auto close = [&](int r1, int c1, int r2, int c2) {
         const cv::Vec3f d = points.at<cv::Vec3f>(r1, c1) - points.at<cv::Vec3f>(r2, c2);
         return d.dot(d) <= maxEdgeSq;
@@ -1198,10 +1233,10 @@ bool SuperpixelDepthSegmenter::checkConstraints(const int & center_idx,
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][3], centers_[center_idx][4], centers_[center_idx][5]);
 
     cv::Vec3f egocanPt;
-    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(egocanPt, pixel, depth, params_);
 
     cv::Vec3f centerEgocanPt;
-    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_);
 
     bool normal_check = normal.dot(center_normal) > 0.75;
 
@@ -1224,10 +1259,10 @@ double SuperpixelDepthSegmenter::computeDistance(const int & center_idx,
     cv::Vec3f center_normal = cv::Vec3f(centers_[center_idx][3], centers_[center_idx][4], centers_[center_idx][5]);
 
     cv::Vec3f egocanPt;
-    pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(egocanPt, pixel, depth, params_);
 
     cv::Vec3f centerEgocanPt;
-    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+    pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_);
 
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_idx: " << center_idx);
     // RCLCPP_INFO_STREAM(node_->get_logger(), "           center_pixel: (r:" << center_pixel.y << ", c: " << center_pixel.x << ")");

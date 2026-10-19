@@ -1,4 +1,5 @@
 #include <superpixels/Visualizer.h>
+#include <superpixels/Footprint.h>
 
 Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::SharedPtr & node)
 {
@@ -171,7 +172,7 @@ void Visualizer::visualize(const cv::Mat & depth_image,
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       Publishing planar regions");
 
     // depth_image, 
-    publishPlanarRegions(raw_depth_image, centers, center_counts, superpixel_convex_hulls, egocan_to_region_rotations);
+    publishPlanarRegions(raw_depth_image, centers, center_counts, superpixel_projections, superpixel_convex_hulls, egocan_to_region_rotations);
 
     // outputToDatFile(raw_depth_img_ptr, superpixel_projections);
 
@@ -215,6 +216,7 @@ static go2_interface_msgs::msg::Superpixel toSuperpixelMsg(size_t id,
 void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
                                         const std::vector<std::vector<double>> & centers,
                                         const std::vector<int> & center_counts,
+                                        const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                                         const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                         const std::vector<Eigen::Matrix3d> & egocan_to_region_rotations)
 {
@@ -251,7 +253,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
     // }
 
 
-    double foot_radius = 0.02;
+    const double foot_radius = params_.foot_radius_;
 
     convex_plane_decomposition::PlanarRegion region;
     convex_plane_decomposition::BoundaryWithInset boundaryWithInset;
@@ -288,7 +290,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         center_pixel = cv::Point(centers[i][0], centers[i][1]);
         center_depth = centers[i][2];
 
-        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        pixelToEgocanFrame(centerEgocanCvPt, center_pixel, center_depth, params_);
 
         Eigen::Vector3d centerEgocanPt(centerEgocanCvPt.val[0], centerEgocanCvPt.val[1], centerEgocanCvPt.val[2]);
 
@@ -314,58 +316,69 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "                         " << region.transformPlaneToWorld.linear().row(2));
 
 
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
-        polygon.container().clear();
-        inflated_polygon.container().clear();
-        for (size_t j = 0; j < superpixel_convex_hulls[i].size(); j++)
+        // The token carries the hull, so it is published whether or not a PlanarTerrain region is.
+        if (params_.publish_superpixel_array_)
         {
-            convexHullPt = superpixel_convex_hulls[i][j];
-
-            // normal polygon
-            // polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
-
-            // inflated polygon
-            double norm = convexHullPt.norm();
-            convexHullDir = convexHullPt / norm;
-
-            if (norm > (2 * foot_radius) )
-            {
-                convexHullPt = convexHullPt - foot_radius * convexHullDir;
-                inflatedConvexHullPt = convexHullPt - 2 * foot_radius * convexHullDir;
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
-            } else
-            {
-                convexHullPt = 0.75 * convexHullPt;
-                inflatedConvexHullPt = 0.5 * convexHullPt;
-                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
-            }
-            
-            polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
-            inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
+            superpixel_msg.superpixels.push_back(
+                toSuperpixelMsg(i, region.transformPlaneToWorld, superpixel_convex_hulls[i], center_counts[i]));
         }
 
-        polygonWithHoles.outer_boundary() = polygon; // inflated_polygon; // 
-        boundaryWithInset.boundary = polygonWithHoles;
+        if (params_.footprint_regions_)
+        {
+            // Footprint boundary and grown convex inset; regions where no foot fits are left out.
+            if (!regionFootprint(superpixel_projections[i], params_, boundaryWithInset))
+                continue;
+        }
+        else
+        {
+            // RCLCPP_INFO_STREAM(node_->get_logger(), "               convex hull:");
+            polygon.container().clear();
+            inflated_polygon.container().clear();
+            for (size_t j = 0; j < superpixel_convex_hulls[i].size(); j++)
+            {
+                convexHullPt = superpixel_convex_hulls[i][j];
 
-        inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
+                // normal polygon
+                // polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           point " << j << ": " << polygon.container()[j].x() << ", " << polygon.container()[j].y());
 
-        insets[0] = inflated_polygon_with_holes;
+                // inflated polygon
+                double norm = convexHullPt.norm();
+                convexHullDir = convexHullPt / norm;
 
-        boundaryWithInset.insets = insets;
+                if (norm > (2 * foot_radius) )
+                {
+                    convexHullPt = convexHullPt - foot_radius * convexHullDir;
+                    inflatedConvexHullPt = convexHullPt - 2 * foot_radius * convexHullDir;
+                    // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+                } else
+                {
+                    convexHullPt = 0.75 * convexHullPt;
+                    inflatedConvexHullPt = 0.5 * convexHullPt;
+                    // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << foot[0] << ", " << foot[1]);
+                }
+            
+                polygon.container().emplace_back(convexHullPt[0], convexHullPt[1]);
+                inflated_polygon.container().emplace_back(inflatedConvexHullPt[0], inflatedConvexHullPt[1]);
+
+                // RCLCPP_INFO_STREAM(node_->get_logger(), "           inflated point " << j << ": " << inflated_polygon.container()[j].x() << ", " << inflated_polygon.container()[j].y());
+            }
+
+            polygonWithHoles.outer_boundary() = polygon; // inflated_polygon; // 
+            boundaryWithInset.boundary = polygonWithHoles;
+
+            inflated_polygon_with_holes.outer_boundary() = inflated_polygon;
+
+            insets[0] = inflated_polygon_with_holes;
+
+            boundaryWithInset.insets = insets;
+        }
 
         region.boundaryWithInset = boundaryWithInset;
         region.bbox2d = boundaryWithInset.boundary.outer_boundary().bbox();
 
         region_msg = convex_plane_decomposition::toMessage(region);
 
-        if (params_.publish_superpixel_array_)
-        {
-            superpixel_msg.superpixels.push_back(
-                toSuperpixelMsg(i, region.transformPlaneToWorld, superpixel_convex_hulls[i], center_counts[i]));
-        }
         // cv::Scalar color = colors_[i];
         std_msgs::msg::ColorRGBA region_color;
         // region_color.r = color[2] / 255.0;
@@ -438,7 +451,7 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
             if (isDepthValid(raw_depth_image, current, params_.k_c_)) 
             {
                 depth = raw_depth_image.at<float>(r, c);
-                pixelToEgocanFrame(egocanPt, current, depth, params_.k_c_, params_.h_);
+                pixelToEgocanFrame(egocanPt, current, depth, params_);
                 egocanEigenPt = Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]);
 
                 worldPt = transformHelperPointStamped(egocanEigenPt, egocanFrameToOdomFrame);
@@ -667,7 +680,7 @@ void Visualizer::colorClusterPointCloud(const cv::Mat & depth_image, const cv::M
         {
             pixel = cv::Point(c, r);
 
-            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_.k_c_, params_.h_);
+            pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(r, c), params_);
 
             point.x = egocanPt[0];
             point.y = egocanPt[1];
@@ -745,7 +758,7 @@ void Visualizer::colorCentroids(const std::vector<std::vector<double>> & centers
         cv::Vec3f center_normal = cv::Vec3f(centers[i][3], centers[i][4], centers[i][5]);
 
         cv::Vec3f centerEgocanPt;
-        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_);
 
         marker.points.resize(2);
         double scale = 0.1;

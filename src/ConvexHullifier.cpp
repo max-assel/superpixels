@@ -138,7 +138,7 @@ void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
         cv::Point center_pixel = cv::Point(centers[i][0], centers[i][1]);
         float center_depth = centers[i][2];
         cv::Vec3f centerEgocanPt;
-        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_.k_c_, params_.h_);
+        pixelToEgocanFrame(centerEgocanPt, center_pixel, center_depth, params_);
 
         Eigen::Vector3d center(centerEgocanPt.val[0], centerEgocanPt.val[1], centerEgocanPt.val[2]);
         Eigen::Vector3d normal(centers[i][3], centers[i][4], centers[i][5]);
@@ -232,7 +232,7 @@ void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
             // RCLCPP_INFO_STREAM(logger_, "               depth: " << depth);
 
             cv::Vec3f egocanPt;
-            pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+            pixelToEgocanFrame(egocanPt, pixel, depth, params_);
 
             if (egocanPt == centerEgocanPt)
             {
@@ -292,7 +292,7 @@ void ConvexHullifier::run(std::vector<std::vector<double>> & centers,
             //         float depth = depth_img.at<float>(pixel.y, pixel.x);
 
             //         cv::Vec3f egocanPt;
-            //         pixelToEgocanFrame(egocanPt, pixel, depth, params_.k_c_, params_.h_);
+            //         pixelToEgocanFrame(egocanPt, pixel, depth, params_);
 
             //         RCLCPP_WARN_STREAM(logger_, "               (egocan frame): " << egocanPt.val[0] << ", " << egocanPt.val[1] << ", " << egocanPt.val[2]);
 

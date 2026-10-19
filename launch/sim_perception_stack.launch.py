@@ -90,6 +90,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             "use_sim_time": use_sim_time,
+            "params_file": LaunchConfiguration("params_file"),
         }.items(),
     )    
 

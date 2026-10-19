@@ -66,6 +66,7 @@ class Visualizer
         void publishPlanarRegions(const cv::Mat & raw_depth_image,
                                     const std::vector<std::vector<double>> & centers,
                                     const std::vector<int> & center_counts,
+                                    const std::vector<std::vector<Eigen::Vector2d>> & superpixel_projections,
                                     const std::vector<std::vector<Eigen::Vector2d>> & superpixel_convex_hulls,
                                     const std::vector<Eigen::Matrix3d> & superpixel_rotations);  
 

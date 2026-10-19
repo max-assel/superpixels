@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <opencv2/opencv.hpp>
 
 #include <Eigen/Dense>
@@ -46,6 +48,18 @@ struct SuperpixelParams
     bool density_filter_ = false; // Build hulls from the densest DBSCAN cluster only
     double density_eps_ = 0.015; // DBSCAN neighborhood radius (m), about 2.5 floor-image pixels at standing height
     int density_min_points_ = 4; // DBSCAN core-point threshold (neighbors within density_eps_, including itself)
+
+    // PlanarTerrain regions (Footprint.h)
+    double foot_radius_ = 0.02; // Foot radius (m): boundaries and insets keep this clearance
+    bool footprint_regions_ = false; // Non-convex footprint as boundary and a grown convex inset, instead of the radially shrunk hull
+    double footprint_resolution_ = 0.005; // Rasterization of each region's points in its plane (m)
+    double footprint_close_radius_ = 0.025; // Gaps up to this wide inside a footprint are closed (m); about the connectivity pixel radius
+    int inset_vertices_ = 16; // Vertices of the grown convex inset
+    double inset_growth_factor_ = 1.05; // CPD region growing step
+
+    // Back-projection from the egocan's stored points instead of pixel centers
+    bool use_floor_points_ = false; // Subscribe to the egocan floor_points image and back-project pixels to their actual points
+    std::shared_ptr<cv::Mat> floor_points_ = std::make_shared<cv::Mat>(); // Current frame's points (CV_32FC3, egocan frame; empty if none). Shared by every copy of the params
 
     // Superpixel distance parameters
     double w_normal_ = 1.0; // Weighting parameter for normal similarity term
@@ -342,4 +356,25 @@ inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
     egocanPt[0] = (pixel.x + 0.5f - (k_c / 2)) * (depth * 2 / (h * k_c));
     egocanPt[1] = depth;
     egocanPt[2] = (pixel.y + 0.5f - (k_c / 2)) * (depth * 2 / (h * k_c));
+}
+
+// Back-project a floor pixel to the point egocylindrical stored in it when floor points are
+// available and the depth is that point's own (preprocessing fills and changes some depths);
+// otherwise to the pixel center. Pixel centers stretch surfaces past edges by up to half a pixel.
+inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
+                                const cv::Point & pixel,
+                                const float & depth,
+                                const SuperpixelParams & params)
+{
+    const cv::Mat & points = *params.floor_points_;
+    if (!points.empty() && pixel.x >= 0 && pixel.y >= 0 && pixel.x < points.cols && pixel.y < points.rows)
+    {
+        const cv::Vec3f & p = points.at<cv::Vec3f>(pixel.y, pixel.x);
+        if (std::abs(std::abs(p[1]) - depth) < 1e-5f)
+        {
+            egocanPt = cv::Vec3f(p[0], depth, p[2]);
+            return;
+        }
+    }
+    pixelToEgocanFrame(egocanPt, pixel, depth, params.k_c_, params.h_);
 }
