@@ -38,6 +38,8 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     int num_pixels = params_.k_c_ * params_.k_c_;
     params_.step_ = sqrt(num_pixels / (double) params_.num_superpixels_); // superpixel grid interval
     params_.warm_start_ = node_->get_parameter("warm_start").as_bool();
+    params_.warm_iterations_ = node_->get_parameter_or<int>("warm_iterations", 3);
+    params_.warm_max_depth_change_ = node_->get_parameter_or<double>("warm_max_depth_change", 0.05);
     params_.constraint_ = node_->get_parameter("constraint").as_bool();
     params_.ransac_ = node_->get_parameter("ransac").as_bool();
     params_.snapping_ = node_->get_parameter("snapping").as_bool();
@@ -54,8 +56,6 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.footprint_regions_ = node_->get_parameter_or<bool>("footprint_regions", false);
     params_.footprint_resolution_ = node_->get_parameter_or<double>("footprint_resolution", 0.005);
     params_.footprint_close_radius_ = node_->get_parameter_or<double>("footprint_close_radius", 0.025);
-    params_.inset_vertices_ = node_->get_parameter_or<int>("inset_vertices", 16);
-    params_.inset_growth_factor_ = node_->get_parameter_or<double>("inset_growth_factor", 1.05);
     RCLCPP_INFO_STREAM(node_->get_logger(), "       footprint_regions_: " << params_.footprint_regions_
                        << " (resolution " << params_.footprint_resolution_ << " m, close " << params_.footprint_close_radius_
                        << " m, foot radius " << params_.foot_radius_ << " m)");
@@ -220,6 +220,7 @@ rcl_interfaces::msg::SetParametersResult SuperpixelDepthSegmenter::parametersCal
         } else if (param.get_name() == "warm_start")
         {
             params_.warm_start_ = param.get_value<bool>();
+            warm_centers_.clear();  // carried centers may be stale
         } else if (param.get_name() == "constraint")
         {
             params_.constraint_ = param.get_value<bool>();
@@ -469,6 +470,11 @@ void SuperpixelDepthSegmenter::run()
 
     fillBegin = std::chrono::steady_clock::now();
 
+    {
+        const auto & t = egocanFrameToOdomFrame.transform;
+        egocanToOdom_ = Eigen::Translation3d(t.translation.x, t.translation.y, t.translation.z)
+                        * Eigen::Quaterniond(t.rotation.w, t.rotation.x, t.rotation.y, t.rotation.z);
+    }
     double default_height = egocanFrameToOdomFrame.transform.translation.z; //   - 0.05
     // double default_height = 0.575;
 
@@ -531,6 +537,8 @@ void SuperpixelDepthSegmenter::run()
     convexHullBegin = std::chrono::steady_clock::now();
     convexHullifier_->run(centers_, center_counts_, superpixels_, superpixel_projections_, 
                             superpixel_convex_hulls_, egocan_to_region_rotations_, preprocessed_depth_img);
+    if (params_.warm_start_)
+        saveWarmCenters();
     convexHullEnd = std::chrono::steady_clock::now();
     convexHullTimeTaken += std::chrono::duration_cast<std::chrono::microseconds>(convexHullEnd - convexHullBegin).count();
     numberOfConvexHullCalls++;
@@ -642,120 +650,136 @@ void SuperpixelDepthSegmenter::reset_data(const cv::Mat & depth_image,
                                             // const cv::Mat & label_image,
                                             const cv::Mat & normal_image)
 {
-    if (params_.warm_start_ && initialized_)
-    {
-        RCLCPP_INFO_STREAM(node_->get_logger(), "Resetting data ...");
-        clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-        distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
+    clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
+    distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
 
-        // Keep centers as is
+    centers_.clear();
+    center_counts_.clear();
+    superpixels_.clear();
+    superpixel_projections_.clear();
+    superpixel_convex_hulls_.clear();
+    egocan_to_region_rotations_.clear();
 
-        center_counts_.assign(center_counts_.size(), 0);
-    } else
-    {
-        // Cold-starting, or initializing for the first time
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "Clearing data ...");
-        
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "   first mats ...");
-        // cv mats
-        clusters_.release();
-        distances_.release();
-
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "   clearing vectors ...");
-        centers_.clear();
-        center_counts_.clear();
-
-        superpixels_.clear();
-        superpixel_projections_.clear();
-        superpixel_convex_hulls_.clear();
-        egocan_to_region_rotations_.clear();
-
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "Initializing data ...");
-
-        // Will populate clusters_, distances_, centers_, and center_counts_
+    warm_frame_ = params_.warm_start_ && !warm_centers_.empty();
+    if (warm_frame_)
+        warmStartCenters(depth_image, normal_image);
+    else
         init_data(depth_image, normal_image); // label_image,
-
-        initialized_ = true;
-    }
-
+    initialized_ = true;
 }
 
 void SuperpixelDepthSegmenter::init_data(const cv::Mat & depth_image,
                                         //  const cv::Mat & label_image,
                                          const cv::Mat & normal_image)
 {
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "   [SuperpixelDepthSegmenter::init_data]");
-
-    /* Initialize the cluster and distance matrices. */
-    clusters_ = cv::Mat(depth_image.size(), CV_32S, cv::Scalar(-1)); // 32-bit signed integer
-    distances_ = cv::Mat(depth_image.size(), CV_64F, cv::Scalar(std::numeric_limits<double>::max())); // 64-bit floating-point
-
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "    clusters_.size: " << clusters_.size() << ", type: " << clusters_.type() << ", channels: " << clusters_.channels());
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "    distances_.size: " << distances_.size() << ", type: " << distances_.type() << ", channels: " << distances_.channels());
-
-    /* Initialize the centers and counters. */
+    /* One center per seeding-grid point that lands on a valid pixel. */
     for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
     {
         for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
-        {        
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       (r, c): (" << r << ", " << c << ")");
-
-            // float depth = depth_image.at<float>(r, c);
-
-            // if (std::isnan(depth) || std::fabs(depth) < 1e-6)
-            // {
-            //     continue;
-            // }
-
+        {
             std::vector<double> center;
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Finding local minimum ...");
-            /* Find the local minimum (gradient-wise). */
-            cv::Point originalCenter(c, r);
-            // cv::Point localMinimum = findLocalMinimum(depth_image, normal_image, originalCenter); // label_image, 
-            cv::Point localMinimum = findCentroid(depth_image, normal_image, originalCenter); // label_image,
-
-            if (!isPixelValid(depth_image, normal_image, localMinimum, params_.k_c_)) // label_image, 
+            if (seedCenter(depth_image, normal_image, cv::Point(c, r), center))
             {
-            //     RCLCPP_INFO_STREAM(node_->get_logger(), "       Invalid local minimum found");
-            //     RCLCPP_INFO_STREAM(node_->get_logger(), "           setting (" << r << ", " << c << ") to default ground floor value ...");
-            //     // augment center to be default ground floor value
-            //     localMinimum = originalCenter;
-            //     depth = 0.385;
-            //     label = 3;
-            //     normal = cv::Vec3f(0.0, -1.0, 0.0);                
-                continue;
+                centers_.push_back(center);
+                center_counts_.push_back(0);
             }
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       local minimum found at (" << localMinimum.x << ", " << localMinimum.y << ")");
-
-            float depth = depth_image.at<float>(localMinimum.y, localMinimum.x);
-            // uint8_t label = label_image.at<uint8_t>(localMinimum.y, localMinimum.x);
-            cv::Vec3f normal = normal_image.at<cv::Vec3f>(localMinimum.y, localMinimum.x);
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       depth: " << depth);
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       label: " << (int) label);
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       normal: (" << normal.val[0] << ", " << normal.val[1] << ", " << normal.val[2] << ")");
-
-            // RCLCPP_INFO_STREAM(node_->get_logger(), "       Valid local minimum found, pushing back");
-            /* Generate the center vector. */
-            center.push_back(localMinimum.x);
-            center.push_back(localMinimum.y);
-            center.push_back(depth);
-            // center.push_back(label);
-            center.push_back(normal.val[0]);
-            center.push_back(normal.val[1]);
-            center.push_back(normal.val[2]);
-
-            /* Append to vector of centers. */
-            centers_.push_back(center);
-            center_counts_.push_back(0);
         }
     }
+}
 
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "       centers_.size(): " << centers_.size());
-    // RCLCPP_INFO_STREAM(node_->get_logger(), "       center_counts_.size(): " << center_counts_.size());
+bool SuperpixelDepthSegmenter::seedCenter(const cv::Mat & depth_image, const cv::Mat & normal_image,
+                                          const cv::Point & grid_point, std::vector<double> & center)
+{
+    /* Move to the local centroid; skip if it is not a valid pixel. */
+    const cv::Point seed = findCentroid(depth_image, normal_image, grid_point); // label_image,
+    if (!isPixelValid(depth_image, normal_image, seed, params_.k_c_)) // label_image,
+        return false;
+    const float depth = depth_image.at<float>(seed.y, seed.x);
+    const cv::Vec3f normal = normal_image.at<cv::Vec3f>(seed.y, seed.x);
+    center = {(double) seed.x, (double) seed.y, depth, normal.val[0], normal.val[1], normal.val[2],
+              (double) next_center_id_++};
+    return true;
+}
 
+/*
+*   Warm start: carry last frame's centers (stored in odom) into this frame's floor image.
+*
+*   Each center is reprojected through the current egocan pose (the inverse of pixelToEgocanFrame)
+*   and dropped if it leaves the image, lands on an invalid pixel, or that pixel's depth changed by
+*   more than warm_max_depth_change_ (the surface it described is gone). Centers closer than half
+*   a grid step merge, keeping the older id. New centers spawn on the seeding grid wherever no
+*   center is within a grid step, so newly seen terrain is covered.
+*/
+void SuperpixelDepthSegmenter::warmStartCenters(const cv::Mat & depth_image, const cv::Mat & normal_image)
+{
+    const Eigen::Isometry3d odomToEgocan = egocanToOdom_.inverse();
+    const double scale = params_.h_ * params_.k_c_ / 2.0;  // floor pixels per unit of x / y
+    for (const auto & warm : warm_centers_)
+    {
+        const Eigen::Vector3d p = odomToEgocan * warm.point;
+        if (p.y() <= 1e-3)
+            continue;  // not below the camera any more
+        const cv::Point pixel(static_cast<int>(std::floor(p.x() * scale / p.y() + params_.k_c_ / 2)),
+                              static_cast<int>(std::floor(p.z() * scale / p.y() + params_.k_c_ / 2)));
+        if (!isPixelValid(depth_image, normal_image, pixel, params_.k_c_))
+            continue;
+        const float depth = depth_image.at<float>(pixel.y, pixel.x);
+        if (std::abs(depth - p.y()) > params_.warm_max_depth_change_)
+            continue;
+        const Eigen::Vector3d n = odomToEgocan.linear() * warm.normal;
+        bool merged = false;
+        for (const auto & other : centers_)  // older ids come first: warm_centers_ is in center order
+        {
+            if (std::hypot(other[0] - pixel.x, other[1] - pixel.y) < params_.step_ / 2.0)
+            {
+                merged = true;
+                break;
+            }
+        }
+        if (merged)
+            continue;
+        centers_.push_back({(double) pixel.x, (double) pixel.y, depth, n.x(), n.y(), n.z(), warm.id});
+        center_counts_.push_back(0);
+    }
+
+    const size_t carried = centers_.size();
+    for (int r = params_.step_; r < depth_image.rows - (params_.step_ / 2); r += params_.step_)
+    {
+        for (int c = params_.step_; c < depth_image.cols - (params_.step_ / 2); c += params_.step_)
+        {
+            bool covered = false;
+            for (size_t j = 0; j < carried && !covered; j++)
+                covered = std::hypot(centers_[j][0] - c, centers_[j][1] - r) < params_.step_;
+            std::vector<double> center;
+            if (!covered && seedCenter(depth_image, normal_image, cv::Point(c, r), center))
+            {
+                centers_.push_back(center);
+                center_counts_.push_back(0);
+            }
+        }
+    }
+}
+
+/* Store this frame's centers in odom for the next frame's warm start. */
+void SuperpixelDepthSegmenter::saveWarmCenters()
+{
+    std::vector<std::pair<double, WarmCenter>> saved;
+    for (size_t j = 0; j < centers_.size(); j++)
+    {
+        if (center_counts_[j] == 0)
+            continue;
+        cv::Vec3f egocanPt;
+        pixelToEgocanFrame(egocanPt, cv::Point(centers_[j][0], centers_[j][1]), centers_[j][2], params_);
+        const Eigen::Vector3d normal(centers_[j][3], centers_[j][4], centers_[j][5]);
+        saved.push_back({centers_[j][CENTER_ID],
+                         {egocanToOdom_ * Eigen::Vector3d(egocanPt[0], egocanPt[1], egocanPt[2]),
+                          egocanToOdom_.linear() * normal.normalized(), centers_[j][CENTER_ID]}});
+    }
+    // Oldest ids first, so they win merges in the next frame.
+    std::sort(saved.begin(), saved.end(), [](const auto & a, const auto & b) { return a.first < b.first; });
+    warm_centers_.clear();
+    for (const auto & s : saved)
+        warm_centers_.push_back(s.second);
 }
 
 cv::Point SuperpixelDepthSegmenter::findCentroid(const cv::Mat & depth_image, 
@@ -1126,6 +1150,7 @@ void SuperpixelDepthSegmenter::enforceConnectivity(const cv::Mat & depth_image)
         {
             target = static_cast<int>(centers_.size());
             centers_.push_back(std::vector<double>(centers_[componentCluster[id]].size(), 0.0));
+            centers_.back()[CENTER_ID] = (double) next_center_id_++;
             center_counts_.push_back(0);
             created++;
         }
@@ -1158,7 +1183,8 @@ void SuperpixelDepthSegmenter::generateSuperpixels(const cv::Mat & depth_image,
 
 
     // Generate superpixels
-    for (int i = 0; i < params_.num_iterations_; i++)
+    const int iterations = warm_frame_ ? params_.warm_iterations_ : params_.num_iterations_;
+    for (int i = 0; i < iterations; i++)
     {
         // RCLCPP_INFO_STREAM(node_->get_logger(), "       Iteration: " << i);
 

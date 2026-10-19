@@ -182,8 +182,9 @@ void Visualizer::visualize(const cv::Mat & depth_image,
 
 // const cv::Mat & depth_img,
 /*
-*   One superpixel token: plane and convex hull in the odom frame. Ids are cluster indices
-*   until warm-starting gives persistent ids; the plane-fit residual is not computed here yet.
+*   One superpixel token: plane and convex hull in the odom frame. Ids are the centers' ids
+*   (index 6 of each center), which persist across frames when warm-starting; the plane-fit
+*   residual is not computed here yet.
 */
 static go2_interface_msgs::msg::Superpixel toSuperpixelMsg(size_t id,
                                                            const Eigen::Isometry3d & planeToWorld,
@@ -320,7 +321,8 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         if (params_.publish_superpixel_array_)
         {
             superpixel_msg.superpixels.push_back(
-                toSuperpixelMsg(i, region.transformPlaneToWorld, superpixel_convex_hulls[i], center_counts[i]));
+                toSuperpixelMsg(centers[i].size() > 6 ? (size_t) centers[i][6] : i, region.transformPlaneToWorld,
+                                superpixel_convex_hulls[i], center_counts[i]));
         }
 
         if (params_.footprint_regions_)

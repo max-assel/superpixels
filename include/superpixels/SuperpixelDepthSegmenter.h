@@ -149,6 +149,26 @@ class SuperpixelDepthSegmenter
         std::map<std::string, double> lastStageMs_;
         rclcpp::Time lastStamp_{0, 0, RCL_ROS_TIME};
         double lastConnectivityMs_ = 0.0;
+
+        // Warm start (params_.warm_start_). Each center vector carries its persistent id at index
+        // CENTER_ID; centers are carried between frames in the odom frame.
+        static constexpr size_t CENTER_ID = 6;
+        struct WarmCenter
+        {
+            Eigen::Vector3d point;   // odom frame
+            Eigen::Vector3d normal;  // odom frame
+            double id;
+        };
+        std::vector<WarmCenter> warm_centers_;
+        Eigen::Isometry3d egocanToOdom_ = Eigen::Isometry3d::Identity(); // current frame
+        bool warm_frame_ = false;    // this frame was warm-started
+        int64_t next_center_id_ = 0;
+
+        // Seed one center near a grid point (local centroid), or none if it lands on an invalid pixel.
+        bool seedCenter(const cv::Mat & depth_image, const cv::Mat & normal_image, const cv::Point & grid_point,
+                        std::vector<double> & center);
+        void warmStartCenters(const cv::Mat & depth_image, const cv::Mat & normal_image);
+        void saveWarmCenters();
         rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr timingPub_;
         // cv_bridge::CvImagePtr raw_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr raw_normal_img_ptr_ = nullptr;

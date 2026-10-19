@@ -32,7 +32,9 @@ struct SuperpixelParams
     int num_iterations_ = 10; // Number of iterations
     int num_superpixels_ = 200; // Desired number of approximately equally-sized superpixels
     int step_ = 0; // superpixel grid interval
-    bool warm_start_ = false; // Warm start
+    bool warm_start_ = false; // Carry centers (in odom) and their ids from frame to frame; see warmStartCenters
+    int warm_iterations_ = 3; // SLIC iterations on warm-started frames
+    double warm_max_depth_change_ = 0.05; // A carried center whose pixel's depth changed more than this (m) is dropped
     bool constraint_ = true; // Use constraint
     bool ransac_ = true; // Refine normals via RANSAC
     bool snapping_ = false; // Snap clusters to nearest actual pixel
@@ -51,11 +53,9 @@ struct SuperpixelParams
 
     // PlanarTerrain regions (Footprint.h)
     double foot_radius_ = 0.02; // Foot radius (m): boundaries and insets keep this clearance
-    bool footprint_regions_ = false; // Non-convex footprint as boundary and a grown convex inset, instead of the radially shrunk hull
+    bool footprint_regions_ = false; // Non-convex footprint as boundary and the footprint eroded by the foot as insets, instead of the radially shrunk hull
     double footprint_resolution_ = 0.005; // Rasterization of each region's points in its plane (m)
     double footprint_close_radius_ = 0.025; // Gaps up to this wide inside a footprint are closed (m); about the connectivity pixel radius
-    int inset_vertices_ = 16; // Vertices of the grown convex inset
-    double inset_growth_factor_ = 1.05; // CPD region growing step
 
     // Back-projection from the egocan's stored points instead of pixel centers
     bool use_floor_points_ = false; // Subscribe to the egocan floor_points image and back-project pixels to their actual points

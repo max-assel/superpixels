@@ -5,8 +5,6 @@
 
 #include <opencv2/opencv.hpp>
 
-#include <convex_plane_decomposition/ConvexRegionGrowing.h>
-
 namespace cpd = convex_plane_decomposition;
 
 namespace
@@ -62,20 +60,18 @@ namespace
         }
     };
 
-    // The largest outer contour and its holes as a polygon with holes (outer counterclockwise,
-    // holes clockwise). Empty if the mask has no part with an area.
-    cpd::CgalPolygonWithHoles2d largestPart(const Contours & c, const Grid & grid)
+    // One outer contour and its holes as a polygon with holes (outer counterclockwise, holes
+    // clockwise). Empty if the contour does not make a simple polygon.
+    cpd::CgalPolygonWithHoles2d part(const Contours & c, int index, const Grid & grid)
     {
         cpd::CgalPolygonWithHoles2d shape;
-        if (c.largest < 0)
-            return shape;
-        cpd::CgalPolygon2d outer = toPolygon(c.contours[c.largest], grid);
+        cpd::CgalPolygon2d outer = toPolygon(c.contours[index], grid);
         if (outer.size() < 3 || !outer.is_simple())
             return shape;
         if (outer.is_clockwise_oriented())
             outer.reverse_orientation();
         shape = cpd::CgalPolygonWithHoles2d(outer);
-        for (int child = c.hierarchy[c.largest][2]; child >= 0; child = c.hierarchy[child][0])
+        for (int child = c.hierarchy[index][2]; child >= 0; child = c.hierarchy[child][0])
         {
             cpd::CgalPolygon2d hole = toPolygon(c.contours[child], grid);
             if (hole.size() < 3 || !hole.is_simple() || std::abs(hole.area()) < grid.resolution * grid.resolution)
@@ -87,12 +83,24 @@ namespace
         return shape;
     }
 
-    // The mask restricted to the connected part containing the given cell.
-    cv::Mat partContaining(const cv::Mat & mask, const cv::Point & cell)
+    // Every outer contour with an area, largest first.
+    std::vector<cpd::CgalPolygonWithHoles2d> allParts(const Contours & c, const Grid & grid)
     {
-        cv::Mat labels;
-        cv::connectedComponents(mask, labels, 8, CV_32S);
-        return labels == labels.at<int>(cell);
+        std::vector<std::pair<double, cpd::CgalPolygonWithHoles2d>> parts;
+        for (int i = 0; i < (int) c.contours.size(); i++)
+        {
+            if (c.hierarchy[i][3] >= 0)
+                continue;
+            cpd::CgalPolygonWithHoles2d shape = part(c, i, grid);
+            const double area = shape.outer_boundary().is_empty() ? 0.0 : shape.outer_boundary().area();
+            if (area >= grid.resolution * grid.resolution)
+                parts.emplace_back(area, std::move(shape));
+        }
+        std::sort(parts.begin(), parts.end(), [](const auto & a, const auto & b) { return a.first > b.first; });
+        std::vector<cpd::CgalPolygonWithHoles2d> shapes;
+        for (auto & p : parts)
+            shapes.push_back(std::move(p.second));
+        return shapes;
     }
 }
 
@@ -130,41 +138,25 @@ bool regionFootprint(const std::vector<Eigen::Vector2d> & points,
     cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, closeKernel);
 
     const Contours parts(mask);
-    const cpd::CgalPolygonWithHoles2d boundary = largestPart(parts, grid);
+    if (parts.largest < 0)
+        return false;
+    const cpd::CgalPolygonWithHoles2d boundary = part(parts, parts.largest, grid);
     if (boundary.outer_boundary().is_empty())
         return false;
 
-    // Foot-center region: the boundary's part (closing can leave small separate ones) eroded by the
-    // foot radius.
+    // Foot-center region, as in CPD: the boundary's part (closing can leave small separate ones)
+    // eroded by the foot radius. It can split into several parts, each with holes.
     cv::Mat filled(rows, cols, CV_8UC1, cv::Scalar(0));
     cv::drawContours(filled, parts.contours, parts.largest, cv::Scalar(255), cv::FILLED);
     filled &= mask;  // drawing fills the holes in; cut them out again
     cv::Mat eroded;
     const cv::Mat footKernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * footCells + 1, 2 * footCells + 1));
     cv::erode(filled, eroded, footKernel);
-    if (cv::countNonZero(eroded) == 0)
+    std::vector<cpd::CgalPolygonWithHoles2d> insets = allParts(Contours(eroded), grid);
+    if (insets.empty())
         return false;
-
-    // Seed at the point farthest from the eroded edge, and grow inside the part that contains it.
-    cv::Mat distance;
-    cv::distanceTransform(eroded, distance, cv::DIST_L2, cv::DIST_MASK_PRECISE);
-    cv::Point seed;
-    cv::minMaxLoc(distance, nullptr, nullptr, nullptr, &seed);
-    const cpd::CgalPolygonWithHoles2d footArea = largestPart(Contours(partContaining(eroded, seed)), grid);
-    if (footArea.outer_boundary().is_empty())
-        return false;
-    cpd::CgalPolygon2d inset = cpd::growConvexPolygonInsideShape(footArea, grid.toPlane(seed),
-                                                                 params.inset_vertices_, params.inset_growth_factor_);
-    if (inset.size() < 3 || std::abs(inset.area()) < res * res)
-        return false;
-    // Region growing occasionally runs away (vertices at 1e17 m); keep only insets inside the shape.
-    for (const auto & vertex : inset.vertices())
-    {
-        if (footArea.outer_boundary().bounded_side(vertex) == CGAL::ON_UNBOUNDED_SIDE)
-            return false;
-    }
 
     boundaryWithInset.boundary = boundary;
-    boundaryWithInset.insets = {cpd::CgalPolygonWithHoles2d(inset)};
+    boundaryWithInset.insets = std::move(insets);
     return true;
 }
