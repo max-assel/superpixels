@@ -13,6 +13,7 @@ from launch.actions import (
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 
@@ -22,6 +23,12 @@ def generate_launch_description():
     # Launch Arguments #
     ####################
     use_sim_time = LaunchConfiguration("use_sim_time")
+    publish_superpixel_array = LaunchConfiguration("publish_superpixel_array")
+    declare_publish_superpixel_array = DeclareLaunchArgument(
+        "publish_superpixel_array",
+        default_value="false",
+        description="Publish SuperpixelArray tokens on /perception/superpixels",
+    )
 
     declare_use_sim_time = DeclareLaunchArgument(
         "use_sim_time",
@@ -51,6 +58,11 @@ def generate_launch_description():
     depth_img_normal_estimation_path = get_package_share_directory("depth_img_normal_estimation")
     superpixels_path = get_package_share_directory("superpixels")
     config_path = os.path.join(superpixels_path, "cfg", "depth_online.yaml")
+    declare_params_file = DeclareLaunchArgument(
+        "params_file",
+        default_value=config_path,
+        description="Extra superpixel parameters, applied on top of the package config",
+    )
 
     ############################
     # Declare Launch Arguments #
@@ -78,6 +90,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             "use_sim_time": use_sim_time,
+            "params_file": LaunchConfiguration("params_file"),
         }.items(),
     )    
 
@@ -86,7 +99,8 @@ def generate_launch_description():
         executable="superpixel_depth_segmentation_node",
         name="superpixel_depth_segmentation_node",
         output="screen",
-        parameters=[config_path]
+        parameters=[config_path, LaunchConfiguration("params_file"),
+                    {"publish_superpixel_array": ParameterValue(publish_superpixel_array, value_type=bool)}]
     )
 
     # grid_map_visualization_node = Node(
@@ -104,6 +118,8 @@ def generate_launch_description():
         [
             set_use_sim_time,
             declare_use_sim_time,
+            declare_publish_superpixel_array,
+            declare_params_file,
             # declare_visualization_config_file_cmd,
             normal_estimation_ld,
             semantic_egocan_ld,

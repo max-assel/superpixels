@@ -94,7 +94,7 @@ void Ransac::fit(const std::vector<cv::Point> & samples,
     {
         cv::Point pixel = samples[i];
         cv::Vec3f egocanPt;
-        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_);
 
         A(i, 0) = egocanPt.val[0];
         A(i, 1) = 1.0;
@@ -114,7 +114,7 @@ void Ransac::compute_inliers(const std::vector<cv::Point> & pixels,
     {
         cv::Point pixel = pixels[i];
         cv::Vec3f egocanPt;
-        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_.k_c_, params_.h_);
+        pixelToEgocanFrame(egocanPt, pixel, depth_image.at<float>(pixel.y, pixel.x), params_);
 
         double y_hat = x(0) * egocanPt.val[0] + x(1) + x(2) * egocanPt.val[2];
         double error = std::abs(egocanPt.val[1] - y_hat);

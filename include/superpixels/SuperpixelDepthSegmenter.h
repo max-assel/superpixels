@@ -1,5 +1,8 @@
 #pragma once
 
+#include <map>
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 
@@ -69,6 +72,12 @@ class SuperpixelDepthSegmenter
                                     // const cv::Mat & label_image,
                                     const cv::Mat & normal_image);
 
+        // Recompute cluster centers (pixel, depth, normal) and pixel lists from clusters_.
+        void updateCenters(const cv::Mat & depth_image, const cv::Mat & normal_image);
+
+        // Split clusters into components connected in the image and in 3D; reattach or drop the rest.
+        void enforceConnectivity(const cv::Mat & depth_image);
+
         bool checkConstraints(const int & center_idx, 
                                 const float & depth,
                                 // const uint8_t & label,
@@ -119,6 +128,11 @@ class SuperpixelDepthSegmenter
         // image_transport::SubscriberFilter raw_label_img_sub_;
         image_transport::SubscriberFilter raw_normal_img_sub_;
 
+        // Egocan floor points by stamp (use_floor_points), matched to the floor image in run()
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr floor_points_sub_;
+        std::map<int64_t, sensor_msgs::msg::Image::ConstSharedPtr> floor_points_msgs_;
+        int floor_points_misses_ = 0;
+
         // Image message pointers
         sensor_msgs::msg::Image::ConstSharedPtr raw_depth_img_msg_ = nullptr;
         // sensor_msgs::ImageConstPtr raw_label_img_msg_ = nullptr;
@@ -130,6 +144,32 @@ class SuperpixelDepthSegmenter
 
         // Image pointers
         cv_bridge::CvImagePtr raw_depth_img_ptr_ = nullptr;
+
+        // Per-frame stage times (ms) of the last run(), published with the regions on /perception/timing
+        std::map<std::string, double> lastStageMs_;
+        rclcpp::Time lastStamp_{0, 0, RCL_ROS_TIME};
+        double lastConnectivityMs_ = 0.0;
+
+        // Warm start (params_.warm_start_). Each center vector carries its persistent id at index
+        // CENTER_ID; centers are carried between frames in the odom frame.
+        static constexpr size_t CENTER_ID = 6;
+        struct WarmCenter
+        {
+            Eigen::Vector3d point;   // odom frame
+            Eigen::Vector3d normal;  // odom frame
+            double id;
+        };
+        std::vector<WarmCenter> warm_centers_;
+        Eigen::Isometry3d egocanToOdom_ = Eigen::Isometry3d::Identity(); // current frame
+        bool warm_frame_ = false;    // this frame was warm-started
+        int64_t next_center_id_ = 0;
+
+        // Seed one center near a grid point (local centroid), or none if it lands on an invalid pixel.
+        bool seedCenter(const cv::Mat & depth_image, const cv::Mat & normal_image, const cv::Point & grid_point,
+                        std::vector<double> & center);
+        void warmStartCenters(const cv::Mat & depth_image, const cv::Mat & normal_image);
+        void saveWarmCenters();
+        rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr timingPub_;
         // cv_bridge::CvImagePtr raw_label_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr raw_normal_img_ptr_ = nullptr;
         cv_bridge::CvImagePtr prop_depth_img_ptr_ = nullptr;

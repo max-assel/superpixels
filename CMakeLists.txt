@@ -17,6 +17,8 @@ set(dependencies
     convex_plane_decomposition
     convex_plane_decomposition_ros
     convex_plane_decomposition_msgs
+    go2_interface_msgs
+    diagnostic_msgs
     segmented_planes_terrain_model
     egocylindrical
     )
@@ -51,6 +53,8 @@ include_directories(
 # Main library
 add_library(${PROJECT_NAME}
         src/ConvexHullifier.cpp
+        src/Footprint.cpp
+        src/RegionMerging.cpp
         src/ImagePreprocessor.cpp
         src/Ransac.cpp
         src/SuperpixelDepthSegmenter.cpp

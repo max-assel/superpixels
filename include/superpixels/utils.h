@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <opencv2/opencv.hpp>
 
 #include <Eigen/Dense>
@@ -30,10 +32,38 @@ struct SuperpixelParams
     int num_iterations_ = 10; // Number of iterations
     int num_superpixels_ = 200; // Desired number of approximately equally-sized superpixels
     int step_ = 0; // superpixel grid interval
-    bool warm_start_ = false; // Warm start
+    bool warm_start_ = false; // Carry centers (in odom) and their ids from frame to frame; see warmStartCenters
+    int warm_iterations_ = 3; // SLIC iterations on warm-started frames
+    double warm_max_depth_change_ = 0.05; // A carried center whose pixel's depth changed more than this (m) is dropped
     bool constraint_ = true; // Use constraint
     bool ransac_ = true; // Refine normals via RANSAC
     bool snapping_ = false; // Snap clusters to nearest actual pixel
+    bool publish_superpixel_array_ = false; // Publish SuperpixelArray tokens for the learned policy and evaluator
+
+    // Connectivity enforcement after the SLIC iterations
+    bool connectivity_ = false; // Split clusters into parts connected in the image and in 3D
+    double connectivity_max_edge_dist_ = 0.03; // Neighboring pixels further apart than this in 3D are not connected (m)
+    int connectivity_pixel_radius_ = 2; // Pixels this close in the image count as neighbors (bridges the sparse floor image)
+    double connectivity_min_fragment_frac_ = 0.25; // Unattached fragments smaller than this fraction of a nominal superpixel are dropped
+
+    // Density filtering of each cluster's points (in its plane) before the hull
+    bool density_filter_ = false; // Build hulls from the densest DBSCAN cluster only
+    double density_eps_ = 0.015; // DBSCAN neighborhood radius (m), about 2.5 floor-image pixels at standing height
+    int density_min_points_ = 4; // DBSCAN core-point threshold (neighbors within density_eps_, including itself)
+
+    // PlanarTerrain regions (Footprint.h)
+    double foot_radius_ = 0.02; // Foot radius (m): boundaries and insets keep this clearance
+    bool footprint_regions_ = false; // Non-convex footprint as boundary and the footprint eroded by the foot as insets, instead of the radially shrunk hull
+    double footprint_resolution_ = 0.005; // Rasterization of each region's points in its plane (m)
+    double footprint_close_radius_ = 0.025; // Gaps up to this wide inside a footprint are closed (m); about the connectivity pixel radius
+    bool merge_coplanar_regions_ = false; // Merge coplanar neighboring superpixels into one PlanarTerrain region (needs footprint_regions_); see RegionMerging.h
+    double merge_max_angle_ = 0.087; // Max angle between a superpixel's normal and its group plane's (rad, 5 deg)
+    double merge_max_offset_ = 0.015; // Max distance of a superpixel's centroid from its group plane (m)
+    double merge_max_gap_ = 0.02; // Superpixels whose hulls are within this (m, in xy) are neighbors
+
+    // Back-projection from the egocan's stored points instead of pixel centers
+    bool use_floor_points_ = false; // Subscribe to the egocan floor_points image and back-project pixels to their actual points
+    std::shared_ptr<cv::Mat> floor_points_ = std::make_shared<cv::Mat>(); // Current frame's points (CV_32FC3, egocan frame; empty if none). Shared by every copy of the params
 
     // Superpixel distance parameters
     double w_normal_ = 1.0; // Weighting parameter for normal similarity term
@@ -325,7 +355,30 @@ inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
                                 const int & k_c,
                                 const double & h)
 {
-    egocanPt[0] = (pixel.x - (k_c / 2)) * (depth * 2 / (h * k_c));
+    // egocylindrical truncates floor indices to int, so pixel i holds points in [i, i + 1):
+    // back-project from the pixel center, not its corner (a half-pixel bias otherwise).
+    egocanPt[0] = (pixel.x + 0.5f - (k_c / 2)) * (depth * 2 / (h * k_c));
     egocanPt[1] = depth;
-    egocanPt[2] = (pixel.y - (k_c / 2)) * (depth * 2 / (h * k_c));
+    egocanPt[2] = (pixel.y + 0.5f - (k_c / 2)) * (depth * 2 / (h * k_c));
+}
+
+// Back-project a floor pixel to the point egocylindrical stored in it when floor points are
+// available and the depth is that point's own (preprocessing fills and changes some depths);
+// otherwise to the pixel center. Pixel centers stretch surfaces past edges by up to half a pixel.
+inline void pixelToEgocanFrame(cv::Vec3f & egocanPt,
+                                const cv::Point & pixel,
+                                const float & depth,
+                                const SuperpixelParams & params)
+{
+    const cv::Mat & points = *params.floor_points_;
+    if (!points.empty() && pixel.x >= 0 && pixel.y >= 0 && pixel.x < points.cols && pixel.y < points.rows)
+    {
+        const cv::Vec3f & p = points.at<cv::Vec3f>(pixel.y, pixel.x);
+        if (std::abs(std::abs(p[1]) - depth) < 1e-5f)
+        {
+            egocanPt = cv::Vec3f(p[0], depth, p[2]);
+            return;
+        }
+    }
+    pixelToEgocanFrame(egocanPt, pixel, depth, params.k_c_, params.h_);
 }
