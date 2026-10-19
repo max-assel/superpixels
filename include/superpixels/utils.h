@@ -56,6 +56,10 @@ struct SuperpixelParams
     bool footprint_regions_ = false; // Non-convex footprint as boundary and the footprint eroded by the foot as insets, instead of the radially shrunk hull
     double footprint_resolution_ = 0.005; // Rasterization of each region's points in its plane (m)
     double footprint_close_radius_ = 0.025; // Gaps up to this wide inside a footprint are closed (m); about the connectivity pixel radius
+    bool merge_coplanar_regions_ = false; // Merge coplanar neighboring superpixels into one PlanarTerrain region (needs footprint_regions_); see RegionMerging.h
+    double merge_max_angle_ = 0.087; // Max angle between a superpixel's normal and its group plane's (rad, 5 deg)
+    double merge_max_offset_ = 0.015; // Max distance of a superpixel's centroid from its group plane (m)
+    double merge_max_gap_ = 0.02; // Superpixels whose hulls are within this (m, in xy) are neighbors
 
     // Back-projection from the egocan's stored points instead of pixel centers
     bool use_floor_points_ = false; // Subscribe to the egocan floor_points image and back-project pixels to their actual points

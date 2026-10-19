@@ -56,6 +56,13 @@ SuperpixelDepthSegmenter::SuperpixelDepthSegmenter(const rclcpp::Node::SharedPtr
     params_.footprint_regions_ = node_->get_parameter_or<bool>("footprint_regions", false);
     params_.footprint_resolution_ = node_->get_parameter_or<double>("footprint_resolution", 0.005);
     params_.footprint_close_radius_ = node_->get_parameter_or<double>("footprint_close_radius", 0.025);
+    params_.merge_coplanar_regions_ = node_->get_parameter_or<bool>("merge_coplanar_regions", false);
+    params_.merge_max_angle_ = node_->get_parameter_or<double>("merge_max_angle", 0.087);
+    params_.merge_max_offset_ = node_->get_parameter_or<double>("merge_max_offset", 0.015);
+    params_.merge_max_gap_ = node_->get_parameter_or<double>("merge_max_gap", 0.02);
+    RCLCPP_INFO_STREAM(node_->get_logger(), "       merge_coplanar_regions_: " << params_.merge_coplanar_regions_
+                       << " (angle " << params_.merge_max_angle_ << " rad, offset " << params_.merge_max_offset_
+                       << " m, gap " << params_.merge_max_gap_ << " m)");
     RCLCPP_INFO_STREAM(node_->get_logger(), "       footprint_regions_: " << params_.footprint_regions_
                        << " (resolution " << params_.footprint_resolution_ << " m, close " << params_.footprint_close_radius_
                        << " m, foot radius " << params_.foot_radius_ << " m)");

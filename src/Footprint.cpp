@@ -21,42 +21,31 @@ namespace
         }
     };
 
+    // Simplified to within one cell, coarser if that is not a simple polygon (contours of large
+    // sparse masks can touch themselves); empty if no simplification gives one.
     cpd::CgalPolygon2d toPolygon(const std::vector<cv::Point> & contour, const Grid & grid)
     {
-        // Simplify to within one cell; keep the raw contour if simplifying breaks it.
-        std::vector<cv::Point> simplified;
-        cv::approxPolyDP(contour, simplified, 1.0, true);
-        cpd::CgalPolygon2d polygon;
-        for (const auto & cell : simplified)
-            polygon.push_back(grid.toPlane(cell));
-        if (polygon.size() < 3 || !polygon.is_simple())
+        for (double epsilon : {1.0, 2.0, 3.0})
         {
-            polygon.clear();
-            for (const auto & cell : contour)
+            std::vector<cv::Point> simplified;
+            cv::approxPolyDP(contour, simplified, epsilon, true);
+            cpd::CgalPolygon2d polygon;
+            for (const auto & cell : simplified)
                 polygon.push_back(grid.toPlane(cell));
+            if (polygon.size() >= 3 && polygon.is_simple())
+                return polygon;
         }
-        return polygon;
+        return cpd::CgalPolygon2d();
     }
 
     struct Contours
     {
         std::vector<std::vector<cv::Point>> contours;
         std::vector<cv::Vec4i> hierarchy;  // next, previous, first child (hole), parent
-        int largest = -1;                  // outer contour with the largest area, -1 if none
 
         explicit Contours(const cv::Mat & mask)
         {
             cv::findContours(mask.clone(), contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
-            double largestArea = 0.0;
-            for (int i = 0; i < (int) contours.size(); i++)
-            {
-                const double area = cv::contourArea(contours[i]);
-                if (hierarchy[i][3] < 0 && area > largestArea)
-                {
-                    largest = i;
-                    largestArea = area;
-                }
-            }
         }
     };
 
@@ -104,12 +93,12 @@ namespace
     }
 }
 
-bool regionFootprint(const std::vector<Eigen::Vector2d> & points,
-                     const SuperpixelParams & params,
-                     cpd::BoundaryWithInset & boundaryWithInset)
+std::vector<cpd::BoundaryWithInset> regionFootprints(const std::vector<Eigen::Vector2d> & points,
+                                                     const SuperpixelParams & params)
 {
+    std::vector<cpd::BoundaryWithInset> footprints;
     if (points.size() < 3)
-        return false;
+        return footprints;
 
     const double res = params.footprint_resolution_;
     const int closeCells = std::max(1, (int) std::ceil(params.footprint_close_radius_ / res));
@@ -136,27 +125,33 @@ bool regionFootprint(const std::vector<Eigen::Vector2d> & points,
     }
     const cv::Mat closeKernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * closeCells + 1, 2 * closeCells + 1));
     cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, closeKernel);
+    // Open with the smallest kernel: removes one-cell necks and diagonal-only links, which make
+    // contours touch themselves (not simple polygons).
+    cv::morphologyEx(mask, mask, cv::MORPH_OPEN, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)));
 
+    // One footprint per connected part (closing can leave several, especially for merged regions).
+    // Insets, as in CPD: the part eroded by the foot radius, possibly several pieces with holes.
     const Contours parts(mask);
-    if (parts.largest < 0)
-        return false;
-    const cpd::CgalPolygonWithHoles2d boundary = part(parts, parts.largest, grid);
-    if (boundary.outer_boundary().is_empty())
-        return false;
-
-    // Foot-center region, as in CPD: the boundary's part (closing can leave small separate ones)
-    // eroded by the foot radius. It can split into several parts, each with holes.
-    cv::Mat filled(rows, cols, CV_8UC1, cv::Scalar(0));
-    cv::drawContours(filled, parts.contours, parts.largest, cv::Scalar(255), cv::FILLED);
-    filled &= mask;  // drawing fills the holes in; cut them out again
-    cv::Mat eroded;
     const cv::Mat footKernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * footCells + 1, 2 * footCells + 1));
-    cv::erode(filled, eroded, footKernel);
-    std::vector<cpd::CgalPolygonWithHoles2d> insets = allParts(Contours(eroded), grid);
-    if (insets.empty())
-        return false;
-
-    boundaryWithInset.boundary = boundary;
-    boundaryWithInset.insets = std::move(insets);
-    return true;
+    for (int i = 0; i < (int) parts.contours.size(); i++)
+    {
+        if (parts.hierarchy[i][3] >= 0)
+            continue;  // a hole
+        cpd::CgalPolygonWithHoles2d boundary = part(parts, i, grid);
+        if (boundary.outer_boundary().is_empty())
+            continue;
+        cv::Mat filled(rows, cols, CV_8UC1, cv::Scalar(0));
+        cv::drawContours(filled, parts.contours, i, cv::Scalar(255), cv::FILLED);
+        filled &= mask;  // drawing fills the holes in; cut them out again
+        cv::Mat eroded;
+        cv::erode(filled, eroded, footKernel);
+        std::vector<cpd::CgalPolygonWithHoles2d> insets = allParts(Contours(eroded), grid);
+        if (insets.empty())
+            continue;  // no foot fits
+        cpd::BoundaryWithInset footprint;
+        footprint.boundary = std::move(boundary);
+        footprint.insets = std::move(insets);
+        footprints.push_back(std::move(footprint));
+    }
+    return footprints;
 }

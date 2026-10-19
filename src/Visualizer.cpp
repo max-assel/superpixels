@@ -1,5 +1,6 @@
 #include <superpixels/Visualizer.h>
 #include <superpixels/Footprint.h>
+#include <superpixels/RegionMerging.h>
 
 Visualizer::Visualizer(const SuperpixelParams & params, const rclcpp::Node::SharedPtr & node)
 {
@@ -277,6 +278,10 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
 
     Eigen::Vector2d convexHullPt, convexHullDir, inflatedConvexHullPt;
 
+    // With merging, superpixels are collected here and become PlanarTerrain regions after the loop.
+    const bool merge = params_.merge_coplanar_regions_ && params_.footprint_regions_;
+    std::vector<PlaneRegion> planes;
+
     // RCLCPP_INFO_STREAM(node_->get_logger(), "       planar regions:");
     for (size_t i = 0; i < centers.size(); i++)
     {        
@@ -325,11 +330,22 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
                                 superpixel_convex_hulls[i], center_counts[i]));
         }
 
+        if (merge)
+        {
+            planes.push_back({region.transformPlaneToWorld, superpixel_projections[i], superpixel_convex_hulls[i], center_counts[i]});
+            continue;
+        }
+
         if (params_.footprint_regions_)
         {
-            // Footprint boundary and grown convex inset; regions where no foot fits are left out.
-            if (!regionFootprint(superpixel_projections[i], params_, boundaryWithInset))
-                continue;
+            // One region per footprint part, with eroded insets; parts where no foot fits are left out.
+            for (auto & footprint : regionFootprints(superpixel_projections[i], params_))
+            {
+                region.boundaryWithInset = std::move(footprint);
+                region.bbox2d = region.boundaryWithInset.boundary.outer_boundary().bbox();
+                terrain_msg.planar_regions.push_back(convex_plane_decomposition::toMessage(region));
+            }
+            continue;
         }
         else
         {
@@ -398,6 +414,21 @@ void Visualizer::publishPlanarRegions(const cv::Mat & raw_depth_image,
         // RCLCPP_INFO_STREAM(node_->get_logger(), "   e1: " << e1.transpose());
         // RCLCPP_INFO_STREAM(node_->get_logger(), "   normal: " << normal.transpose());
     }    
+
+    if (merge)
+    {
+        for (const auto & group : coplanarGroups(planes, params_))
+        {
+            std::vector<Eigen::Vector2d> points;
+            mergeGroup(planes, group, region.transformPlaneToWorld, points);
+            for (auto & footprint : regionFootprints(points, params_))
+            {
+                region.boundaryWithInset = std::move(footprint);
+                region.bbox2d = region.boundaryWithInset.boundary.outer_boundary().bbox();
+                terrain_msg.planar_regions.push_back(convex_plane_decomposition::toMessage(region));
+            }
+        }
+    }
 
     /* Only compare to pixels in a 2 x step by 2 x step region. */
     // grid_map::GridMap map({"elevation"});
